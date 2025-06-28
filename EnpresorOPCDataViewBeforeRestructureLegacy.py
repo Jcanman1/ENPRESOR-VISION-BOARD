@@ -3714,7 +3714,7 @@ def render_floor_machine_layout_with_customizable_names(machines_data, floors_da
                 )
             )
             right_content.append(
-                dbc.Button("Add Machine", id="add-machine-btn", color="success", size="sm", className="mt-2")
+                dbc.Button(tr("add_machine", lang), id="add-machine-btn", color="success", size="sm", className="mt-2")
             )
         elif selected_floor_id != "all":
             # Selected floor but no machines
@@ -3763,7 +3763,7 @@ def render_floor_machine_layout_with_customizable_names(machines_data, floors_da
                 )
             )
             right_content.append(
-                dbc.Button("Add Machine", id="add-machine-btn", color="success", size="sm", className="mt-1")
+                dbc.Button(tr("add_machine", lang), id="add-machine-btn", color="success", size="sm", className="mt-1")
             )
     
     # MAIN LAYOUT: Fixed left sidebar + dynamic right content
