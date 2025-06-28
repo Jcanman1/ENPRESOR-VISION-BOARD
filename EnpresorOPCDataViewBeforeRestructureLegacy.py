@@ -1480,6 +1480,8 @@ def save_language_preference(language):
         with open(DISPLAY_SETTINGS_PATH, 'w') as f:
             json.dump(settings, f, indent=4)
         logger.info(f"Saved language preference: {language}")
+        global _initial_lang
+        _initial_lang = language
         return True
     except Exception as e:
         logger.error(f"Error saving language preference: {e}")
@@ -2064,13 +2066,15 @@ empty_section = html.Div("Empty section", className="border p-2 h-100")
 
 # Create connection controls
 _initial_lang = load_language_preference()
-connection_controls = dbc.Card(
-    dbc.CardBody([
-        dbc.Row([
-            # Active Machine Info (replacing IP dropdown section)
-            dbc.Col([
-                html.Div([
-                    html.Span(tr("active_machine_label", _initial_lang), id="active-machine-label", className="fw-bold small me-1"),
+
+def connection_controls(lang=_initial_lang):
+    return dbc.Card(
+        dbc.CardBody([
+            dbc.Row([
+                # Active Machine Info (replacing IP dropdown section)
+                dbc.Col([
+                    html.Div([
+                    html.Span(tr("active_machine_label", lang), id="active-machine-label", className="fw-bold small me-1"),
                     html.Span(id="active-machine-display", className="small"),
                 ], className="mt-1"),
             ], width={"xs":3, "md":3}, className="px-1"),
@@ -2078,8 +2082,8 @@ connection_controls = dbc.Card(
             # Status (keep this)
             dbc.Col([
                 html.Div([
-                    html.Span(tr("status_label", _initial_lang), id="status-label", className="fw-bold small me-1"),
-                    html.Span(tr("no_machine_selected", _initial_lang), id="connection-status", className="text-warning small"),
+                    html.Span(tr("status_label", lang), id="status-label", className="fw-bold small me-1"),
+                    html.Span(tr("no_machine_selected", lang), id="connection-status", className="text-warning small"),
                 ], className="mt-1 ms-2"),
             ], width={"xs":2, "md":2}, className="px-1"),
             
@@ -2088,10 +2092,10 @@ connection_controls = dbc.Card(
                 dcc.Dropdown(
                     id="mode-selector",
                     options=[
-                        {"label": tr("live_mode_option", _initial_lang), "value": "live"},
-                        {"label": tr("demo_mode_option", _initial_lang), "value": "demo"},
-                        {"label": tr("historical_mode_option", _initial_lang), "value": "historical"},
-                        {"label": tr("lab_test_mode_option", _initial_lang), "value": "lab"},
+                        {"label": tr("live_mode_option", lang), "value": "live"},
+                        {"label": tr("demo_mode_option", lang), "value": "demo"},
+                        {"label": tr("historical_mode_option", lang), "value": "historical"},
+                        {"label": tr("lab_test_mode_option", lang), "value": "lab"},
                     ],
                     value="live",  # Default to live mode
                     clearable=False,
@@ -2107,9 +2111,9 @@ connection_controls = dbc.Card(
                     id="lab-test-controls",
                     className="d-none",
                     children=[
-                        dbc.Button(tr("start_test"), id="start-test-btn", color="success", size="sm", className="py-0 me-1"),
-                        dbc.Button(tr("stop_test"), id="stop-test-btn", color="danger", size="sm", className="py-0 me-1"),
-                        dbc.Button(tr("clear_data"), id="clear-data-btn", color="secondary", size="sm", className="py-0"),
+                        dbc.Button(tr("start_test", lang), id="start-test-btn", color="success", size="sm", className="py-0 me-1"),
+                        dbc.Button(tr("stop_test", lang), id="stop-test-btn", color="danger", size="sm", className="py-0 me-1"),
+                        dbc.Button(tr("clear_data", lang), id="clear-data-btn", color="secondary", size="sm", className="py-0"),
                     ],
                 ),
             ], width={"xs":2, "md":2}, className="px-1"),
@@ -2158,7 +2162,7 @@ connection_controls = dbc.Card(
                             className="d-inline-block",
                             children=[
                                 dbc.Button(
-                                    tr("export_data"),
+                                    tr("export_data", lang),
                                     id="export-data-button",
                                     color="primary",
                                     size="sm",
@@ -2183,7 +2187,7 @@ connection_controls = dbc.Card(
         ], className="g-0 align-items-center"),
     ], className="py-1 px-2"),
     className="mb-1 mt-0",
-)
+    )
 settings_modal = dbc.Modal([
     dbc.ModalHeader(html.Span(tr("system_settings_title"), id="settings-modal-header")),
     dbc.ModalBody([
@@ -2530,11 +2534,13 @@ def _render_new_dashboard():
 
 
 
-def render_new_dashboard():
+def render_new_dashboard(lang=_initial_lang):
+    # Currently the new dashboard does not use language-specific text directly,
+    # but accept the parameter for future-proofing and consistency.
     return _render_new_dashboard()
 
 
-def render_main_dashboard():
+def render_main_dashboard(lang=_initial_lang):
     return html.Div([
         # Main grid layout - modified to align sections and reduced spacing
         html.Div([
@@ -2741,17 +2747,17 @@ app.layout = html.Div([
             ),
             className="m-0",
         ),
-        dbc.Button(tr("switch_dashboards", _initial_lang),
+        dbc.Button(tr("switch_dashboards", lang),
                    id="new-dashboard-btn",
                    color="light", size="sm", className="ms-2"),
-        dbc.Button(tr("generate_report", _initial_lang),
+        dbc.Button(tr("generate_report", lang),
                    id="generate-report-btn",
                    color="light", size="sm", className="ms-2"),
         dcc.Download(id="report-download"),
     ], className="d-flex justify-content-between align-items-center bg-primary text-white p-2 mb-2"),
 
     # ─── Connection controls (always visible) ──────────────────────────────
-    connection_controls,
+    connection_controls(lang),
 
     dbc.Modal([
         dbc.ModalHeader(html.Span(tr("upload_image_title"), id="upload-modal-header")),
@@ -4662,7 +4668,7 @@ previous_counter_values = [0] * 12
 
 
 # Function to create display settings form
-def create_display_settings_form():
+def create_display_settings_form(lang=_initial_lang):
     """Create a form for display settings"""
     global display_settings
     
@@ -4705,7 +4711,7 @@ def create_display_settings_form():
                     dbc.Switch(
                         id={"type": "display-enabled", "index": i},
                         value=display_settings.get(i, True),  # Default to True if not in settings
-                        label=tr("display_button", _initial_lang),
+                        label=tr("display_button", lang),
                     ),
                     width=8
                 ),
@@ -4714,7 +4720,7 @@ def create_display_settings_form():
     
     # Add header
     header = html.Div(
-        tr("display_settings_header", _initial_lang),
+        tr("display_settings_header", lang),
         className="mb-3 fw-bold"
     )
     

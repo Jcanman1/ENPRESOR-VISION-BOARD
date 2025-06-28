@@ -129,13 +129,14 @@ def register_callbacks(app):
 
     @app.callback(
         Output("dashboard-content", "children"),
-        Input("current-dashboard", "data")
+        [Input("current-dashboard", "data"),
+         Input("language-preference-store", "data")]
     )
-    def render_dashboard(which):
+    def render_dashboard(which, lang):
         if which == "new":
-            return render_new_dashboard()  # Now includes hidden placeholders
+            return render_new_dashboard(lang)
         else:
-            return render_main_dashboard()
+            return render_main_dashboard(lang)
 
     @app.callback(
         Output("current-dashboard", "data"),
@@ -4478,12 +4479,13 @@ def register_callbacks(app):
          Output("display-form-container", "children")],
         [Input({"type": "open-display", "index": ALL}, "n_clicks"),
          Input("close-display-settings", "n_clicks"),
-         Input("save-display-settings", "n_clicks")],
+         Input("save-display-settings", "n_clicks"),
+         Input("language-preference-store", "data")],
         [State("display-modal", "is_open"),
          State({"type": "display-enabled", "index": ALL}, "value")],
         prevent_initial_call=True
     )
-    def toggle_display_modal(open_clicks, close_clicks, save_clicks, is_open, display_enabled_values):
+    def toggle_display_modal(open_clicks, close_clicks, save_clicks, lang, is_open, display_enabled_values):
         """Handle opening/closing the display settings modal and saving settings"""
         global display_settings
         
@@ -4500,7 +4502,7 @@ def register_callbacks(app):
         if '"type":"open-display"' in trigger_prop_id:
             # Check if any button was actually clicked (not initial state)
             if any(click is not None for click in open_clicks):
-                return True, create_display_settings_form()
+                return True, create_display_settings_form(lang)
         
         # Check for close button click
         elif trigger_prop_id == "close-display-settings.n_clicks":
@@ -4529,7 +4531,7 @@ def register_callbacks(app):
                     logger.warning(f"Unexpected number of display values: {len(display_enabled_values)}")
                 
                 # Close modal
-                return False, create_display_settings_form()
+                return False, create_display_settings_form(lang)
         
         # Default case - don't update anything
         return no_update, no_update
