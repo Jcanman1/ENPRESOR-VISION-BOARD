@@ -3428,7 +3428,7 @@ def register_callbacks(app):
                 dbc.Col(html.H5(header, className="mb-0"), width=9),
                 dbc.Col(
                     dbc.Button(
-                        "Units",
+                        tr("units_button", lang),
                         id={"type": "open-production-rate-units", "index": 0},
                         color="primary",
                         size="sm",
@@ -3892,9 +3892,9 @@ def register_callbacks(app):
                 dbc.Row([
                     dbc.Col(html.H5(f"{section_title} (Historical View)", className="mb-0"), width=9),
                     dbc.Col(
-                        dbc.Button("Display", 
+                        dbc.Button(tr("display_button", lang),
                                 id={"type": "open-display", "index": 0},
-                                color="primary", 
+                                color="primary",
                                 size="sm",
                                 className="float-end"),
                         width=3
@@ -4013,9 +4013,9 @@ def register_callbacks(app):
                 dbc.Row([
                     dbc.Col(html.H5(section_title, className="mb-0"), width=9),
                     dbc.Col(
-                        dbc.Button("Display", 
+                        dbc.Button(tr("display_button", lang),
                                 id={"type": "open-display", "index": 0},
-                                color="primary", 
+                                color="primary",
                                 size="sm",
                                 className="float-end"),
                         width=3
