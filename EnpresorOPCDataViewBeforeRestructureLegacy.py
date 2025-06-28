@@ -45,6 +45,7 @@ try:
         append_metrics,
         append_control_log,
         get_historical_control_log,
+        clear_machine_data,
 
     )
 
@@ -71,6 +72,9 @@ except Exception as e:
 
     def get_historical_control_log(timeframe="24h", machine_id=None):
         return []
+
+    def clear_machine_data(machine_id=None):
+        return None
 
       
 #from dash import callback_context, no_update
@@ -2087,6 +2091,7 @@ connection_controls = dbc.Card(
                         {"label": tr("live_mode_option", _initial_lang), "value": "live"},
                         {"label": tr("demo_mode_option", _initial_lang), "value": "demo"},
                         {"label": tr("historical_mode_option", _initial_lang), "value": "historical"},
+                        {"label": tr("lab_test_mode_option", _initial_lang), "value": "lab"},
                     ],
                     value="live",  # Default to live mode
                     clearable=False,
@@ -2095,6 +2100,19 @@ connection_controls = dbc.Card(
                     style={"min-width": "80px"}
                 ),
             ], width={"xs":1, "md":1}, className="px-1"),
+
+            # Lab Test Controls
+            dbc.Col([
+                html.Div(
+                    id="lab-test-controls",
+                    className="d-none",
+                    children=[
+                        dbc.Button(tr("start_test"), id="start-test-btn", color="success", size="sm", className="py-0 me-1"),
+                        dbc.Button(tr("stop_test"), id="stop-test-btn", color="danger", size="sm", className="py-0 me-1"),
+                        dbc.Button(tr("clear_data"), id="clear-data-btn", color="secondary", size="sm", className="py-0"),
+                    ],
+                ),
+            ], width={"xs":2, "md":2}, className="px-1"),
             
             # Historical Time Slider (keep this)
             dbc.Col([
@@ -2152,7 +2170,7 @@ connection_controls = dbc.Card(
                         )
                     ], className="")
                 ], className="text-end"),
-            ], width={"xs":4, "md":4}, className="px-1"),  # Increased width since we removed other elements
+            ], width={"xs":2, "md":2}, className="px-1"),
 
             # Hidden Name field (keep this)
             dbc.Col([
@@ -2687,6 +2705,7 @@ app.layout = html.Div([
     dcc.Store(id="input-values",            data={"count": 1000, "weight": 500.0, "units": "lb"}),
     dcc.Store(id="user-inputs",             data={"units": "lb", "weight": 500.0, "count": 1000}),
     dcc.Store(id="opc-pause-state",         data={"paused": False}),
+    dcc.Store(id="lab-test-running",      data=False),
     dcc.Store(id="app-mode",                data={"mode": "live"}),
     # Store used only to trigger the callback that updates the global
     # ``current_app_mode`` variable.
