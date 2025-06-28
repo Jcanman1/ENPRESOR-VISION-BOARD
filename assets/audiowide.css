@@ -1,0 +1,7 @@
+@font-face {
+    font-family: 'Audiowide';
+    src: url('Audiowide-Regular.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+.enpresor-font { font-family: 'Audiowide', sans-serif; }
