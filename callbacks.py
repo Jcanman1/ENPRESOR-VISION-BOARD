@@ -1277,7 +1277,7 @@ def register_callbacks(app):
          Input("active-machine-store", "data"),
          Input("app-mode", "data"),
          Input("language-preference-store", "data")],
-        prevent_initial_call=True
+        prevent_initial_call=False
     )
     def render_floor_machine_layout_enhanced_with_selection(machines_data, floors_data, ip_addresses_data, additional_image_data, current_dashboard, active_machine_data, app_mode_data, lang):
         """Enhanced render with machine selection capability"""
