@@ -1,25 +1,22 @@
-# Satake Enpresor Tools
 
-This repository contains utilities for working with Enpresor devices. Dash is used to build dashboards while ReportLab creates PDF reports.
+# Enpresor OPC Dashboard
 
-## Installation
+This project aims to replicate the full functionality of `EnpresorOPCDataViewBeforeRestructureLegacy.py` while gradually breaking the monolithic code into smaller, maintainable modules. Every feature and UI button from the legacy dashboard is preserved so that the modernized version behaves identically to the original application.
 
-1. It is recommended to use a virtual environment:
-
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate
-   ```
-
-2. Install the Python dependencies:
-
+## Setup
+1. Ensure you have Python 3 installed.
+2. Install required dependencies:
    ```bash
    pip install -r requirements.txt
    ```
+   (If no `requirements.txt` is provided, install packages referenced in the legacy script as needed.)
 
-## Contents
+## Usage
+Run the dashboard from the repository root:
+```bash
+python3 EnpresorOPCDataViewBeforeRestructureLegacy.py
+```
+The script prints the local and network URLs for accessing the interface. Optionally use `--open-browser` to automatically open your web browser and `--debug` for verbose output.
 
-- `EnpresorOPCDataViewBeforeRestructureLegacy.py` – dashboard and OPC UA client
-- `generate_report.py` – generate PDF reports using recorded data
-- `hourly_data_saving.py` – helper routines for writing metrics to CSV
+As the code is refactored into modules, the entry point and command-line options will remain consistent so that users experience no change in behavior.
 
