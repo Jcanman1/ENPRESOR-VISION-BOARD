@@ -53,3 +53,21 @@ def test_draw_global_summary_single_machine(tmp_path, monkeypatch):
 
     assert "Machines:" in canvas.strings
     assert "1" in canvas.strings
+
+
+def test_draw_machine_sections_runtime_line(tmp_path, monkeypatch):
+    machine_dir = tmp_path / "1"
+    machine_dir.mkdir()
+    csv_file = machine_dir / "last_24h_metrics.csv"
+    csv_file.write_text(
+        "timestamp,accepts,rejects,running,stopped\n"
+        "2020-01-01 00:00:00,1,0,65,5\n"
+    )
+
+    monkeypatch.setattr(generate_report.renderPDF, "draw", lambda *a, **k: None)
+    canvas = DummyCanvas()
+    generate_report.draw_machine_sections(
+        canvas, str(tmp_path), "1", 0, 200, 100, 200
+    )
+
+    assert any("Run Time:" in s for s in canvas.strings)

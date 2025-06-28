@@ -16,6 +16,16 @@ from reportlab.graphics import renderPDF
 from reportlab.lib import colors
 import math  # for label angle calculations
 
+
+def _minutes_to_hm(minutes: float) -> str:
+    """Return an "H:MM" string from a minute count."""
+    try:
+        m = int(round(float(minutes)))
+    except Exception:
+        m = 0
+    hours, mins = divmod(m, 60)
+    return f"{hours}:{mins:02d}"
+
 from hourly_data_saving import EXPORT_DIR as METRIC_EXPORT_DIR, get_historical_data
 
 logging.basicConfig(
@@ -466,8 +476,12 @@ def draw_machine_sections(c, csv_parent_dir, machine, x0, y_start, total_w, avai
     y_pie = current_y - pie_height
     ac_col = next((c for c in df.columns if c.lower()=='accepts'), None)
     rj_col = next((c for c in df.columns if c.lower()=='rejects'), None)
+    run_col = next((c for c in df.columns if c.lower()=='running'), None)
+    stop_col = next((c for c in df.columns if c.lower()=='stopped'), None)
     a_val = df[ac_col].sum() if ac_col else 0
     r_val = df[rj_col].sum() if rj_col else 0
+    run_total = df[run_col].sum() if run_col else 0
+    stop_total = df[stop_col].sum() if stop_col else 0
     
     # Draw pie chart section border
     c.setStrokeColor(colors.black)
@@ -543,7 +557,13 @@ def draw_machine_sections(c, csv_parent_dir, machine, x0, y_start, total_w, avai
         c.setFont('Helvetica', 8)
         c.setFillColor(colors.gray)
         c.drawCentredString(x0 + w_left/2, y_pie + pie_height/2, 'No Data Available')
-    
+
+    # Display runtime and stop time below the pie chart
+    runtime_text = f"Run Time: {_minutes_to_hm(run_total)}  Stop Time: {_minutes_to_hm(stop_total)}"
+    c.setFont('Helvetica', 8)
+    c.setFillColor(colors.black)
+    c.drawCentredString(x0 + w_left/2, y_pie + 4, runtime_text)
+
     # Section 2: Bar chart (right side) - IMPROVED VERSION
     c.setStrokeColor(colors.black)
     c.rect(x0 + w_left, y_pie, w_right, bar_height)
