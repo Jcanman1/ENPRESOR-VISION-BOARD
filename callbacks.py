@@ -4756,6 +4756,8 @@ def register_callbacks(app):
                         "accepts": convert_capacity_to_lbs(accepts, weight_pref),
                         "rejects": convert_capacity_to_lbs(rejects, weight_pref),
                         "objects_per_min": 0,
+                        "running": 1,
+                        "stopped": 0,
                     }
     
                     counters = m.get("demo_counters", [0] * 12)
@@ -4785,11 +4787,23 @@ def register_callbacks(app):
             if opm is None:
                 opm = 0
     
+            # Determine feeder running state
+            feeder_running = False
+            for i in range(1, 5):
+                run_tag = f"Status.Feeders.{i}IsRunning"
+                if run_tag in tags:
+                    val = tags[run_tag]["data"].latest_value
+                    if bool(val):
+                        feeder_running = True
+                        break
+
             metrics = {
                 "capacity": capacity_lbs,
                 "accepts": accepts_lbs,
                 "rejects": rejects_lbs,
                 "objects_per_min": opm,
+                "running": 1 if feeder_running else 0,
+                "stopped": 0 if feeder_running else 1,
             }
     
             for i in range(1, 13):
