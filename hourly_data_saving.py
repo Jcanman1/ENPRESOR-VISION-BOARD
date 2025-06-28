@@ -127,10 +127,10 @@ def purge_old_entries(export_dir: str = EXPORT_DIR, machine_id: Optional[str] = 
     with open(file_path, newline="", encoding="utf-8") as f:
         dict_reader = csv.DictReader(f)
         reader = list(dict_reader)
-        detected_fieldnames = dict_reader.fieldnames
+        detected_fieldnames = dict_reader.fieldnames or []
 
-    if detected_fieldnames is None or "timestamp" not in detected_fieldnames:
-        # Header missing or corrupted - rebuild using hint
+    if not detected_fieldnames or "timestamp" not in detected_fieldnames:
+        # Header missing or corrupted - rebuild using hint or generic names
         with open(file_path, newline="", encoding="utf-8") as f:
             raw_rows = list(csv.reader(f))
         if not raw_rows:
@@ -140,25 +140,50 @@ def purge_old_entries(export_dir: str = EXPORT_DIR, machine_id: Optional[str] = 
         else:
             detected_fieldnames = [f"field_{i}" for i in range(len(raw_rows[0]))]
         reader = [dict(zip(detected_fieldnames, r)) for r in raw_rows]
+    # Combine detected header with hint
+    fieldnames = list(detected_fieldnames)
+    if fieldnames_hint:
+        for fn in fieldnames_hint:
+            if fn not in fieldnames:
+                fieldnames.append(fn)
+
     if not reader:
         return
 
-    # Determine header, allowing for legacy files without a ``mode`` column
-    fieldnames = [fn for fn in reader[0].keys() if fn is not None]
+    # Allow for legacy files without a ``mode`` column
     if "mode" not in fieldnames:
         fieldnames.append("mode")
 
     cutoff = datetime.now() - timedelta(hours=hours)
     filtered = []
     for row in reader:
-        # Handle rows with extra fields placed under ``None``
+        extras = []
         if None in row:
-            extra = row.pop(None)
-            if isinstance(extra, list):
-                extra = extra[0] if extra else ""
-            if extra and not row.get("mode"):
-                row["mode"] = extra
-        row.setdefault("mode", "")
+            extras = row.pop(None)
+            if not isinstance(extras, list):
+                extras = [extras]
+
+        if (
+            fieldnames_hint
+            and "mode" in fieldnames_hint
+            and "mode" in detected_fieldnames
+            and fieldnames_hint.index("mode") > detected_fieldnames.index("mode")
+            and extras
+        ):
+            extras = [row.get("mode", "")] + extras
+            row["mode"] = ""
+
+        missing = [fn for fn in fieldnames if fn not in row]
+        for val, fnm in zip(extras, missing):
+            row[fnm] = val
+        extras = extras[len(missing):]
+        if extras:
+            leftover = extras[0]
+            if leftover and not row.get("mode"):
+                row["mode"] = leftover
+
+        for fn in fieldnames:
+            row.setdefault(fn, "")
 
         try:
             ts = datetime.strptime(row["timestamp"], "%Y-%m-%d %H:%M:%S")
