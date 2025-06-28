@@ -8,7 +8,11 @@ def register_callbacks(app):
     def format_enpresor(text: str):
         parts = text.split("Enpresor")
         if len(parts) == 2:
-            return [parts[0], html.Span("Enpresor", className="enpresor-font"), parts[1]]
+            return [
+                parts[0],
+                html.Span("Enpresor", className="enpresor-font", style={"color": "red"}),
+                parts[1],
+            ]
         return text
 
     # Create a client-side callback to handle theme switching
