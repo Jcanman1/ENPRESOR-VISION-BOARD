@@ -3742,9 +3742,9 @@ def register_callbacks(app):
             dbc.Row([
                 dbc.Col(html.H5(section_title + (" (Historical)" if mode == "historical" else ""), className="mb-0"), width=9),
                 dbc.Col(
-                    dbc.Button("Thresholds", 
+                    dbc.Button(tr("thresholds_button", lang),
                             id={"type": "open-threshold", "index": 0},
-                            color="primary", 
+                            color="primary",
                             size="sm",
                             className="float-end"),
                     width=3
@@ -3768,14 +3768,14 @@ def register_callbacks(app):
         Output("section-6-1", "children"),
         [Input("status-update-interval", "n_intervals"),
          Input("current-dashboard",       "data"),
-        Input("historical-time-index",   "data")],
+         Input("historical-time-index",   "data"),
+         Input("language-preference-store", "data")],
         [State("app-state", "data"),
          State("app-mode", "data"),
-         State("active-machine-store", "data"),
-         State("language-preference-store", "data")],
+         State("active-machine-store", "data")],
         prevent_initial_call=True
     )
-    def update_section_6_1(n_intervals, which, state_data, app_state_data, app_mode, active_machine_data, lang):
+    def update_section_6_1(n_intervals, which, state_data, lang, app_state_data, app_mode, active_machine_data):
     
         """Update section 6-1 with trend graph for the 12 counters, supporting historical data"""
         # only run when we’re in the “main” dashboard
