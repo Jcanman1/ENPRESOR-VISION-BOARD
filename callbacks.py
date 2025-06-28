@@ -5,6 +5,12 @@ def register_callbacks(app):
     main = importlib.import_module("EnpresorOPCDataViewBeforeRestructureLegacy")
     globals().update({k:v for k,v in vars(main).items() if k not in globals()})
 
+    def format_enpresor(text: str):
+        parts = text.split("Enpresor")
+        if len(parts) == 2:
+            return [parts[0], html.Span("Enpresor", className="enpresor-font"), parts[1]]
+        return text
+
     # Create a client-side callback to handle theme switching
     app.clientside_callback(
         """
@@ -1119,8 +1125,9 @@ def register_callbacks(app):
     )
     def update_dashboard_title(active_machine_data, current_dashboard, lang, machines_data):
         """Update dashboard title to show active machine"""
-        base_title = tr("dashboard_title", lang)
-        
+        base_title = format_enpresor(tr("dashboard_title", lang))
+        base_list = base_title if isinstance(base_title, list) else [base_title]
+
         if current_dashboard == "main" and active_machine_data and active_machine_data.get("machine_id"):
             machine_id = active_machine_data["machine_id"]
             
@@ -1134,8 +1141,8 @@ def register_callbacks(app):
                             machine_name = f"{tr('machine_label', lang)} {machine_id} (S/N: {serial})"
                         break
             
-            return f"{base_title} - {machine_name}"
-        
+            return base_list + [f" - {machine_name}"]
+
         return base_title
 
     @app.callback(

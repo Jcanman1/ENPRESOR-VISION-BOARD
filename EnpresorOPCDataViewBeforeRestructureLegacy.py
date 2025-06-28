@@ -2709,7 +2709,15 @@ app.layout = html.Div([
 
     # ─── Title bar + Dashboard-toggle button ───────────────────────────────
     html.Div([
-        html.H3(id="dashboard-title", children=tr("dashboard_title"), className="m-0"),
+        html.H3(
+            id="dashboard-title",
+            children=(
+                [title_parts[0], html.Span("Enpresor", className="enpresor-font"), title_parts[1]]
+                if len((title_parts := tr("dashboard_title").split("Enpresor"))) == 2
+                else tr("dashboard_title")
+            ),
+            className="m-0",
+        ),
         dbc.Button(tr("switch_dashboards"),
                    id="new-dashboard-btn",
                    color="light", size="sm", className="ms-2"),
