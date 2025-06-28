@@ -1742,13 +1742,13 @@ def register_callbacks(app):
             Input("current-dashboard", "data"),
             Input("historical-time-index", "data"),
             Input("historical-data-cache", "data"),
+            Input("language-preference-store", "data"),
         ],
         [
             State("app-state", "data"),
             State("app-mode", "data"),
             State("production-data-store", "data"),
             State("weight-preference-store", "data"),
-            State("language-preference-store", "data"),
         ],
     
     
@@ -1757,7 +1757,7 @@ def register_callbacks(app):
     
     
     
-    def update_section_1_1(n, which, state_data, historical_data, app_state_data, app_mode, production_data, weight_pref, lang):
+    def update_section_1_1(n, which, state_data, historical_data, lang, app_state_data, app_mode, production_data, weight_pref):
     
         """Update section 1-1 with capacity information and update shared production data"""
     
@@ -1939,15 +1939,15 @@ def register_callbacks(app):
     @app.callback(
         Output("update-counts-modal-body", "children"),
         [Input("status-update-interval", "n_intervals"),
-         Input("current-dashboard",       "data"), 
-         Input("opc-pause-state", "data")],
+         Input("current-dashboard",       "data"),
+         Input("opc-pause-state", "data"),
+         Input("language-preference-store", "data")],
         [State("app-state", "data"),
          State("app-mode", "data"),
-         State("user-inputs", "data"),
-         State("language-preference-store", "data")],
+         State("user-inputs", "data")],
         prevent_initial_call=True
     )
-    def update_section_1_1b_with_manual_pause(n,which, pause_state, app_state_data, app_mode, user_inputs, lang):
+    def update_section_1_1b_with_manual_pause(n, which, pause_state, lang, app_state_data, app_mode, user_inputs):
         """Update section 1-1b with manual pause/resume system"""
         # only run when we’re in the “main” dashboard
         if which != "main":
@@ -2482,13 +2482,13 @@ def register_callbacks(app):
     @app.callback(
         Output("section-2", "children"),
         [Input("status-update-interval", "n_intervals"),
-         Input("current-dashboard",       "data")],
+         Input("current-dashboard",       "data"),
+         Input("language-preference-store", "data")],
         [State("app-state", "data"),
-         State("app-mode", "data"),
-         State("language-preference-store", "data")],
+         State("app-mode", "data")],
         prevent_initial_call=True
     )
-    def update_section_2(n_intervals,which, app_state_data, app_mode, lang):
+    def update_section_2(n_intervals, which, lang, app_state_data, app_mode):
         """Update section 2 with three status boxes and feeder gauges"""
         
           # only run when we’re in the “main” dashboard
@@ -2669,13 +2669,13 @@ def register_callbacks(app):
     @app.callback(
         Output("section-3-1", "children"),
         [Input("status-update-interval", "n_intervals"),
-         Input("current-dashboard",       "data")],
-        [State("additional-image-store", "data"),
-         State("language-preference-store", "data")],
+         Input("current-dashboard",       "data"),
+         Input("language-preference-store", "data")],
+        [State("additional-image-store", "data")],
         prevent_initial_call=True
     )
     
-    def update_section_3_1(n_intervals,which, additional_image_data, lang):
+    def update_section_3_1(n_intervals, which, lang, additional_image_data):
         """Update section 3-1 with the Load Image button and additional image if loaded"""
         # Debug logging
         #logger.info(f"Image data in section-3-1: {'' if not additional_image_data else 'Data present'}")
@@ -2769,14 +2769,14 @@ def register_callbacks(app):
     @app.callback(
         Output("section-3-2", "children"),
         [Input("status-update-interval", "n_intervals"),
-         Input("current-dashboard",       "data")],
+         Input("current-dashboard",       "data"),
+         Input("language-preference-store", "data")],
         [State("app-state", "data"),
-         State("app-mode", "data"),
-         State("language-preference-store", "data")],
+         State("app-mode", "data")],
         prevent_initial_call=True
     
     )
-    def update_section_3_2(n_intervals,which, app_state_data, app_mode, lang):
+    def update_section_3_2(n_intervals, which, lang, app_state_data, app_mode):
         """Update section 3-2 with machine information and Satake logo"""
     
         # only run when we’re in the “main” dashboard
@@ -2895,13 +2895,13 @@ def register_callbacks(app):
     @app.callback(
         Output("section-4", "children"),
         [Input("status-update-interval", "n_intervals"),
-         Input("current-dashboard",       "data")],
+         Input("current-dashboard",       "data"),
+         Input("language-preference-store", "data")],
         [State("app-state", "data"),
-         State("app-mode", "data"),
-         State("language-preference-store", "data")],
+         State("app-mode", "data")],
         prevent_initial_call=True
     )
-    def update_section_4(n_intervals,which, app_state_data, app_mode, lang):
+    def update_section_4(n_intervals, which, lang, app_state_data, app_mode):
         """Update section 4 with the color sort primary list.
     
         Each sensitivity's number and name are displayed above its image.
@@ -3229,17 +3229,17 @@ def register_callbacks(app):
         Output("section-5-1", "children"),
         [Input("status-update-interval", "n_intervals"),
          Input("current-dashboard",       "data"),
-        Input("historical-time-index",   "data"),
-        Input("historical-data-cache",   "data")],
+         Input("historical-time-index",   "data"),
+         Input("historical-data-cache",   "data"),
+         Input("language-preference-store", "data")],
         [State("app-state", "data"),
          State("app-mode", "data"),
          State("active-machine-store", "data"),
          State("weight-preference-store", "data"),
-         State("production-rate-unit", "data"),
-         State("language-preference-store", "data")],
+         State("production-rate-unit", "data")],
         prevent_initial_call=True
     )
-    def update_section_5_1(n_intervals, which, state_data, historical_data, app_state_data, app_mode, active_machine_data, weight_pref, pr_unit, lang):
+    def update_section_5_1(n_intervals, which, state_data, historical_data, lang, app_state_data, app_mode, active_machine_data, weight_pref, pr_unit):
     
         """Update section 5-1 with trend graph for objects per minute"""
          # only run when we’re in the “main” dashboard
@@ -3527,15 +3527,15 @@ def register_callbacks(app):
         Output("section-5-2", "children"),
         [Input("status-update-interval", "n_intervals"),
          Input("current-dashboard",       "data"),
-        Input("historical-time-index",   "data"),
-        Input("historical-data-cache",   "data")],
+         Input("historical-time-index",   "data"),
+         Input("historical-data-cache",   "data"),
+         Input("language-preference-store", "data")],
         [State("app-state", "data"),
          State("app-mode", "data"),
-         State("active-machine-store", "data"),
-         State("language-preference-store", "data")],
+         State("active-machine-store", "data")],
         prevent_initial_call=True
     )
-    def update_section_5_2(n_intervals, which, state_data, historical_data, app_state_data, app_mode, active_machine_data, lang):
+    def update_section_5_2(n_intervals, which, state_data, historical_data, lang, app_state_data, app_mode, active_machine_data):
         """Update section 5-2 with bar chart for counter values and update alarm data"""
         
         # only run when we’re in the “main” dashboard
@@ -4037,8 +4037,8 @@ def register_callbacks(app):
         Output("section-6-2", "children"),
         [Input("alarm-data", "data"),
          Input("current-dashboard",       "data"),
-         Input("status-update-interval", "n_intervals")],
-        [State("language-preference-store", "data")],
+         Input("status-update-interval", "n_intervals"),
+         Input("language-preference-store", "data")],
         prevent_initial_call=True
     )
     def update_section_6_2(alarm_data,which, n_intervals, lang):
@@ -4123,13 +4123,13 @@ def register_callbacks(app):
     @app.callback(
         Output("section-7-1", "children"),
         [Input("status-update-interval", "n_intervals"),
-         Input("current-dashboard",       "data"),],
+         Input("current-dashboard",       "data"),
+         Input("language-preference-store", "data")],
         [State("app-state", "data"),
-         State("app-mode", "data"),
-         State("language-preference-store", "data")],
+         State("app-mode", "data")],
         prevent_initial_call=True
     )
-    def update_section_7_1(n_intervals,which, app_state_data, app_mode, lang):
+    def update_section_7_1(n_intervals, which, lang, app_state_data, app_mode):
         """Update section 7-1 with air pressure gauge"""
         # only run when we’re in the “main” dashboard
         if which != "main":
@@ -4243,14 +4243,14 @@ def register_callbacks(app):
         Output("section-7-2", "children"),
         [Input("status-update-interval", "n_intervals"),
          Input("current-dashboard",       "data"),
-         Input("historical-time-index",   "data")],
+         Input("historical-time-index",   "data"),
+         Input("language-preference-store", "data")],
         [State("app-state", "data"),
          State("app-mode", "data"),
-         State("active-machine-store", "data"),
-         State("language-preference-store", "data")],
+         State("active-machine-store", "data")],
         prevent_initial_call=True
     )
-    def update_section_7_2(n_intervals, which, time_state, app_state_data, app_mode, active_machine_data, lang):
+    def update_section_7_2(n_intervals, which, time_state, lang, app_state_data, app_mode, active_machine_data):
         """Update section 7-2 with Machine Control Log"""
         # only run when we’re in the “main” dashboard
         if which != "main":
