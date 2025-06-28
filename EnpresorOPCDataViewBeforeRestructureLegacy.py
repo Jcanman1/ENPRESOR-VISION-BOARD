@@ -32,6 +32,7 @@ import json
 import tempfile
 from pathlib import Path
 from collections import defaultdict
+import autoconnect
 try:
     import generate_report
 except Exception as exc:  # pragma: no cover - optional dependency
@@ -2821,7 +2822,8 @@ app.layout = html.Div([
 
 ], className="main-app-container")
 from callbacks import register_callbacks
-register_callbacks(app)
+if __name__ == "__main__":
+    register_callbacks(app)
 
 def load_historical_data(timeframe="24h", machine_id=None):
     """Load historical counter data for the requested timeframe and machine.
@@ -4799,15 +4801,10 @@ if __name__ == "__main__":
         args = parser.parse_args()
 
         logger.info("Starting dashboard application...")
-        
-        logger.info("About to start auto-reconnection thread...")
-        start_auto_reconnection()
-        logger.info("Auto-reconnection thread start command completed")
+        register_callbacks(app)
 
-        startup_thread = Thread(target=delayed_startup_connect)
-        startup_thread.daemon = True
-        startup_thread.start()
-        logger.info("Scheduled startup auto-connection...")
+        logger.info("Initializing auto-connect logic...")
+        autoconnect.initialize_autoconnect()
 
         saved_image = load_saved_image()
         if saved_image:

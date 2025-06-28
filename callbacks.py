@@ -1,9 +1,22 @@
 import importlib
+import autoconnect
 
 
 def register_callbacks(app):
     main = importlib.import_module("EnpresorOPCDataViewBeforeRestructureLegacy")
-    globals().update({k:v for k,v in vars(main).items() if k not in globals()})
+    globals().update({k: v for k, v in vars(main).items() if k not in globals()})
+    for name in [
+        "app_state",
+        "machine_connections",
+        "connect_and_monitor_machine",
+        "load_floor_machine_data",
+        "opc_update_thread",
+        "auto_reconnection_thread",
+        "logger",
+    ]:
+        if name in globals():
+            setattr(autoconnect, name, globals()[name])
+    autoconnect.initialize_autoconnect()
     LIVE_LIKE_MODES = {"live", "lab"}
 
     def format_enpresor(text: str):
