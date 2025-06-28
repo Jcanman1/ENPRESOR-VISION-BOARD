@@ -1050,17 +1050,6 @@ def register_callbacks(app):
         logger.info(f"Loading initial theme: {theme}")
         return theme
 
-    @app.callback(
-        Output("theme-save-status", "children"),  # Create a hidden div for this output
-        [Input("theme-selector", "value")],
-        prevent_initial_call=True
-    )
-    def save_theme_on_change(theme_value):
-        """Save theme preference when user changes it"""
-        if theme_value:
-            save_theme_preference(theme_value)
-            logger.info(f"Saved theme preference: {theme_value}")
-        return ""  # Return empty string since this is just for the side effect
 
     @app.callback(
         [Output("capacity-units-selector", "value"),
@@ -1609,25 +1598,6 @@ def register_callbacks(app):
             return f"✓ Saved at {current_time}"
         return ""
 
-    @app.callback(
-        Output("save-status", "children", allow_duplicate=True),
-        [Input("manual-save-btn", "n_clicks")],
-        [State("floors-data", "data"),
-         State("machines-data", "data")],
-        prevent_initial_call=True
-    )
-    def manual_save_layout(n_clicks, floors_data, machines_data):
-        """Manual save button callback"""
-        if not n_clicks:
-            return dash.no_update
-        
-        success = save_floor_machine_data(floors_data, machines_data)
-        current_time = datetime.now().strftime("%H:%M:%S")
-        
-        if success:
-            return f"✓ Manually saved at {current_time}"
-        else:
-            return f"✗ Save failed at {current_time}"
 
     @app.callback(
         Output("machines-data", "data", allow_duplicate=True),
