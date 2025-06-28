@@ -2252,7 +2252,7 @@ settings_modal = dbc.Modal([
                         ], width=8),
                     ], className="mb-3"),
                 ])
-            ], label="Display"),
+            ], label=tr("display_tab_label", _initial_lang)),
             
             # Updated System tab with "Add machine IP" and ADD button
             dbc.Tab([
@@ -2741,10 +2741,10 @@ app.layout = html.Div([
             ),
             className="m-0",
         ),
-        dbc.Button(tr("switch_dashboards"),
+        dbc.Button(tr("switch_dashboards", _initial_lang),
                    id="new-dashboard-btn",
                    color="light", size="sm", className="ms-2"),
-        dbc.Button(tr("generate_report"),
+        dbc.Button(tr("generate_report", _initial_lang),
                    id="generate-report-btn",
                    color="light", size="sm", className="ms-2"),
         dcc.Download(id="report-download"),
@@ -4705,7 +4705,7 @@ def create_display_settings_form():
                     dbc.Switch(
                         id={"type": "display-enabled", "index": i},
                         value=display_settings.get(i, True),  # Default to True if not in settings
-                        label="Display",
+                        label=tr("display_button", _initial_lang),
                     ),
                     width=8
                 ),
@@ -4714,7 +4714,7 @@ def create_display_settings_form():
     
     # Add header
     header = html.Div(
-        "Select which counter traces to display:",
+        tr("display_settings_header", _initial_lang),
         className="mb-3 fw-bold"
     )
     
