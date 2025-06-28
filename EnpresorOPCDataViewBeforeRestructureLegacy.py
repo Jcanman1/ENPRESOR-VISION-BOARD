@@ -2822,8 +2822,6 @@ app.layout = html.Div([
 
 ], className="main-app-container")
 from callbacks import register_callbacks
-if __name__ == "__main__":
-    register_callbacks(app)
 
 def load_historical_data(timeframe="24h", machine_id=None):
     """Load historical counter data for the requested timeframe and machine.
@@ -4753,6 +4751,7 @@ def create_display_settings_form(lang=_initial_lang):
 # Metric logging every minute
 # ---------------------------------------------------------------------------
 
+register_callbacks(app)
 
 # Main entry point
 if __name__ == "__main__":
@@ -4801,7 +4800,6 @@ if __name__ == "__main__":
         args = parser.parse_args()
 
         logger.info("Starting dashboard application...")
-        register_callbacks(app)
 
         logger.info("Initializing auto-connect logic...")
         autoconnect.initialize_autoconnect()
