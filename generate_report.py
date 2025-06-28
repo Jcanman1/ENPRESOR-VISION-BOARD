@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 import datetime
 import pandas as pd
 import logging
@@ -125,8 +126,24 @@ def draw_header(c, width, height, page_number=None):
 
 def draw_global_summary(c, csv_parent_dir, x0, y0, total_w, available_height):
     """Draw the global summary sections (totals, pie, trend, counts)"""
-    machines = sorted([d for d in os.listdir(csv_parent_dir)
-                       if os.path.isdir(os.path.join(csv_parent_dir, d)) and d.isdigit()])
+    machines = sorted(
+        [d for d in os.listdir(csv_parent_dir)
+         if os.path.isdir(os.path.join(csv_parent_dir, d)) and d.isdigit()]
+    )
+
+    # Attempt to load machine count from the saved layout (All Machines view)
+    layout_machine_count = None
+    try:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        layout_path = os.path.join(script_dir, "data", "floor_machine_layout.json")
+        if os.path.isfile(layout_path):
+            with open(layout_path) as f:
+                data = json.load(f)
+            layout_machine_count = len(data.get("machines", []))
+    except Exception as exc:
+        logger.warning(f"Unable to read layout file: {exc}")
+
+    machine_count = layout_machine_count if layout_machine_count is not None else len(machines)
     
     # Calculate section heights
     h1 = available_height * 0.1  # Totals
@@ -158,17 +175,17 @@ def draw_global_summary(c, csv_parent_dir, x0, y0, total_w, available_height):
     c.rect(x0, y_sec1, total_w, h1, fill=1, stroke=0)
     c.setFillColor(colors.white); c.setFont('Helvetica-Bold', 10)
     c.drawString(x0+10, y_sec1+h1-14, '24hr Production Totals:')
-    thirds = total_w/3
-    labels = ['Processed:', 'Accepted:', 'Rejected:']
-    values = [f"{int(total_capacity):,} lbs", f"{int(total_accepts):,} lbs", f"{int(total_rejects):,} lbs"]
+    col_w = total_w / 4
+    labels = ['Machines:', 'Processed:', 'Accepted:', 'Rejected:']
+    values = [f"{machine_count}", f"{int(total_capacity):,} lbs", f"{int(total_accepts):,} lbs", f"{int(total_rejects):,} lbs"]
     c.setFont('Helvetica-Bold', 12)
     for i,label in enumerate(labels):
-        lw=c.stringWidth(label,'Helvetica-Bold',12)
-        c.drawString(x0+thirds*i+(thirds-lw)/2, y_sec1+h1/2-4, label)
+        lw = c.stringWidth(label, 'Helvetica-Bold', 12)
+        c.drawString(x0 + col_w*i + (col_w - lw)/2, y_sec1 + h1/2 - 4, label)
     c.setFont('Helvetica-Bold', 14)
     for i,val in enumerate(values):
-        vw=c.stringWidth(val,'Helvetica-Bold',14)
-        c.drawString(x0+thirds*i+(thirds-vw)/2, y_sec1+h1/2-22, val)
+        vw = c.stringWidth(val, 'Helvetica-Bold', 14)
+        c.drawString(x0 + col_w*i + (col_w - vw)/2, y_sec1 + h1/2 - 22, val)
     c.setStrokeColor(colors.black)
     c.rect(x0, y_sec1, total_w, h1)
 
