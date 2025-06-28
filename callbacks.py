@@ -4,6 +4,7 @@ import importlib
 def register_callbacks(app):
     main = importlib.import_module("EnpresorOPCDataViewBeforeRestructureLegacy")
     globals().update({k:v for k,v in vars(main).items() if k not in globals()})
+    LIVE_LIKE_MODES = {"live", "lab"}
 
     # Create a client-side callback to handle theme switching
     app.clientside_callback(
@@ -1222,6 +1223,7 @@ def register_callbacks(app):
                 {"label": tr("live_mode_option", lang), "value": "live"},
                 {"label": tr("demo_mode_option", lang), "value": "demo"},
                 {"label": tr("historical_mode_option", lang), "value": "historical"},
+                {"label": tr("lab_test_mode_option", lang), "value": "lab"},
             ],
             tr("system_configuration_title", lang),
             tr("auto_connect_label", lang),
@@ -1767,7 +1769,7 @@ def register_callbacks(app):
         # Only update values if:
         # 1. We're in demo mode (always update with new random values)
         # 2. We're in live mode and connected (update from tags)
-        if mode == "live" and app_state_data.get("connected", False):
+        if mode in LIVE_LIKE_MODES and app_state_data.get("connected", False):
             # Live mode: get values from OPC UA tags
             total_capacity = 0
     
@@ -1964,7 +1966,7 @@ def register_callbacks(app):
         opc_count = None
         reading_status = "N/A"
         
-        if mode == "live" and app_state_data.get("connected", False):
+        if mode in LIVE_LIKE_MODES and app_state_data.get("connected", False):
             # Always read the current OPC values for display in the status line
             if WEIGHT_TAG in app_state.tags:
                 tag_value = app_state.tags[WEIGHT_TAG]["data"].latest_value
@@ -2020,7 +2022,7 @@ def register_callbacks(app):
                 #    f"Status: {reading_status}", 
                 #    className="text-info"
                 #)
-            ], className="mb-1 text-center") if mode == "live" and app_state_data.get("connected", False) else html.Div(),
+            ], className="mb-1 text-center") if mode in LIVE_LIKE_MODES and app_state_data.get("connected", False) else html.Div(),
             
             # Controls container 
             html.Div([
@@ -2136,7 +2138,7 @@ def register_callbacks(app):
         if app_mode and isinstance(app_mode, dict) and "mode" in app_mode:
             mode = app_mode["mode"]
         
-        if mode != "live":
+        if mode not in LIVE_LIKE_MODES:
             return dash.no_update
         
         # Toggle the pause state
@@ -2155,7 +2157,7 @@ def register_callbacks(app):
     )
     def clear_inputs_on_mode_switch(mode, current_inputs):
         """Clear user inputs when switching to live mode"""
-        if mode == "live":
+        if mode in LIVE_LIKE_MODES:
             logger.info("Switched to live mode - clearing user inputs")
             return {}  # Clear all user inputs
         return dash.no_update
@@ -2188,7 +2190,7 @@ def register_callbacks(app):
             mode = app_mode["mode"]
         
         # Only write to tags in live mode when connected
-        if mode == "live" and app_state_data.get("connected", False):
+        if mode in LIVE_LIKE_MODES and app_state_data.get("connected", False):
             try:
                 success_messages = []
                 error_messages = []
@@ -2271,7 +2273,7 @@ def register_callbacks(app):
         new_data = current_data.copy() if current_data else {"units": "lb", "weight": 500.0, "count": 1000}
         
         # Mark if user made changes in live mode
-        if mode == "live":
+        if mode in LIVE_LIKE_MODES:
             new_data["live_mode_user_changed"] = True
             logger.info(f"User changed {trigger_id} in live mode")
         
@@ -3273,7 +3275,7 @@ def register_callbacks(app):
                 min_val = 0
                 max_val = 10000
     
-        elif mode == "live" and app_state_data.get("connected", False):
+        elif mode in LIVE_LIKE_MODES and app_state_data.get("connected", False):
             # Live mode and connected - get real data
             tag_found = False
             current_value = 0
@@ -3583,7 +3585,7 @@ def register_callbacks(app):
             # Store the new values for the next update
             previous_counter_values = new_counter_values.copy()
             logger.info(f"Section 5-2 values (historical mode): {new_counter_values}")
-        elif mode == "live" and app_state_data.get("connected", False):
+        elif mode in LIVE_LIKE_MODES and app_state_data.get("connected", False):
             # Live mode: get values from OPC UA
             # Use the tag pattern provided for each counter
             new_counter_values = []
@@ -3905,7 +3907,7 @@ def register_callbacks(app):
             current_time = datetime.now()
             
             # Update the trend data with current values
-            if mode == "live" and app_state_data.get("connected", False):
+            if mode in LIVE_LIKE_MODES and app_state_data.get("connected", False):
                 # Use the latest values from section 5-2 for consistency
                 for i, value in enumerate(previous_counter_values):
                     counter_num = i + 1
@@ -4140,7 +4142,7 @@ def register_callbacks(app):
             mode = app_mode["mode"]
         
         # Get air pressure value based on mode
-        if mode == "live" and app_state_data.get("connected", False):
+        if mode in LIVE_LIKE_MODES and app_state_data.get("connected", False):
             # Live mode: get value from OPC UA tag
             if AIR_PRESSURE_TAG in app_state.tags:
                 # Read the actual value from the tag
@@ -4251,7 +4253,7 @@ def register_callbacks(app):
             mode = app_mode["mode"]
     
         # Live monitoring of feeder rate tags
-        if mode == "live" and app_state_data.get("connected", False):
+        if mode in LIVE_LIKE_MODES and app_state_data.get("connected", False):
             machine_prev = prev_values[machine_id]
             for opc_tag, friendly_name in MONITORED_RATE_TAGS.items():
                 if opc_tag in app_state.tags:
@@ -4281,7 +4283,7 @@ def register_callbacks(app):
             machine_id = active_machine_data.get("machine_id") if active_machine_data else None
             display_log = get_historical_control_log(timeframe=hours, machine_id=machine_id)
             display_log = sorted(display_log, key=lambda e: e.get("timestamp"), reverse=True)
-        elif mode == "live":
+        elif mode in LIVE_LIKE_MODES:
             display_log = [
                 e for e in machine_control_log
                 if not e.get("demo") and e.get("machine_id") == machine_id
@@ -4406,6 +4408,57 @@ def register_callbacks(app):
             return "d-block"  # Show controls
         else:
             return "d-none"  # Hide controls
+
+    @app.callback(
+        Output("lab-test-controls", "className"),
+        [Input("mode-selector", "value")],
+        prevent_initial_call=True,
+    )
+    def toggle_lab_controls_visibility(mode):
+        return "d-flex" if mode == "lab" else "d-none"
+
+    @app.callback(
+        Output("lab-test-running", "data"),
+        [Input("start-test-btn", "n_clicks"), Input("stop-test-btn", "n_clicks"), Input("mode-selector", "value")],
+        [State("lab-test-running", "data")],
+        prevent_initial_call=True,
+    )
+    def update_lab_running(start_click, stop_click, mode, running):
+        ctx = callback_context
+        if mode != "lab":
+            return False
+        if not ctx.triggered:
+            return running
+        trigger = ctx.triggered[0]["prop_id"].split(".")[0]
+        if trigger == "start-test-btn":
+            return True
+        if trigger == "stop-test-btn":
+            return False
+        return running
+
+    @app.callback(
+        [Output("metric-logging-interval", "interval"), Output("metric-logging-interval", "disabled")],
+        [Input("lab-test-running", "data"), Input("mode-selector", "value")],
+    )
+    def adjust_logging_interval(running, mode):
+        if mode == "lab":
+            return 1000, not running
+        return 60000, False
+
+    @app.callback(
+        Output("clear-data-btn", "n_clicks"),
+        [Input("clear-data-btn", "n_clicks")],
+        [State("machines-data", "data")],
+        prevent_initial_call=True,
+    )
+    def clear_saved_data(n_clicks, machines_data):
+        if not n_clicks:
+            raise PreventUpdate
+        if not machines_data or not machines_data.get("machines"):
+            return dash.no_update
+        for m in machines_data["machines"]:
+            clear_machine_data(str(m.get("id")))
+        return 0
 
     @app.callback(
         [Output("display-modal", "is_open"),
@@ -4655,10 +4708,11 @@ def register_callbacks(app):
          State("app-mode", "data"),
          State("machines-data", "data"),
          State("production-data-store", "data"),
-         State("weight-preference-store", "data")],
+         State("weight-preference-store", "data"),
+         State("lab-test-running", "data")],
         prevent_initial_call=True,
     )
-    def log_current_metrics(n_intervals, app_state_data, app_mode, machines_data, production_data, weight_pref):
+    def log_current_metrics(n_intervals, app_state_data, app_mode, machines_data, production_data, weight_pref, lab_running):
     
         """Collect metrics for each connected machine and append to its file."""
         global machine_connections
@@ -4696,7 +4750,10 @@ def register_callbacks(app):
                     append_metrics(metrics, machine_id=str(m.get("id")), mode="Demo")
     
             return dash.no_update
-    
+
+        if mode == "lab" and not lab_running:
+            return dash.no_update
+
         for machine_id, info in machine_connections.items():
             if not info.get("connected", False):
                 continue
@@ -4727,6 +4784,7 @@ def register_callbacks(app):
                     val = 0
                 metrics[f"counter_{i}"] = val
     
-            append_metrics(metrics, machine_id=str(machine_id), mode="Live")
+            log_mode = "Lab" if mode == "lab" else "Live"
+            append_metrics(metrics, machine_id=str(machine_id), mode=log_mode)
     
         return dash.no_update

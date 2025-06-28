@@ -312,3 +312,16 @@ def get_historical_control_log(timeframe: str = "24h", export_dir: str = EXPORT_
     # Always sort newest first so callers can rely on order
     entries.sort(key=lambda e: e["timestamp"], reverse=True)
     return entries
+
+
+def clear_machine_data(machine_id: str, export_dir: str = EXPORT_DIR):
+    """Delete saved metric and control log files for a machine."""
+    paths = [
+        os.path.join(export_dir, str(machine_id), METRICS_FILENAME),
+        os.path.join(export_dir, str(machine_id), CONTROL_LOG_FILENAME),
+    ]
+    for p in paths:
+        try:
+            os.remove(p)
+        except FileNotFoundError:
+            pass
