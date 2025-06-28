@@ -2747,17 +2747,17 @@ app.layout = html.Div([
             ),
             className="m-0",
         ),
-        dbc.Button(tr("switch_dashboards", lang),
+        dbc.Button(tr("switch_dashboards", _initial_lang),
                    id="new-dashboard-btn",
                    color="light", size="sm", className="ms-2"),
-        dbc.Button(tr("generate_report", lang),
+        dbc.Button(tr("generate_report", _initial_lang),
                    id="generate-report-btn",
                    color="light", size="sm", className="ms-2"),
         dcc.Download(id="report-download"),
     ], className="d-flex justify-content-between align-items-center bg-primary text-white p-2 mb-2"),
 
     # ─── Connection controls (always visible) ──────────────────────────────
-    connection_controls(lang),
+    connection_controls(_initial_lang),
 
     dbc.Modal([
         dbc.ModalHeader(html.Span(tr("upload_image_title"), id="upload-modal-header")),
