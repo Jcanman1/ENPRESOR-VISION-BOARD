@@ -139,7 +139,9 @@ def draw_global_summary(c, csv_parent_dir, x0, y0, total_w, available_height):
         if os.path.isfile(layout_path):
             with open(layout_path) as f:
                 data = json.load(f)
-            layout_machine_count = len(data.get("machines", []))
+            layout_machine_count = len(
+                data.get("machines", {}).get("machines", [])
+            )
     except Exception as exc:
         logger.warning(f"Unable to read layout file: {exc}")
 
