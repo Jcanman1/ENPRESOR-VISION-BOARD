@@ -40,6 +40,8 @@ def get_historical_data(timeframe: str = "24h", export_dir: str = EXPORT_DIR,
         "capacity": {"times": [], "values": []},
         "accepts": {"times": [], "values": []},
         "rejects": {"times": [], "values": []},
+        "running": {"times": [], "values": []},
+        "stopped": {"times": [], "values": []},
         **{i: {"times": [], "values": []} for i in range(1, 13)},
     }
 
@@ -51,6 +53,13 @@ def get_historical_data(timeframe: str = "24h", export_dir: str = EXPORT_DIR,
 
     # Filter accepts and rejects history
     for key in ("accepts", "rejects"):
+        for t, v in zip(history[key]["times"], history[key]["values"]):
+            if t >= cutoff:
+                filtered[key]["times"].append(t)
+                filtered[key]["values"].append(v)
+
+    # Filter running/stopped history
+    for key in ("running", "stopped"):
         for t, v in zip(history[key]["times"], history[key]["values"]):
             if t >= cutoff:
                 filtered[key]["times"].append(t)
@@ -176,6 +185,8 @@ def load_recent_metrics(export_dir: str = EXPORT_DIR, machine_id: Optional[str] 
         "capacity": {"times": [], "values": []},
         "accepts": {"times": [], "values": []},
         "rejects": {"times": [], "values": []},
+        "running": {"times": [], "values": []},
+        "stopped": {"times": [], "values": []},
         **{i: {"times": [], "values": []} for i in range(1, 13)},
     }
 
@@ -213,6 +224,15 @@ def load_recent_metrics(export_dir: str = EXPORT_DIR, machine_id: Optional[str] 
                     history["rejects"]["values"].append(val)
                 except ValueError:
                     pass
+
+            for key in ("running", "stopped"):
+                if key in row and row[key]:
+                    try:
+                        val = float(row[key])
+                        history[key]["times"].append(ts)
+                        history[key]["values"].append(val)
+                    except ValueError:
+                        pass
 
             for i in range(1, 13):
                 key = f"counter_{i}"
