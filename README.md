@@ -38,7 +38,8 @@ For production deployments you can run the Dash application using Gunicorn.
 
 When creating a frozen executable (for example with PyInstaller) or building the
 Windows installer using the provided Inno Setup script, make sure the
-`Audiowide-Regular.ttf` font file is included alongside the application. The
-installer script copies this file automatically so the PDF headers render with
-the correct font.
+`Audiowide-Regular.ttf` font file is bundled with the application. `draw_header`
+will look for the font either in the application directory or an `assets`
+subfolder. The installer script copies the file into `assets` automatically so
+the PDF headers render with the correct font.
 
