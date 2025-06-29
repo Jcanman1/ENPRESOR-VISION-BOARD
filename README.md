@@ -20,3 +20,19 @@ The script prints the local and network URLs for accessing the interface. Option
 
 As the code is refactored into modules, the entry point and command-line options will remain consistent so that users experience no change in behavior.
 
+## Running with Gunicorn
+
+For production deployments you can run the Dash application using Gunicorn.
+
+Gunicorn only runs on Unix-like systems. Windows users can run the app from
+WSL or use an alternative WSGI server such as `waitress`.
+
+1. Install Gunicorn:
+   ```bash
+   pip install gunicorn
+   ```
+2. Start the server by pointing Gunicorn at the WSGI entry point:
+   ```bash
+   gunicorn --bind 0.0.0.0:8050 wsgi:application
+   ```
+
