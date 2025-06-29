@@ -24,8 +24,6 @@ As the code is refactored into modules, the entry point and command-line options
 
 For production deployments you can run the Dash application using Gunicorn.
 
-Gunicorn only runs on Unix-like systems. Windows users can run the app from
-WSL or use an alternative WSGI server such as `waitress`.
 
 1. Install Gunicorn:
    ```bash
