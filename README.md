@@ -24,6 +24,7 @@ As the code is refactored into modules, the entry point and command-line options
 
 For production deployments you can run the Dash application using Gunicorn.
 
+
 1. Install Gunicorn:
    ```bash
    pip install gunicorn
