@@ -39,16 +39,23 @@ logger = logging.getLogger(__name__)
 
 def draw_header(c, width, height, page_number=None):
     """Draw the header section on each page with optional page number"""
-    # Register Audiowide font with correct filename from Google Fonts
-    script_dir = os.path.dirname(os.path.abspath(__file__))
+    # Determine base directory when running from a PyInstaller bundle
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        base_dir = sys._MEIPASS
+    else:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # Look for the font in the base directory and in an assets subfolder
+    search_dirs = [base_dir, os.path.join(base_dir, "assets")]
     
-    # Check what font files actually exist in the directory
-    logger.debug(f"Checking directory: {script_dir}")
-    try:
-        files_in_dir = [f for f in os.listdir(script_dir) if f.lower().endswith('.ttf')]
-        logger.debug(f"TTF files found in directory: {files_in_dir}")
-    except Exception as e:
-        logger.debug(f"Error listing directory: {e}")
+    # Check what font files actually exist in the search directories
+    for d in search_dirs:
+        logger.debug(f"Checking directory: {d}")
+        try:
+            files_in_dir = [f for f in os.listdir(d) if f.lower().endswith('.ttf')]
+            logger.debug(f"TTF files found in {d}: {files_in_dir}")
+        except Exception as e:
+            logger.debug(f"Error listing {d}: {e}")
     
     # Try different possible filenames for Audiowide font
     possible_font_files = [
@@ -59,29 +66,31 @@ def draw_header(c, width, height, page_number=None):
     ]
     
     font_enpresor = 'Helvetica-Bold'  # Default fallback
-    font_found = False
-    
-    for font_filename in possible_font_files:
-        font_path = os.path.join(script_dir, font_filename)
-        logger.debug(f"Trying font file: {font_path}")
-        
-        if os.path.isfile(font_path):
-            try:
-                pdfmetrics.registerFont(TTFont('Audiowide', font_path))
-                font_enpresor = 'Audiowide'
-                logger.debug(f"\u2705 Successfully registered Audiowide from: {font_path}")
-                font_found = True
-                break
-            except Exception as e:
-                logger.debug(f"\u274C Error registering font from {font_path}: {e}")
-        else:
-            logger.debug(f"\u274C Font file not found: {font_path}")
-    
-    if not font_found:
+    chosen_path = None
+
+    for d in search_dirs:
+        for font_filename in possible_font_files:
+            font_path = os.path.join(d, font_filename)
+            logger.debug(f"Trying font file: {font_path}")
+
+            if os.path.isfile(font_path):
+                try:
+                    pdfmetrics.registerFont(TTFont('Audiowide', font_path))
+                    font_enpresor = 'Audiowide'
+                    chosen_path = font_path
+                    logger.info(f"Audiowide font loaded from: {font_path}")
+                    break
+                except Exception as e:
+                    logger.debug(f"\u274C Error registering font from {font_path}: {e}")
+        if chosen_path:
+            break
+
+    if not chosen_path:
         logger.debug("\u26A0\ufe0f  No Audiowide font file found.")
         logger.debug("The file you downloaded might be named 'Audiowide-Regular.ttf'")
-        logger.debug("Either rename it to 'Audiowide.ttf' or ensure 'Audiowide-Regular.ttf' is in:")
-        logger.debug(f"{script_dir}")
+        logger.debug("Either rename it to 'Audiowide.ttf' or ensure 'Audiowide-Regular.ttf' is in one of:")
+        for d in search_dirs:
+            logger.debug(d)
 
     # Document title
     title_size = 24

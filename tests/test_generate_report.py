@@ -71,3 +71,30 @@ def test_draw_machine_sections_runtime_line(tmp_path, monkeypatch):
     )
 
     assert any("Run Time:" in s for s in canvas.strings)
+
+
+def test_draw_header_uses_meipass_font(tmp_path, monkeypatch):
+    font_src = Path(__file__).resolve().parents[1] / "Audiowide-Regular.ttf"
+    target = tmp_path / "Audiowide-Regular.ttf"
+    target.write_bytes(font_src.read_bytes())
+
+    monkeypatch.setattr(generate_report.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(generate_report.sys, "_MEIPASS", str(tmp_path), raising=False)
+
+    captured = {}
+
+    def fake_TTFont(name, path):
+        captured["path"] = path
+        return types.SimpleNamespace(name=name)
+
+    def fake_register(font):
+        captured["registered"] = font.name
+
+    monkeypatch.setattr(generate_report, "TTFont", fake_TTFont)
+    monkeypatch.setattr(generate_report.pdfmetrics, "registerFont", fake_register)
+
+    canvas = DummyCanvas()
+    generate_report.draw_header(canvas, 100, 100)
+
+    assert captured["path"] == str(target)
+    assert captured["registered"] == "Audiowide"

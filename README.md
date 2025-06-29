@@ -34,3 +34,11 @@ For production deployments you can run the Dash application using Gunicorn.
    gunicorn --bind 0.0.0.0:8050 wsgi:application
    ```
 
+## Packaging
+
+When creating a frozen executable (for example with PyInstaller) or building the
+Windows installer using the provided Inno Setup script, make sure the
+`Audiowide-Regular.ttf` font file is included alongside the application. The
+installer script copies this file automatically so the PDF headers render with
+the correct font.
+
