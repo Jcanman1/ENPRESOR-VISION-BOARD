@@ -3364,9 +3364,7 @@ async def connect_and_monitor_machine_with_timeout(ip_address, machine_id, serve
             client.application_uri = f"urn:{server_name}"
         
         # Connect with timeout
-        logger.debug("Connecting to %s for machine %s", server_url, machine_id)
         client.connect()
-        logger.debug("Connected to %s for machine %s", server_url, machine_id)
         
         # Quick tag discovery (fewer tags for faster reconnection)
         machine_tags = {}
@@ -3392,9 +3390,6 @@ async def connect_and_monitor_machine_with_timeout(ip_address, machine_id, serve
         
         # If we got at least some tags, consider it a successful connection
         if machine_tags:
-            logger.debug(
-                "Discovered %d tags for machine %s", len(machine_tags), machine_id
-            )
             # Do full tag discovery in background after successful connection
             asyncio.create_task(complete_tag_discovery(client, machine_id, machine_tags))
             
@@ -3414,13 +3409,7 @@ async def connect_and_monitor_machine_with_timeout(ip_address, machine_id, serve
             return False
             
     except Exception as e:
-        logger.exception(
-            "Auto-reconnection failed for machine %s at %s: %s",
-            machine_id,
-            ip_address,
-            e,
-            exc_info=True,
-        )
+        logger.debug(f"Auto-reconnection failed for machine {machine_id} at {ip_address}: {e}")
         return False
 
 async def complete_tag_discovery(client, machine_id, existing_tags):
@@ -3442,11 +3431,7 @@ async def complete_tag_discovery(client, machine_id, existing_tags):
                 except Exception:
                     continue
         
-        logger.debug(
-            "Completed tag discovery for auto-reconnected machine %s: %d tags",
-            machine_id,
-            len(existing_tags),
-        )
+        logger.info(f"Completed tag discovery for auto-reconnected machine {machine_id}: {len(existing_tags)} tags")
         
     except Exception as e:
         logger.debug(f"Error in background tag discovery for machine {machine_id}: {e}")
@@ -4310,9 +4295,8 @@ async def connect_and_discover_machine_tags(ip_address, machine_id, server_name=
             client.application_uri = f"urn:{server_name}"
         
         # Connect to server
-        logger.debug("Connecting to %s for machine %s", server_url, machine_id)
         client.connect()
-        logger.debug("Connected to %s for machine %s", server_url, machine_id)
+        logger.info(f"Connected successfully to machine {machine_id} at {ip_address}")
         
         # Discover tags using the exact same logic as main connection
         machine_tags = {}
@@ -4389,10 +4373,7 @@ async def connect_and_discover_machine_tags(ip_address, machine_id, server_name=
         return True
         
     except Exception as e:
-        logger.exception(
-            "Failed to connect to machine %s at %s: %s", machine_id, ip_address, e,
-            exc_info=True
-        )
+        logger.error(f"Failed to connect to machine {machine_id} at {ip_address}: {e}")
         return False
 
 # Modified helper function to maintain persistent connections for continuous updates
@@ -4482,7 +4463,7 @@ async def connect_and_monitor_machine(ip_address, machine_id, server_name=None):
         # Start browsing from objects node
         await browse_nodes(objects, 0, 2)
         
-        logger.debug(f"Total tags discovered on machine {machine_id}: {len(machine_tags)}")
+        logger.info(f"Total tags discovered on machine {machine_id}: {len(machine_tags)}")
         
         # Store the connection and tags for continuous monitoring
         machine_connections[machine_id] = {
