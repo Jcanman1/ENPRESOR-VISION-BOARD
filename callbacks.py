@@ -36,6 +36,7 @@ def _register_callbacks_impl(app):
         "load_floor_machine_data",
         "opc_update_thread",
         "auto_reconnection_thread",
+        "resume_update_thread",
         "logger",
     ]:
         if name in globals():
@@ -925,7 +926,10 @@ def _register_callbacks_impl(app):
             
             logger.info(f"Switched to disconnected machine {machine_id}")
             app_state_data["connected"] = False
-        
+
+        # Ensure the update thread is running after switching machines
+        resume_update_thread()
+
         # Return to main dashboard with selected machine
         return "main", {"machine_id": machine_id}, app_state_data
 
