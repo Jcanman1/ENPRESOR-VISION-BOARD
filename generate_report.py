@@ -50,6 +50,8 @@ def draw_header(c, width, height, page_number=None):
             os.path.join(base_dir, "assets"),
             exec_dir,
             os.path.join(exec_dir, "assets"),
+            os.path.join(exec_dir, "_internal"),
+            os.path.join(exec_dir, "_internal", "assets"),
         ]
     else:
         base_dir = os.path.dirname(os.path.abspath(__file__))
