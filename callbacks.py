@@ -436,7 +436,6 @@ def register_callbacks(app):
         [
             Input("settings-button", "n_clicks"),
             Input("close-settings", "n_clicks"),
-            # REMOVE Input("save-system-settings", "n_clicks"), to prevent closing on save
         ],
         [State("settings-modal", "is_open")],
         prevent_initial_call=True
@@ -453,8 +452,7 @@ def register_callbacks(app):
             return not is_open
         elif trigger_id == "close-settings" and close_clicks:
             return False
-        # REMOVED the case for "save-system-settings"
-        
+
         return is_open
 
     @app.callback(
@@ -469,8 +467,6 @@ def register_callbacks(app):
         prevent_initial_call=True
     )
     
-    
-    # REPLACE with this enhanced validation:
     def add_ip_address(n_clicks, new_ip, new_label, current_data):
         """Add a new IP address to the stored list"""
         if not n_clicks or not new_ip or not new_ip.strip():
@@ -1473,11 +1469,11 @@ def register_callbacks(app):
          State({"type": "edit-floor-name-btn", "index": ALL}, "id"),
          State({"type": "save-floor-name-btn", "index": ALL}, "id"),
          State({"type": "cancel-floor-name-btn", "index": ALL}, "id"),
-         State("floors-data", "data")],  # REMOVED machines-data from here
+         State("floors-data", "data")],
         prevent_initial_call=True
     )
     def handle_floor_name_editing(edit_clicks, save_clicks, cancel_clicks, input_values, 
-                                 edit_ids, save_ids, cancel_ids, floors_data):  # REMOVED machines_data parameter
+                                 edit_ids, save_ids, cancel_ids, floors_data):  
         """Handle floor name editing with auto-save"""
         ctx = callback_context
         if not ctx.triggered:
