@@ -106,3 +106,41 @@ def test_register_callbacks_uses_main_module(monkeypatch):
 
     assert not called
     assert callbacks.sentinel == 2
+
+
+def test_register_callbacks_caches_main_module(monkeypatch):
+    """The __main__ module should be stored for reuse under the canonical name."""
+    from types import ModuleType
+
+    main_mod = ModuleType("__main__")
+    main_mod.__file__ = "EnpresorOPCDataViewBeforeRestructureLegacy.py"
+    main_mod.sentinel = 10
+
+    monkeypatch.setitem(sys.modules, "__main__", main_mod)
+    monkeypatch.delitem(sys.modules, "EnpresorOPCDataViewBeforeRestructureLegacy", raising=False)
+
+    orig_import = callbacks.importlib.import_module
+
+    def forbid_import(name, package=None):
+        if name == "EnpresorOPCDataViewBeforeRestructureLegacy":
+            raise RuntimeError("should not import")
+        return orig_import(name, package)
+
+    monkeypatch.setattr(callbacks.importlib, "import_module", forbid_import)
+
+    def stop():
+        raise RuntimeError("stop")
+
+    monkeypatch.setattr(autoconnect, "initialize_autoconnect", stop)
+
+    app = dash.Dash(__name__)
+    with pytest.raises(RuntimeError):
+        callbacks.register_callbacks(app)
+
+    assert sys.modules["EnpresorOPCDataViewBeforeRestructureLegacy"] is main_mod
+
+    main_mod.sentinel = 20
+    with pytest.raises(RuntimeError):
+        callbacks.register_callbacks(app)
+
+    assert callbacks.sentinel == 20

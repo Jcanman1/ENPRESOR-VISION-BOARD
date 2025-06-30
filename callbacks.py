@@ -11,7 +11,9 @@ def register_callbacks(app):
             main = candidate
         else:
             main = importlib.import_module("EnpresorOPCDataViewBeforeRestructureLegacy")
-    globals().update({k: v for k, v in vars(main).items() if not k.startswith("__")})
+
+    sys.modules.setdefault("EnpresorOPCDataViewBeforeRestructureLegacy", main)
+    globals().update({k: v for k, v in vars(main).items() if not k.startswith("_")})
     for name in [
         "app_state",
         "machine_connections",
