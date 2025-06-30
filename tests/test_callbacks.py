@@ -108,39 +108,20 @@ def test_register_callbacks_uses_main_module(monkeypatch):
     assert callbacks.sentinel == 2
 
 
-def test_register_callbacks_caches_main_module(monkeypatch):
-    """The __main__ module should be stored for reuse under the canonical name."""
-    from types import ModuleType
+def test_register_callbacks_no_recursion(monkeypatch):
+    """Importing legacy module should not re-run initialization."""
+    init_calls = []
 
-    main_mod = ModuleType("__main__")
-    main_mod.__file__ = "EnpresorOPCDataViewBeforeRestructureLegacy.py"
-    main_mod.sentinel = 10
+    def dummy_init():
+        init_calls.append(1)
 
-    monkeypatch.setitem(sys.modules, "__main__", main_mod)
+    monkeypatch.setattr(autoconnect, "initialize_autoconnect", dummy_init)
     monkeypatch.delitem(sys.modules, "EnpresorOPCDataViewBeforeRestructureLegacy", raising=False)
 
-    orig_import = callbacks.importlib.import_module
-
-    def forbid_import(name, package=None):
-        if name == "EnpresorOPCDataViewBeforeRestructureLegacy":
-            raise RuntimeError("should not import")
-        return orig_import(name, package)
-
-    monkeypatch.setattr(callbacks.importlib, "import_module", forbid_import)
-
-    def stop():
-        raise RuntimeError("stop")
-
-    monkeypatch.setattr(autoconnect, "initialize_autoconnect", stop)
+    callbacks._REGISTERING = False
 
     app = dash.Dash(__name__)
-    with pytest.raises(RuntimeError):
-        callbacks.register_callbacks(app)
+    callbacks.register_callbacks(app)
 
-    assert sys.modules["EnpresorOPCDataViewBeforeRestructureLegacy"] is main_mod
+    assert init_calls == [1]
 
-    main_mod.sentinel = 20
-    with pytest.raises(RuntimeError):
-        callbacks.register_callbacks(app)
-
-    assert callbacks.sentinel == 20
