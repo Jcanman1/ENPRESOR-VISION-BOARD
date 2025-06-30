@@ -124,3 +124,4 @@ def test_register_callbacks_no_recursion(monkeypatch):
     callbacks.register_callbacks(app)
 
     assert init_calls == [1]
+
