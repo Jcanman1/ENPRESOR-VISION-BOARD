@@ -106,3 +106,21 @@ def test_register_callbacks_uses_main_module(monkeypatch):
 
     assert not called
     assert callbacks.sentinel == 2
+
+
+def test_register_callbacks_no_recursion(monkeypatch):
+    """Importing legacy module should not re-run initialization."""
+    init_calls = []
+
+    def dummy_init():
+        init_calls.append(1)
+
+    monkeypatch.setattr(autoconnect, "initialize_autoconnect", dummy_init)
+    monkeypatch.delitem(sys.modules, "EnpresorOPCDataViewBeforeRestructureLegacy", raising=False)
+
+    callbacks._REGISTERING = False
+
+    app = dash.Dash(__name__)
+    callbacks.register_callbacks(app)
+
+    assert init_calls == [1]
