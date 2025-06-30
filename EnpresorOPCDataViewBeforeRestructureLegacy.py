@@ -4803,9 +4803,6 @@ if __name__ == "__main__":
 
         logger.info("Starting dashboard application...")
 
-        if args.debug:
-            logger.setLevel(logging.DEBUG)
-
         logger.info("Initializing auto-connect logic...")
         autoconnect.initialize_autoconnect()
 
@@ -4850,7 +4847,7 @@ if __name__ == "__main__":
             threading.Thread(target=open_browser).start()
 
         # Start the Dash app
-        app.run(debug=args.debug, use_reloader=False, host='0.0.0.0', port=8050)
+        app.run(debug=False, use_reloader=False, host='0.0.0.0', port=8050)
         
     except KeyboardInterrupt:
         # Disconnect on exit

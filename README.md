@@ -16,7 +16,7 @@ Run the dashboard from the repository root:
 ```bash
 python3 EnpresorOPCDataViewBeforeRestructureLegacy.py
 ```
-The script prints the local and network URLs for accessing the interface. Optionally use `--open-browser` to automatically open your web browser and `--debug` for verbose output. When debug mode is enabled the server runs with Dash debugging turned on and the application's logger level is set to `DEBUG` so additional messages are shown.
+The script prints the local and network URLs for accessing the interface. Optionally use `--open-browser` to automatically open your web browser and `--debug` for verbose output.
 
 As the code is refactored into modules, the entry point and command-line options will remain consistent so that users experience no change in behavior.
 
