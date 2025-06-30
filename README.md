@@ -43,3 +43,18 @@ will look for the font either in the application directory or an `assets`
 subfolder. The installer script copies the file into `assets` automatically so
 the PDF headers render with the correct font.
 
+To include the `assets` folder when creating the executable with PyInstaller use
+the `--add-data` option. The separator differs by platform:
+
+- **Windows**
+  ```bash
+  pyinstaller script.py --add-data "assets;assets"
+  ```
+- **macOS/Linux**
+  ```bash
+  pyinstaller script.py --add-data "assets:assets"
+  ```
+
+With PyInstaller 6 the bundled files are extracted into an `_internal`
+directory next to the executable.
+
