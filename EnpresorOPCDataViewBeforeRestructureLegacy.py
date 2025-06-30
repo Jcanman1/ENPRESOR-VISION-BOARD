@@ -2704,6 +2704,7 @@ app.layout = html.Div([
 
     # ─── Hidden state stores ───────────────────────────────────────────────
     dcc.Store(id="current-dashboard",       data="new"),
+    dcc.Store(id="dashboard-nav-safety", data={}),
     dcc.Store(id="production-data-store",   data={"capacity": 50000, "accepts": 47500, "rejects": 2500}),
     dcc.Store(id="alarm-data",              data={"alarms": []}),
     dcc.Store(id="metric-logging-store"),
