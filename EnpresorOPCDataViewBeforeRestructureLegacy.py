@@ -94,6 +94,7 @@ logging.basicConfig(
 )
 logging.getLogger().handlers.clear()  # Remove default console handler
 logger = logging.getLogger(__name__)
+logging.getLogger("werkzeug").setLevel(logging.ERROR)
 
 # Common numeric font for dashboard values
 NUMERIC_FONT = "Monaco, Consolas, 'Courier New', monospace"
@@ -1003,6 +1004,7 @@ def resume_update_thread():
         app_state.update_thread = Thread(target=opc_update_thread)
         app_state.update_thread.daemon = True
         app_state.update_thread.start()
+    print(f"DEBUG: resume_update_thread called, alive={app_state.update_thread.is_alive()}", flush=True)
 
 # Connect to OPC UA server
 async def connect_to_server(server_url, server_name=None):

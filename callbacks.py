@@ -185,10 +185,13 @@ def _register_callbacks_impl(app):
     def manage_dashboard(n_clicks, current):
         # On first load n_clicks is None → show the new dashboard
         if n_clicks is None:
+            print("DEBUG: manage_dashboard -> new (initial load)", flush=True)
             return "new"
-    
+
         # On every actual click, flip between “main” and “new”
-        return "new" if current == "main" else "main"
+        new_value = "new" if current == "main" else "main"
+        print(f"DEBUG: manage_dashboard toggled to {new_value}", flush=True)
+        return new_value
 
     @app.callback(
         Output("export-data-button", "disabled"),
@@ -874,30 +877,34 @@ def _register_callbacks_impl(app):
     def handle_machine_selection(card_clicks, machines_data, active_machine_data, app_state_data, card_ids):
         """Handle machine card clicks and switch to main dashboard"""
         global active_machine_id, machine_connections, app_state
-        
+
         ctx = callback_context
         if not ctx.triggered:
             return dash.no_update, dash.no_update, dash.no_update
-        
+
         # Find which card was clicked
         triggered_prop = ctx.triggered[0]["prop_id"]
         machine_id = None
-        
+
         if '"type":"machine-card-click"' in triggered_prop:
             for i, clicks in enumerate(card_clicks):
                 if clicks and i < len(card_ids):
                     machine_id = card_ids[i]["index"]
                     break
-        
+
         if machine_id is None:
             return dash.no_update, dash.no_update, dash.no_update
-        
+
+        print(f"DEBUG: handle_machine_selection triggered by {triggered_prop}, machine_id={machine_id}", flush=True)
+
         # Set this machine as the active machine
         active_machine_id = machine_id
         logger.info(f"Selected machine {machine_id} as active machine")
         
         # Check if the machine is connected
-        if machine_id in machine_connections and machine_connections[machine_id].get('connected', False):
+        is_conn = machine_id in machine_connections and machine_connections[machine_id].get('connected', False)
+        print(f"DEBUG: machine {machine_id} connected={is_conn}", flush=True)
+        if is_conn:
             # Machine is connected - set up app_state to point to this machine's data
             connection_info = machine_connections[machine_id]
             
@@ -929,6 +936,8 @@ def _register_callbacks_impl(app):
 
         # Ensure the update thread is running after switching machines
         resume_update_thread()
+        alive = app_state.update_thread.is_alive() if app_state.update_thread else False
+        print(f"DEBUG: update thread alive={alive}", flush=True)
 
         # Return to main dashboard with selected machine
         return "main", {"machine_id": machine_id}, app_state_data
