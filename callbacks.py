@@ -1817,6 +1817,7 @@ def _register_callbacks_impl(app):
             State("app-mode", "data"),
             State("production-data-store", "data"),
             State("weight-preference-store", "data"),
+            State("active-machine-store", "data"),
         ],
     
     
@@ -1825,13 +1826,26 @@ def _register_callbacks_impl(app):
     
     
     
-    def update_section_1_1(n, which, state_data, historical_data, lang, app_state_data, app_mode, production_data, weight_pref):
+    def update_section_1_1(n, which, state_data, historical_data, lang, app_state_data, app_mode, production_data, weight_pref, active_machine_data):
     
         """Update section 1-1 with capacity information and update shared production data"""
-    
-        # only run when we’re in the “main” dashboard
+
+        logger.debug("Section 1-1 update triggered")
+
         if which != "main":
-            #print("DEBUG: Preventing update for section-1-1")
+            raise PreventUpdate
+
+        machine_id = active_machine_data.get("machine_id") if active_machine_data else None
+        if not machine_id:
+            logger.debug("Section 1-1 update aborted: no active machine")
+            raise PreventUpdate
+
+        mode = "demo"
+        if app_mode and isinstance(app_mode, dict) and "mode" in app_mode:
+            mode = app_mode["mode"]
+
+        if mode in LIVE_LIKE_MODES and not app_state_data.get("connected", False):
+            logger.debug("Section 1-1 update aborted: not connected")
             raise PreventUpdate
     
         global previous_counter_values
@@ -2012,13 +2026,29 @@ def _register_callbacks_impl(app):
          Input("language-preference-store", "data")],
         [State("app-state", "data"),
          State("app-mode", "data"),
-         State("user-inputs", "data")],
+         State("user-inputs", "data"),
+         State("active-machine-store", "data")],
         prevent_initial_call=True
     )
-    def update_section_1_1b_with_manual_pause(n, which, pause_state, lang, app_state_data, app_mode, user_inputs):
+    def update_section_1_1b_with_manual_pause(n, which, pause_state, lang, app_state_data, app_mode, user_inputs, active_machine_data):
         """Update section 1-1b with manual pause/resume system"""
-        # only run when we’re in the “main” dashboard
+
+        logger.debug("Section 1-1b update triggered")
+
         if which != "main":
+            raise PreventUpdate
+
+        machine_id = active_machine_data.get("machine_id") if active_machine_data else None
+        if not machine_id:
+            logger.debug("Section 1-1b update aborted: no active machine")
+            raise PreventUpdate
+
+        mode = "demo"
+        if app_mode and isinstance(app_mode, dict) and "mode" in app_mode:
+            mode = app_mode["mode"]
+
+        if mode in LIVE_LIKE_MODES and not app_state_data.get("connected", False):
+            logger.debug("Section 1-1b update aborted: not connected")
             raise PreventUpdate
         
         # Tag definitions for live mode
@@ -2376,16 +2406,31 @@ def _register_callbacks_impl(app):
          Input("historical-time-index", "data"),
          Input("historical-data-cache", "data")],
         [State("app-state", "data"),
-         State("app-mode", "data")],
+         State("app-mode", "data"),
+         State("active-machine-store", "data")],
         prevent_initial_call=True
     )
-    def update_section_1_2(production_data, n_intervals, which, state_data, historical_data, app_state_data, app_mode):
+    def update_section_1_2(production_data, n_intervals, which, state_data, historical_data, app_state_data, app_mode, active_machine_data):
     
         """Update section 1-2 with side-by-side pie charts for accepts/rejects and reject breakdown
         using production data from section 1-1 and counter data from section 5-2"""
-        
-        # Only run when we're in the "main" dashboard
+
+        logger.debug("Section 1-2 update triggered")
+
         if which != "main":
+            raise PreventUpdate
+
+        machine_id = active_machine_data.get("machine_id") if active_machine_data else None
+        if not machine_id:
+            logger.debug("Section 1-2 update aborted: no active machine")
+            raise PreventUpdate
+
+        mode = "demo"
+        if app_mode and isinstance(app_mode, dict) and "mode" in app_mode:
+            mode = app_mode["mode"]
+
+        if mode in LIVE_LIKE_MODES and not app_state_data.get("connected", False):
+            logger.debug("Section 1-2 update aborted: not connected")
             raise PreventUpdate
             
         global previous_counter_values
@@ -2553,16 +2598,30 @@ def _register_callbacks_impl(app):
          Input("current-dashboard",       "data"),
          Input("language-preference-store", "data")],
         [State("app-state", "data"),
-         State("app-mode", "data")],
+         State("app-mode", "data"),
+         State("active-machine-store", "data")],
         prevent_initial_call=True
     )
-    def update_section_2(n_intervals, which, lang, app_state_data, app_mode):
+    def update_section_2(n_intervals, which, lang, app_state_data, app_mode, active_machine_data):
         """Update section 2 with three status boxes and feeder gauges"""
-        
-          # only run when we’re in the “main” dashboard
+
+        logger.debug("Section 2 update triggered")
+
         if which != "main":
             raise PreventUpdate
-            # or return [no_update, no_update]
+
+        machine_id = active_machine_data.get("machine_id") if active_machine_data else None
+        if not machine_id:
+            logger.debug("Section 2 update aborted: no active machine")
+            raise PreventUpdate
+
+        mode = "demo"
+        if app_mode and isinstance(app_mode, dict) and "mode" in app_mode:
+            mode = app_mode["mode"]
+
+        if mode in LIVE_LIKE_MODES and not app_state_data.get("connected", False):
+            logger.debug("Section 2 update aborted: not connected")
+            raise PreventUpdate
         # Tag definitions
         PRESET_NUMBER_TAG = "Status.Info.PresetNumber"
         PRESET_NAME_TAG = "Status.Info.PresetName"
@@ -2739,19 +2798,26 @@ def _register_callbacks_impl(app):
         [Input("status-update-interval", "n_intervals"),
          Input("current-dashboard",       "data"),
          Input("language-preference-store", "data")],
-        [State("additional-image-store", "data")],
+        [State("additional-image-store", "data"),
+         State("active-machine-store", "data")],
         prevent_initial_call=True
     )
-    
-    def update_section_3_1(n_intervals, which, lang, additional_image_data):
+
+    def update_section_3_1(n_intervals, which, lang, additional_image_data, active_machine_data):
         """Update section 3-1 with the Load Image button and additional image if loaded"""
-        # Debug logging
-        #logger.info(f"Image data in section-3-1: {'' if not additional_image_data else 'Data present'}")
-        
-        # only run when we’re in the “main” dashboard
+
+        logger.debug("Section 3-1 update triggered")
+
         if which != "main":
             raise PreventUpdate
-            # or return [no_update, no_update]
+
+        machine_id = active_machine_data.get("machine_id") if active_machine_data else None
+        if not machine_id:
+            logger.debug("Section 3-1 update aborted: no active machine")
+            raise PreventUpdate
+
+        # Debug logging
+        #logger.info(f"Image data in section-3-1: {'' if not additional_image_data else 'Data present'}")
         # Check if additional image is loaded
         has_additional_image = additional_image_data and 'image' in additional_image_data
         
@@ -2840,17 +2906,31 @@ def _register_callbacks_impl(app):
          Input("current-dashboard",       "data"),
          Input("language-preference-store", "data")],
         [State("app-state", "data"),
-         State("app-mode", "data")],
+         State("app-mode", "data"),
+         State("active-machine-store", "data")],
         prevent_initial_call=True
     
     )
-    def update_section_3_2(n_intervals, which, lang, app_state_data, app_mode):
+    def update_section_3_2(n_intervals, which, lang, app_state_data, app_mode, active_machine_data):
         """Update section 3-2 with machine information and Satake logo"""
-    
-        # only run when we’re in the “main” dashboard
+
+        logger.debug("Section 3-2 update triggered")
+
         if which != "main":
             raise PreventUpdate
-            # or return [no_update, no_update]
+
+        machine_id = active_machine_data.get("machine_id") if active_machine_data else None
+        if not machine_id:
+            logger.debug("Section 3-2 update aborted: no active machine")
+            raise PreventUpdate
+
+        mode = "demo"
+        if app_mode and isinstance(app_mode, dict) and "mode" in app_mode:
+            mode = app_mode["mode"]
+
+        if mode in LIVE_LIKE_MODES and not app_state_data.get("connected", False):
+            logger.debug("Section 3-2 update aborted: not connected")
+            raise PreventUpdate
     
         # Tag definitions for easy updating
         SERIAL_TAG = "Status.Info.Serial"
@@ -2966,18 +3046,35 @@ def _register_callbacks_impl(app):
          Input("current-dashboard",       "data"),
          Input("language-preference-store", "data")],
         [State("app-state", "data"),
-         State("app-mode", "data")],
+         State("app-mode", "data"),
+         State("active-machine-store", "data")],
         prevent_initial_call=True
     )
-    def update_section_4(n_intervals, which, lang, app_state_data, app_mode):
+    def update_section_4(n_intervals, which, lang, app_state_data, app_mode, active_machine_data):
         """Update section 4 with the color sort primary list.
-    
+
         Each sensitivity's number and name are displayed above its image.
         """
-        # only run when we’re in the “main” dashboard
+
+        logger.debug("Section 4 update triggered")
+
         if which != "main":
             raise PreventUpdate
-            # or return [no_update, no_update]
+
+        machine_id = active_machine_data.get("machine_id") if active_machine_data else None
+        if not machine_id:
+            logger.debug("Section 4 update aborted: no active machine")
+            raise PreventUpdate
+
+        mode = "demo"
+        if app_mode and isinstance(app_mode, dict) and "mode" in app_mode:
+            mode = app_mode["mode"]
+
+        if mode in LIVE_LIKE_MODES and not app_state_data.get("connected", False):
+            logger.debug("Section 4 update aborted: not connected")
+            raise PreventUpdate
+
+        # Tag definitions for easy updating
         # Tag definitions for easy updating
         PRIMARY_ACTIVE_TAG_PREFIX = "Settings.ColorSort.Primary"
         PRIMARY_ACTIVE_TAG_SUFFIX = ".IsAssigned"
@@ -3308,12 +3405,26 @@ def _register_callbacks_impl(app):
         prevent_initial_call=True
     )
     def update_section_5_1(n_intervals, which, state_data, historical_data, lang, app_state_data, app_mode, active_machine_data, weight_pref, pr_unit):
-    
+
         """Update section 5-1 with trend graph for objects per minute"""
-         # only run when we’re in the “main” dashboard
+
+        logger.debug("Section 5-1 update triggered")
+
         if which != "main":
             raise PreventUpdate
-            # or return [no_update, no_update]
+
+        machine_id = active_machine_data.get("machine_id") if active_machine_data else None
+        if not machine_id:
+            logger.debug("Section 5-1 update aborted: no active machine")
+            raise PreventUpdate
+
+        mode = "demo"
+        if app_mode and isinstance(app_mode, dict) and "mode" in app_mode:
+            mode = app_mode["mode"]
+
+        if mode in LIVE_LIKE_MODES and not app_state_data.get("connected", False):
+            logger.debug("Section 5-1 update aborted: not connected")
+            raise PreventUpdate
     
         # Tag definitions - Easy to update when actual tag names are available
         OBJECTS_PER_MIN_TAG = "Status.ColorSort.Sort1.Throughput.ObjectPerMin.Current"
@@ -3605,11 +3716,24 @@ def _register_callbacks_impl(app):
     )
     def update_section_5_2(n_intervals, which, state_data, historical_data, lang, app_state_data, app_mode, active_machine_data):
         """Update section 5-2 with bar chart for counter values and update alarm data"""
-        
-        # only run when we’re in the “main” dashboard
+
+        logger.debug("Section 5-2 update triggered")
+
         if which != "main":
             raise PreventUpdate
-            # or return [no_update, no_update]
+
+        machine_id = active_machine_data.get("machine_id") if active_machine_data else None
+        if not machine_id:
+            logger.debug("Section 5-2 update aborted: no active machine")
+            raise PreventUpdate
+
+        mode = "demo"
+        if app_mode and isinstance(app_mode, dict) and "mode" in app_mode:
+            mode = app_mode["mode"]
+
+        if mode in LIVE_LIKE_MODES and not app_state_data.get("connected", False):
+            logger.debug("Section 5-2 update aborted: not connected")
+            raise PreventUpdate
         global previous_counter_values, threshold_settings
     
         # Ensure we have a full set of values to work with
@@ -3846,12 +3970,26 @@ def _register_callbacks_impl(app):
         prevent_initial_call=True
     )
     def update_section_6_1(n_intervals, which, state_data, lang, app_state_data, app_mode, active_machine_data):
-    
+
         """Update section 6-1 with trend graph for the 12 counters, supporting historical data"""
-        # only run when we’re in the “main” dashboard
+
+        logger.debug("Section 6-1 update triggered")
+
         if which != "main":
             raise PreventUpdate
-            # or return [no_update, no_update]
+
+        machine_id = active_machine_data.get("machine_id") if active_machine_data else None
+        if not machine_id:
+            logger.debug("Section 6-1 update aborted: no active machine")
+            raise PreventUpdate
+
+        mode = "demo"
+        if app_mode and isinstance(app_mode, dict) and "mode" in app_mode:
+            mode = app_mode["mode"]
+
+        if mode in LIVE_LIKE_MODES and not app_state_data.get("connected", False):
+            logger.debug("Section 6-1 update aborted: not connected")
+            raise PreventUpdate
         global previous_counter_values, display_settings
     
         # Ensure baseline values exist for the trend graph
@@ -4107,14 +4245,22 @@ def _register_callbacks_impl(app):
          Input("current-dashboard",       "data"),
          Input("status-update-interval", "n_intervals"),
          Input("language-preference-store", "data")],
+        [State("active-machine-store", "data")],
         prevent_initial_call=True
     )
-    def update_section_6_2(alarm_data,which, n_intervals, lang):
+    def update_section_6_2(alarm_data,which, n_intervals, lang, active_machine_data):
         """Update section 6-2 with alarms display in two columns"""
+
+        logger.debug("Section 6-2 update triggered")
+
          # only run when we’re in the “main” dashboard
         if which != "main":
             raise PreventUpdate
-            # or return [no_update, no_update]
+
+        machine_id = active_machine_data.get("machine_id") if active_machine_data else None
+        if not machine_id:
+            logger.debug("Section 6-2 update aborted: no active machine")
+            raise PreventUpdate
         # Set title for the section
         section_title = tr("sensitivity_threshold_alarms_title", lang)
         
@@ -4194,15 +4340,30 @@ def _register_callbacks_impl(app):
          Input("current-dashboard",       "data"),
          Input("language-preference-store", "data")],
         [State("app-state", "data"),
-         State("app-mode", "data")],
+         State("app-mode", "data"),
+         State("active-machine-store", "data")],
         prevent_initial_call=True
     )
-    def update_section_7_1(n_intervals, which, lang, app_state_data, app_mode):
+    def update_section_7_1(n_intervals, which, lang, app_state_data, app_mode, active_machine_data):
         """Update section 7-1 with air pressure gauge"""
-        # only run when we’re in the “main” dashboard
+
+        logger.debug("Section 7-1 update triggered")
+
         if which != "main":
             raise PreventUpdate
-            # or return [no_update, no_update]
+
+        machine_id = active_machine_data.get("machine_id") if active_machine_data else None
+        if not machine_id:
+            logger.debug("Section 7-1 update aborted: no active machine")
+            raise PreventUpdate
+
+        mode = "demo"
+        if app_mode and isinstance(app_mode, dict) and "mode" in app_mode:
+            mode = app_mode["mode"]
+
+        if mode in LIVE_LIKE_MODES and not app_state_data.get("connected", False):
+            logger.debug("Section 7-1 update aborted: not connected")
+            raise PreventUpdate
     
         # Tag definition for air pressure - Easy to update when actual tag name is available
         AIR_PRESSURE_TAG = "Status.Environmental.AirPressurePsi"
@@ -4320,10 +4481,24 @@ def _register_callbacks_impl(app):
     )
     def update_section_7_2(n_intervals, which, time_state, lang, app_state_data, app_mode, active_machine_data):
         """Update section 7-2 with Machine Control Log"""
-        # only run when we’re in the “main” dashboard
+
+        logger.debug("Section 7-2 update triggered")
+
         if which != "main":
             raise PreventUpdate
-            # or return [no_update, no_update]
+
+        machine_id = active_machine_data.get("machine_id") if active_machine_data else None
+        if not machine_id:
+            logger.debug("Section 7-2 update aborted: no active machine")
+            raise PreventUpdate
+
+        mode = "demo"
+        if app_mode and isinstance(app_mode, dict) and "mode" in app_mode:
+            mode = app_mode["mode"]
+
+        if mode in LIVE_LIKE_MODES and not app_state_data.get("connected", False):
+            logger.debug("Section 7-2 update aborted: not connected")
+            raise PreventUpdate
         global prev_values, prev_active_states, machine_control_log
     
         machine_id = active_machine_data.get("machine_id") if active_machine_data else None
