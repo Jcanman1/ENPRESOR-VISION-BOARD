@@ -2,8 +2,23 @@ import importlib
 import sys
 import autoconnect
 
+# Flag to prevent re-entrancy when the legacy module imports this module and
+# executes ``register_callbacks`` during import.
+_REGISTERING = False
+
 
 def register_callbacks(app):
+    """Public entry point that guards against re-entrant registration."""
+    global _REGISTERING
+    if _REGISTERING:
+        return
+    _REGISTERING = True
+    try:
+        _register_callbacks_impl(app)
+    finally:
+        _REGISTERING = False
+
+def _register_callbacks_impl(app):
     main = sys.modules.get("EnpresorOPCDataViewBeforeRestructureLegacy")
     if main is None:
         candidate = sys.modules.get("__main__")
