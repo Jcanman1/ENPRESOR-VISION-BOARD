@@ -31,8 +31,18 @@ For production deployments you can run the Dash application using Gunicorn.
    ```
 2. Start the server by pointing Gunicorn at the WSGI entry point:
    ```bash
-   gunicorn --bind 0.0.0.0:8050 wsgi:application
-   ```
+gunicorn --bind 0.0.0.0:8050 wsgi:application
+```
+
+## Testing
+
+After installing the requirements run:
+
+```bash
+pytest
+```
+
+All tests should pass.
 
 ## Packaging
 
