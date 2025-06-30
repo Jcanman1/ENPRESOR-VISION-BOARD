@@ -68,3 +68,17 @@ the `--add-data` option. The separator differs by platform:
 With PyInstaller 6 the bundled files are extracted into an `_internal`
 directory next to the executable.
 
+## Running Tests
+
+Install `pytest` along with any runtime dependencies, for example:
+
+```bash
+pip install -r requirements.txt -r test-requirements.txt
+```
+
+Then run the test suite from the repository root:
+
+```bash
+pytest
+```
+
