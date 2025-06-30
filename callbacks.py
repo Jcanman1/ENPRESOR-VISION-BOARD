@@ -7,6 +7,27 @@ import autoconnect
 _REGISTERING = False
 
 
+def _extract_clicked_machine_id(triggered_prop, card_clicks, card_ids):
+    """Return machine id of the card that triggered the callback."""
+    import json
+    import re
+
+    match = re.search(r"\{[^}]+\}", triggered_prop)
+    if match:
+        try:
+            info = json.loads(match.group())
+            if info.get("type") == "machine-card-click":
+                return info.get("index")
+        except Exception:
+            pass
+
+    for i, clicks in enumerate(card_clicks or []):
+        if clicks and i < len(card_ids):
+            return card_ids[i].get("index")
+
+    return None
+
+
 def register_callbacks(app):
     """Public entry point that guards against re-entrant registration."""
     global _REGISTERING
@@ -886,11 +907,11 @@ def _register_callbacks_impl(app):
         triggered_prop = ctx.triggered[0]["prop_id"]
         machine_id = None
 
-        if '"type":"machine-card-click"' in triggered_prop:
-            for i, clicks in enumerate(card_clicks):
-                if clicks and i < len(card_ids):
-                    machine_id = card_ids[i]["index"]
-                    break
+        trig = getattr(ctx, "triggered_id", None)
+        if isinstance(trig, dict) and trig.get("type") == "machine-card-click":
+            machine_id = trig.get("index")
+        else:
+            machine_id = _extract_clicked_machine_id(triggered_prop, card_clicks, card_ids)
 
         if machine_id is None:
             return dash.no_update, dash.no_update, dash.no_update
