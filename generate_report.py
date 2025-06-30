@@ -39,14 +39,21 @@ logger = logging.getLogger(__name__)
 
 def draw_header(c, width, height, page_number=None):
     """Draw the header section on each page with optional page number"""
-    # Determine base directory when running from a PyInstaller bundle
-    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
-        base_dir = sys._MEIPASS
+    # Determine directories to search for the font
+    if getattr(sys, "frozen", False):
+        # When frozen with PyInstaller, resources may be located next to the
+        # executable or in the temporary _MEIPASS directory.  Search both.
+        base_dir = getattr(sys, "_MEIPASS", "")
+        exec_dir = os.path.dirname(getattr(sys, "executable", ""))
+        search_dirs = [
+            base_dir,
+            os.path.join(base_dir, "assets"),
+            exec_dir,
+            os.path.join(exec_dir, "assets"),
+        ]
     else:
         base_dir = os.path.dirname(os.path.abspath(__file__))
-
-    # Look for the font in the base directory and in an assets subfolder
-    search_dirs = [base_dir, os.path.join(base_dir, "assets")]
+        search_dirs = [base_dir, os.path.join(base_dir, "assets")]
     
     # Check what font files actually exist in the search directories
     for d in search_dirs:

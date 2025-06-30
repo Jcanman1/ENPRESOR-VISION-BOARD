@@ -98,3 +98,36 @@ def test_draw_header_uses_meipass_font(tmp_path, monkeypatch):
 
     assert captured["path"] == str(target)
     assert captured["registered"] == "Audiowide"
+
+
+def test_draw_header_uses_executable_dir_font(tmp_path, monkeypatch):
+    """Font is loaded from the executable directory when frozen."""
+    exec_dir = tmp_path / "exec"
+    asset_dir = exec_dir / "assets"
+    asset_dir.mkdir(parents=True)
+
+    font_src = Path(__file__).resolve().parents[1] / "Audiowide-Regular.ttf"
+    target = asset_dir / "Audiowide-Regular.ttf"
+    target.write_bytes(font_src.read_bytes())
+
+    monkeypatch.setattr(generate_report.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(generate_report.sys, "_MEIPASS", str(tmp_path / "notused"), raising=False)
+    monkeypatch.setattr(generate_report.sys, "executable", str(exec_dir / "app.exe"), raising=False)
+
+    captured = {}
+
+    def fake_TTFont(name, path):
+        captured["path"] = path
+        return types.SimpleNamespace(name=name)
+
+    def fake_register(font):
+        captured["registered"] = font.name
+
+    monkeypatch.setattr(generate_report, "TTFont", fake_TTFont)
+    monkeypatch.setattr(generate_report.pdfmetrics, "registerFont", fake_register)
+
+    canvas = DummyCanvas()
+    generate_report.draw_header(canvas, 100, 100)
+
+    assert captured["path"] == str(target)
+    assert captured["registered"] == "Audiowide"
