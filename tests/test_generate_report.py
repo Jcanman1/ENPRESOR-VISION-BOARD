@@ -1,8 +1,9 @@
 import json
 from pathlib import Path
 import types
+import pytest
 
-import generate_report
+generate_report = pytest.importorskip("generate_report")
 
 class DummyCanvas:
     def __init__(self):

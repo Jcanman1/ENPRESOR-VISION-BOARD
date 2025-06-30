@@ -1,12 +1,13 @@
 import os
 import sys
-import dash
+import pytest
+
+dash = pytest.importorskip("dash")
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 import callbacks
 import autoconnect
-import pytest
 
 
 def test_floor_machine_callback_registered():
