@@ -2,12 +2,6 @@ import importlib
 import sys
 import autoconnect
 
-try:
-    from EnpresorOPCDataViewBeforeRestructureLegacy import logger
-except Exception:  # pragma: no cover - fallback if main script isn't loaded yet
-    import logging
-    logger = logging.getLogger(__name__)
-
 # Flag to prevent re-entrancy when the legacy module imports this module and
 # executes ``register_callbacks`` during import.
 _REGISTERING = False
@@ -191,12 +185,12 @@ def _register_callbacks_impl(app):
     def manage_dashboard(n_clicks, current):
         # On first load n_clicks is None → show the new dashboard
         if n_clicks is None:
-            logger.debug("manage_dashboard -> new (initial load)")
+            print("DEBUG: manage_dashboard -> new (initial load)", flush=True)
             return "new"
 
         # On every actual click, flip between “main” and “new”
         new_value = "new" if current == "main" else "main"
-        logger.debug("manage_dashboard toggled to %s", new_value)
+        print(f"DEBUG: manage_dashboard toggled to {new_value}", flush=True)
         return new_value
 
     @app.callback(
@@ -901,11 +895,7 @@ def _register_callbacks_impl(app):
         if machine_id is None:
             return dash.no_update, dash.no_update, dash.no_update
 
-        logger.debug(
-            "handle_machine_selection triggered by %s, machine_id=%s",
-            triggered_prop,
-            machine_id,
-        )
+        print(f"DEBUG: handle_machine_selection triggered by {triggered_prop}, machine_id={machine_id}", flush=True)
 
         # Set this machine as the active machine
         active_machine_id = machine_id
@@ -913,7 +903,7 @@ def _register_callbacks_impl(app):
         
         # Check if the machine is connected
         is_conn = machine_id in machine_connections and machine_connections[machine_id].get('connected', False)
-        logger.debug("machine %s connected=%s", machine_id, is_conn)
+        print(f"DEBUG: machine {machine_id} connected={is_conn}", flush=True)
         if is_conn:
             # Machine is connected - set up app_state to point to this machine's data
             connection_info = machine_connections[machine_id]
@@ -947,7 +937,7 @@ def _register_callbacks_impl(app):
         # Ensure the update thread is running after switching machines
         resume_update_thread()
         alive = app_state.update_thread.is_alive() if app_state.update_thread else False
-        logger.debug("update thread alive=%s", alive)
+        print(f"DEBUG: update thread alive={alive}", flush=True)
 
         # Return to main dashboard with selected machine
         return "main", {"machine_id": machine_id}, app_state_data
