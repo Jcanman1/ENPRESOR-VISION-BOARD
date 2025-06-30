@@ -4,13 +4,14 @@ import autoconnect
 
 
 def register_callbacks(app):
-    try:
-        main = importlib.import_module("EnpresorOPCDataViewBeforeRestructureLegacy")
-    except ModuleNotFoundError:
-        main = sys.modules.get("__main__")
-        if main is None:
-            raise
-    globals().update({k: v for k, v in vars(main).items() if k not in globals()})
+    main = sys.modules.get("EnpresorOPCDataViewBeforeRestructureLegacy")
+    if main is None:
+        candidate = sys.modules.get("__main__")
+        if candidate and getattr(candidate, "__file__", "").endswith("EnpresorOPCDataViewBeforeRestructureLegacy.py"):
+            main = candidate
+        else:
+            main = importlib.import_module("EnpresorOPCDataViewBeforeRestructureLegacy")
+    globals().update({k: v for k, v in vars(main).items() if not k.startswith("__")})
     for name in [
         "app_state",
         "machine_connections",
