@@ -1178,8 +1178,15 @@ async def discover_tags():
         
     try:
         logger.info("Discovering tags...")
-        root = app_state.client.get_root_node()
-        objects = app_state.client.get_objects_node()
+
+        try:
+            root = app_state.client.get_root_node()
+            objects = app_state.client.get_objects_node()
+            child_names = [child.get_browse_name().Name for child in objects.get_children()]
+            logger.info(f"Objects node children: {child_names}")
+        except Exception as exc:
+            logger.error(f"Error accessing root/objects nodes: {exc}")
+            return False
         
         # Clear existing tags
         app_state.tags = {}
