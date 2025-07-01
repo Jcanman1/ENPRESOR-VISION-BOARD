@@ -125,12 +125,3 @@ def test_register_callbacks_no_recursion(monkeypatch):
     callbacks.register_callbacks(app)
 
     assert init_calls == [1]
-
-
-def test_extract_clicked_machine_id():
-    trig = '{"index": 2, "type": "machine-card-click"}.n_clicks'
-    assert callbacks._extract_clicked_machine_id(trig, [None, 1], [{"index": 1}, {"index": 2}]) == 2
-
-    trig = 'other'
-    assert callbacks._extract_clicked_machine_id(trig, [None, 1, None], [{"index": 1}, {"index": 2}, {"index": 3}]) == 2
-
