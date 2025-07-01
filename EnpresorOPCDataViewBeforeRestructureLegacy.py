@@ -908,6 +908,8 @@ def opc_update_thread():
             active_machine_id,
             app_state.thread_stop_flag,
         )
+        # Track read failures for this cycle
+        failure_counts = defaultdict(int)
         try:
             # Only update if we have an active, connected machine
             if not app_state.connected or not app_state.client:
@@ -972,7 +974,14 @@ def opc_update_thread():
                     tag_info['data'].add_value(current_value)
                 except Exception as e:
                     logger.debug(f"Error reading tag {tag_name}: {e}")
+                    failure_counts[tag_name] += 1
                     continue
+
+            if failure_counts:
+                failure_msg = ", ".join(
+                    f"{name}={count}" for name, count in failure_counts.items()
+                )
+                logger.info("Read failures: %s", failure_msg)
             
             # Update last update time
             app_state.last_update_time = datetime.now()
@@ -2728,6 +2737,7 @@ app.layout = html.Div([
     dcc.Store(id="hidden-machines-cache"),
     dcc.Store(id="delete-ip-trigger", data={}),
     dcc.Store(id="auto-connect-trigger", data="init"),
+    dcc.Store(id="dashboard-nav-safety", data={}),
 
     # ─── Title bar + Dashboard-toggle button ───────────────────────────────
     html.Div([
