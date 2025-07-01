@@ -201,26 +201,18 @@ def _register_callbacks_impl(app):
         Output("current-dashboard", "data"),
         Input("new-dashboard-btn", "n_clicks"),
         State("current-dashboard", "data"),
-        State("active-machine-store", "data"),
         prevent_initial_call=False
     )
-    def manage_dashboard(n_clicks, current, active_machine_data):
-        """Improved dashboard management that preserves active machine context"""
+    def manage_dashboard(n_clicks, current):
         # On first load n_clicks is None → show the new dashboard
         if n_clicks is None:
+            print("DEBUG: manage_dashboard -> new (initial load)", flush=True)
             return "new"
 
-        # CRITICAL FIX: Don't allow switching away from main dashboard if machine is active
-        if current == "main" and active_machine_data and active_machine_data.get("machine_id"):
-            logger.info(
-                f"Preventing dashboard switch away from active machine {active_machine_data.get('machine_id')}"
-            )
-            return "main"
-
-        # On every actual click, flip between "main" and "new"
-        new_dashboard = "new" if current == "main" else "main"
-        logger.info(f"DEBUG: manage_dashboard toggled to {new_dashboard}")
-        return new_dashboard
+        # On every actual click, flip between “main” and “new”
+        new_value = "new" if current == "main" else "main"
+        print(f"DEBUG: manage_dashboard toggled to {new_value}", flush=True)
+        return new_value
 
     @app.callback(
         Output("export-data-button", "disabled"),
@@ -299,28 +291,6 @@ def _register_callbacks_impl(app):
             "type": "application/pdf",
             "base64": True,
         }
-
-    # CRITICAL FIX 2: ADD this new callback for dashboard navigation safety
-    @app.callback(
-        Output("dashboard-nav-safety", "data"),  # You need to add this dcc.Store to your layout
-        [Input("current-dashboard", "data"),
-         Input("active-machine-store", "data")],
-        prevent_initial_call=True
-    )
-    def dashboard_navigation_safety(current_dashboard, active_machine_data):
-        """Safety callback to log dashboard navigation and prevent conflicts"""
-        active_machine_id_local = active_machine_data.get("machine_id") if active_machine_data else None
-
-        logger.info(f"DASHBOARD STATE: dashboard={current_dashboard}, active_machine={active_machine_id_local}")
-
-        # If we're switching away from main dashboard while a machine is active, log a warning
-        if current_dashboard != "main" and active_machine_id_local:
-            logger.warning(
-                f"WARNING: Dashboard switched to '{current_dashboard}' while machine {active_machine_id_local} is active!"
-            )
-            logger.warning("This may cause data loading to stop!")
-
-        return {"dashboard": current_dashboard, "active_machine": active_machine_id_local}
 
     @app.callback(
         [Output("delete-confirmation-modal", "is_open"),
@@ -926,7 +896,7 @@ def _register_callbacks_impl(app):
         prevent_initial_call=True
     )
     def handle_machine_selection(card_clicks, machines_data, active_machine_data, app_state_data, card_ids):
-        """Handle machine card clicks and switch to main dashboard - FIXED VERSION"""
+        """Handle machine card clicks and switch to main dashboard"""
         global active_machine_id, machine_connections, app_state
 
         ctx = callback_context
@@ -937,62 +907,60 @@ def _register_callbacks_impl(app):
         triggered_prop = ctx.triggered[0]["prop_id"]
         machine_id = None
 
-        if '"type":"machine-card-click"' in triggered_prop:
-            for i, clicks in enumerate(card_clicks):
-                if clicks and i < len(card_ids):
-                    machine_id = card_ids[i]["index"]
-                    break
+        trig = getattr(ctx, "triggered_id", None)
+        if isinstance(trig, dict) and trig.get("type") == "machine-card-click":
+            machine_id = trig.get("index")
+        else:
+            machine_id = _extract_clicked_machine_id(triggered_prop, card_clicks, card_ids)
 
         if machine_id is None:
-            logger.warning("Machine card clicked but no machine ID found")
             return dash.no_update, dash.no_update, dash.no_update
 
-        # CRITICAL FIX: Set global active_machine_id FIRST
+        print(f"DEBUG: handle_machine_selection triggered by {triggered_prop}, machine_id={machine_id}", flush=True)
+
+        # Set this machine as the active machine
         active_machine_id = machine_id
-        logger.info(f"=== MACHINE SELECTION: Selected machine {machine_id} as active machine ===")
-
-        # CRITICAL FIX: Stop existing thread before starting new one
-        if app_state.update_thread is not None and app_state.update_thread.is_alive():
-            logger.info("Stopping existing OPC update thread...")
-            app_state.thread_stop_flag = True
-            app_state.update_thread.join(timeout=3)
-            if app_state.update_thread.is_alive():
-                logger.warning("Thread did not stop gracefully")
-            else:
-                logger.info("Successfully stopped existing OPC update thread")
-
+        logger.info(f"Selected machine {machine_id} as active machine")
+        
         # Check if the machine is connected
-        if machine_id in machine_connections and machine_connections[machine_id].get('connected', False):
+        is_conn = machine_id in machine_connections and machine_connections[machine_id].get('connected', False)
+        print(f"DEBUG: machine {machine_id} connected={is_conn}", flush=True)
+        if is_conn:
             # Machine is connected - set up app_state to point to this machine's data
             connection_info = machine_connections[machine_id]
-
+            
             app_state.client = connection_info['client']
             app_state.tags = connection_info['tags']
             app_state.connected = True
             app_state.last_update_time = connection_info.get('last_update', datetime.now())
-
-            # Start fresh thread for the selected machine
-            app_state.thread_stop_flag = False
-            app_state.update_thread = Thread(target=opc_update_thread)
-            app_state.update_thread.daemon = True
-            app_state.update_thread.start()
-            logger.info(f"Started new OPC update thread for machine {machine_id}")
-
+            
+            # Start/restart the update thread if not running
+            if app_state.update_thread is None or not app_state.update_thread.is_alive():
+                app_state.thread_stop_flag = False
+                app_state.update_thread = Thread(target=opc_update_thread)
+                app_state.update_thread.daemon = True
+                app_state.update_thread.start()
+                logger.info("Started OPC update thread for active machine")
+            
             logger.info(f"Switched to connected machine {machine_id} - {len(app_state.tags)} tags available")
             app_state_data["connected"] = True
-
+            
         else:
             # Machine not connected
             app_state.client = None
             app_state.tags = {}
             app_state.connected = False
             app_state.last_update_time = None
-
+            
             logger.info(f"Switched to disconnected machine {machine_id}")
             app_state_data["connected"] = False
 
+        # Ensure the update thread is running after switching machines
+        resume_update_thread()
+        alive = app_state.update_thread.is_alive() if app_state.update_thread else False
+        print(f"DEBUG: update thread alive={alive}", flush=True)
+
         # Return to main dashboard with selected machine
-        logger.info(f"=== SWITCHING TO MAIN DASHBOARD with machine {machine_id} ===")
         return "main", {"machine_id": machine_id}, app_state_data
 
     @app.callback(
@@ -2635,38 +2603,25 @@ def _register_callbacks_impl(app):
         prevent_initial_call=True
     )
     def update_section_2(n_intervals, which, lang, app_state_data, app_mode, active_machine_data):
-        """Update section 2 with three status boxes and feeder gauges - ENHANCED VERSION"""
+        """Update section 2 with three status boxes and feeder gauges"""
 
-        active_machine_id_local = active_machine_data.get("machine_id") if active_machine_data else None
-
-        logger.debug(
-            f"Section 2 update - interval: {n_intervals}, dashboard: {which}, connected: {app_state_data.get('connected')}, active_machine: {active_machine_id_local}, global_active: {active_machine_id}"
-        )
+        logger.debug("Section 2 update triggered")
 
         if which != "main":
-            logger.debug("Section 2: Not main dashboard - preventing update")
             raise PreventUpdate
 
-        if not active_machine_id_local:
-            logger.debug("Section 2: No active machine - preventing update")
+        machine_id = active_machine_data.get("machine_id") if active_machine_data else None
+        if not machine_id:
+            logger.debug("Section 2 update aborted: no active machine")
             raise PreventUpdate
 
         mode = "demo"
         if app_mode and isinstance(app_mode, dict) and "mode" in app_mode:
             mode = app_mode["mode"]
 
-        if mode in LIVE_LIKE_MODES:
-            if not app_state_data.get("connected", False):
-                logger.debug("Section 2: Live mode but no connected machine - preventing update")
-                raise PreventUpdate
-
-            if not app_state.client or not app_state.tags:
-                logger.debug("Section 2: Live mode but no valid client or tags - preventing update")
-                raise PreventUpdate
-
-        logger.debug(
-            f"Section 2: Proceeding with update - {len(app_state.tags) if app_state.tags else 0} tags available"
-        )
+        if mode in LIVE_LIKE_MODES and not app_state_data.get("connected", False):
+            logger.debug("Section 2 update aborted: not connected")
+            raise PreventUpdate
         # Tag definitions
         PRESET_NUMBER_TAG = "Status.Info.PresetNumber"
         PRESET_NAME_TAG = "Status.Info.PresetName"
@@ -3451,34 +3406,25 @@ def _register_callbacks_impl(app):
     )
     def update_section_5_1(n_intervals, which, state_data, historical_data, lang, app_state_data, app_mode, active_machine_data, weight_pref, pr_unit):
 
-        """Update section 5-1 with trend graph for objects per minute - ENHANCED VERSION"""
+        """Update section 5-1 with trend graph for objects per minute"""
 
-        active_machine_id_local = active_machine_data.get("machine_id") if active_machine_data else None
-
-        logger.debug(
-            f"Section 5-1 update - interval: {n_intervals}, dashboard: {which}, connected: {app_state_data.get('connected')}, active_machine: {active_machine_id_local}"
-        )
+        logger.debug("Section 5-1 update triggered")
 
         if which != "main":
-            logger.debug("Section 5-1: Not main dashboard - preventing update")
             raise PreventUpdate
 
-        if not active_machine_id_local:
-            logger.debug("Section 5-1: No active machine - preventing update")
+        machine_id = active_machine_data.get("machine_id") if active_machine_data else None
+        if not machine_id:
+            logger.debug("Section 5-1 update aborted: no active machine")
             raise PreventUpdate
 
         mode = "demo"
         if app_mode and isinstance(app_mode, dict) and "mode" in app_mode:
             mode = app_mode["mode"]
 
-        if mode in LIVE_LIKE_MODES:
-            if not app_state_data.get("connected", False):
-                logger.debug("Section 5-1: Live mode but no connected machine - preventing update")
-                raise PreventUpdate
-
-            if not app_state.client or not app_state.tags:
-                logger.debug("Section 5-1: Live mode but no valid client or tags - preventing update")
-                raise PreventUpdate
+        if mode in LIVE_LIKE_MODES and not app_state_data.get("connected", False):
+            logger.debug("Section 5-1 update aborted: not connected")
+            raise PreventUpdate
     
         # Tag definitions - Easy to update when actual tag names are available
         OBJECTS_PER_MIN_TAG = "Status.ColorSort.Sort1.Throughput.ObjectPerMin.Current"
