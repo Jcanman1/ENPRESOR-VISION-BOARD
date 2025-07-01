@@ -28,12 +28,14 @@ def _minutes_to_hm(minutes: float) -> str:
 
 from hourly_data_saving import EXPORT_DIR as METRIC_EXPORT_DIR, get_historical_data
 
+log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=getattr(logging, log_level, logging.INFO),
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
-logging.getLogger().handlers.clear()
 logger = logging.getLogger(__name__)
+if not logging.getLogger().handlers:
+    logging.getLogger().addHandler(logging.StreamHandler())
 
 
 

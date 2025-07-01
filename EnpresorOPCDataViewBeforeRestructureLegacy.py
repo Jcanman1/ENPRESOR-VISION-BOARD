@@ -88,12 +88,14 @@ except Exception:  # pragma: no cover - optional dependency
 logging.getLogger('opcua').setLevel(logging.WARNING)  # Turn off OPC UA debug logs
 logging.getLogger('opcua.client.ua_client').setLevel(logging.WARNING)
 logging.getLogger('opcua.uaprotocol').setLevel(logging.WARNING)
+log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=getattr(logging, log_level, logging.INFO),
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
-logging.getLogger().handlers.clear()  # Remove default console handler
 logger = logging.getLogger(__name__)
+if not logging.getLogger().handlers:
+    logging.getLogger().addHandler(logging.StreamHandler())
 logging.getLogger("werkzeug").setLevel(logging.ERROR)
 
 # Common numeric font for dashboard values
