@@ -924,8 +924,22 @@ def opc_update_thread():
     logger.info("OPC update thread started")
     consecutive_failures = 0
     max_failures = 5
+    stalled_cycles = 0
+    stalled_threshold = 3
+    prev_update_time = app_state.last_update_time
     
     while not app_state.thread_stop_flag:
+        if prev_update_time is not None and app_state.last_update_time == prev_update_time:
+            stalled_cycles += 1
+            if stalled_cycles > stalled_threshold:
+                logger.warning(
+                    "OPC update thread has not updated for %d cycles (last update at %s)",
+                    stalled_cycles,
+                    app_state.last_update_time,
+                )
+        else:
+            stalled_cycles = 0
+        prev_update_time = app_state.last_update_time
         logger.debug(
             "opc_update_thread loop: mode=%s, active_machine=%s, stop_flag=%s",
             current_app_mode,
@@ -1012,6 +1026,7 @@ def opc_update_thread():
             
             # Update last update time
             app_state.last_update_time = datetime.now()
+            logger.info("last_update_time updated to %s", app_state.last_update_time)
 
             machine_connections[active_machine_id]['last_update'] = app_state.last_update_time
 
