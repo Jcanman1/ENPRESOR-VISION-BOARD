@@ -931,6 +931,12 @@ def _register_callbacks_impl(app):
             app_state.update_thread.daemon = True
             app_state.update_thread.start()
             logger.info(f"Started new OPC update thread for machine {machine_id}")
+            logger.debug(
+                "Thread status after selection: mode=%s, active_machine=%s, alive=%s",
+                current_app_mode,
+                active_machine_id,
+                app_state.update_thread.is_alive(),
+            )
             
             logger.info(f"Switched to connected machine {machine_id} - {len(app_state.tags)} tags available")
             app_state_data["connected"] = True
@@ -1821,9 +1827,17 @@ def _register_callbacks_impl(app):
         if which != "main":
             #print("DEBUG: Preventing update for section-1-1")
             raise PreventUpdate
-        
-    
+
+
         global previous_counter_values
+
+        logger.debug(
+            "update_section_1_1: mode=%s, active_machine=%s, thread_alive=%s, stop_flag=%s",
+            current_app_mode,
+            active_machine_id,
+            app_state.update_thread.is_alive() if app_state.update_thread else False,
+            app_state.thread_stop_flag,
+        )
         
     
         # Tag definitions - Easy to update when actual tag names are available

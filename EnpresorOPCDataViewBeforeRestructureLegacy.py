@@ -88,12 +88,14 @@ except Exception:  # pragma: no cover - optional dependency
 logging.getLogger('opcua').setLevel(logging.WARNING)  # Turn off OPC UA debug logs
 logging.getLogger('opcua.client.ua_client').setLevel(logging.WARNING)
 logging.getLogger('opcua.uaprotocol').setLevel(logging.WARNING)
+log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=getattr(logging, log_level, logging.INFO),
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
-logging.getLogger().handlers.clear()  # Remove default console handler
 logger = logging.getLogger(__name__)
+if not logging.getLogger().handlers:
+    logging.getLogger().addHandler(logging.StreamHandler())
 logging.getLogger("werkzeug").setLevel(logging.ERROR)
 
 # Common numeric font for dashboard values
@@ -900,6 +902,12 @@ def opc_update_thread():
     max_failures = 5
     
     while not app_state.thread_stop_flag:
+        logger.debug(
+            "opc_update_thread loop: mode=%s, active_machine=%s, stop_flag=%s",
+            current_app_mode,
+            active_machine_id,
+            app_state.thread_stop_flag,
+        )
         try:
             # Only update if we have an active, connected machine
             if not app_state.connected or not app_state.client:
