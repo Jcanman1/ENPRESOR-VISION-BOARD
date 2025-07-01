@@ -894,95 +894,87 @@ def get_event_loop():
 
 # Background thread for OPC UA updates
 def opc_update_thread():
-    """Background thread for OPC UA updates - with machines data caching"""
-    loop = get_event_loop()
-    iteration = 0
-
+    """Enhanced OPC update thread with better error handling and connection validation"""
+    logger.info("OPC update thread started")
+    consecutive_failures = 0
+    max_failures = 5
+    
     while not app_state.thread_stop_flag:
         try:
-            iteration += 1
-            # Cache machines data for auto-reconnection thread
-            # This will be updated by callbacks and read by auto-reconnection
-            
-            # Update tags for ALL connected machines
-            for machine_id, connection_info in list(machine_connections.items()):
-                if connection_info.get('connected', False):
-                    try:
-                        # Update tags for this machine
-                        for tag_name, node_info in connection_info['tags'].items():
-                            if current_app_mode == "live":
-                                if tag_name not in FAST_UPDATE_TAGS:
-                                    continue
-                            else:
-                                if (
-                                    tag_name not in FAST_UPDATE_TAGS
-                                    and (iteration - 1) % SLOW_UPDATE_EVERY != 0
-                                ):
-                                    continue
-                            try:
-                                value = node_info['node'].get_value()
-                                node_info['data'].add_value(value)
-
-                                if tag_name in MONITORED_RATE_TAGS:
-                                    prev_val = prev_values[machine_id][tag_name]
-                                    if (
-                                        prev_val is not None
-                                        and value is not None
-                                        and value != prev_val
-                                    ):
-                                        friendly = MONITORED_RATE_TAGS[tag_name]
-                                        add_control_log_entry(
-                                            friendly,
-                                            prev_val,
-                                            value,
-                                            machine_id=machine_id,
-                                        )
-                                    prev_values[machine_id][tag_name] = value
-
-                                if tag_name in SENSITIVITY_ACTIVE_TAGS:
-                                    prev_act = prev_active_states[machine_id][tag_name]
-                                    if (
-                                        prev_act is not None
-                                        and value is not None
-                                        and bool(value) != bool(prev_act)
-                                    ):
-                                        sens_num = SENSITIVITY_ACTIVE_TAGS[tag_name]
-                                        add_activation_log_entry(
-                                            sens_num,
-                                            bool(value),
-                                            machine_id=machine_id,
-                                        )
-                                    prev_active_states[machine_id][tag_name] = value
-                            except Exception as e:
-                                logger.debug(
-                                    f"Error updating tag {tag_name} for machine {machine_id}: {e}"
-                                )
-                        
-                        connection_info['last_update'] = datetime.now()
-                        
-                    except Exception as e:
-                        logger.warning(f"Error updating machine {machine_id}: {e}")
-                        connection_info['connected'] = False
-            
-            # Update app_state for active machine
-            if active_machine_id and active_machine_id in machine_connections:
-                connection_info = machine_connections[active_machine_id]
-                if connection_info.get('connected', False):
-                    app_state.tags = connection_info['tags']
-                    app_state.connected = True
-                    app_state.last_update_time = connection_info['last_update']
-                    app_state.client = connection_info['client']
-                else:
-                    app_state.connected = False
-                    app_state.tags = {}
-            else:
-                app_state.connected = False
-                app_state.tags = {}
+            # Only update if we have an active, connected machine
+            if not app_state.connected or not app_state.client:
+                logger.debug("No connected machine in update thread - sleeping")
+                time.sleep(1)
+                consecutive_failures = 0  # Reset failure count when not connected
+                continue
                 
+            # Verify the active machine is still in machine_connections
+            if active_machine_id not in machine_connections:
+                logger.warning(f"Active machine {active_machine_id} no longer in connections - stopping thread")
+                break
+                
+            if not machine_connections[active_machine_id].get('connected', False):
+                logger.warning(f"Active machine {active_machine_id} is no longer connected - stopping thread")
+                break
+            
+            # Verify we have tags to read
+            if not app_state.tags:
+                logger.warning("No tags available for reading - sleeping")
+                time.sleep(1)
+                consecutive_failures += 1
+                if consecutive_failures >= max_failures:
+                    logger.error("Too many consecutive failures - stopping thread")
+                    break
+                continue
+            
+            # Test connection by reading a simple tag
+            test_successful = False
+            for tag_name, tag_info in list(app_state.tags.items())[:3]:  # Test first 3 tags
+                try:
+                    test_value = tag_info['node'].get_value()
+                    test_successful = True
+                    break
+                except Exception as e:
+                    logger.debug(f"Failed to read test tag {tag_name}: {e}")
+                    continue
+            
+            if not test_successful:
+                logger.warning("Failed to read any test tags")
+                consecutive_failures += 1
+                if consecutive_failures >= max_failures:
+                    logger.error("Too many consecutive read failures - stopping thread")
+                    break
+                time.sleep(2)
+                continue
+            
+            # Reset failure count on success
+            consecutive_failures = 0
+            
+            # Continue with tag updates (your existing logic)
+            for tag_name, tag_info in app_state.tags.items():
+                try:
+                    current_value = tag_info['node'].get_value()
+                    tag_info['data'].add_value(current_value)
+                except Exception as e:
+                    logger.debug(f"Error reading tag {tag_name}: {e}")
+                    continue
+            
+            # Update last update time
+            app_state.last_update_time = datetime.now()
+            machine_connections[active_machine_id]['last_update'] = app_state.last_update_time
+            
+            # Sleep between updates
+            time.sleep(1)
+            
         except Exception as e:
             logger.error(f"Error in OPC update thread: {e}")
+            consecutive_failures += 1
+            if consecutive_failures >= max_failures:
+                logger.error("Too many consecutive errors - stopping thread")
+                break
+            time.sleep(2)  # Wait before retrying
             
-        time.sleep(1)
+    logger.info("OPC update thread stopped")
 
 # Run async function in the event loop
 def run_async(coro):
@@ -1178,15 +1170,8 @@ async def discover_tags():
         
     try:
         logger.info("Discovering tags...")
-
-        try:
-            root = app_state.client.get_root_node()
-            objects = app_state.client.get_objects_node()
-            child_names = [child.get_browse_name().Name for child in objects.get_children()]
-            logger.info(f"Objects node children: {child_names}")
-        except Exception as exc:
-            logger.error(f"Error accessing root/objects nodes: {exc}")
-            return False
+        root = app_state.client.get_root_node()
+        objects = app_state.client.get_objects_node()
         
         # Clear existing tags
         app_state.tags = {}
@@ -2711,7 +2696,6 @@ app.layout = html.Div([
 
     # ─── Hidden state stores ───────────────────────────────────────────────
     dcc.Store(id="current-dashboard",       data="new"),
-    dcc.Store(id="dashboard-nav-safety", data={}),
     dcc.Store(id="production-data-store",   data={"capacity": 50000, "accepts": 47500, "rejects": 2500}),
     dcc.Store(id="alarm-data",              data={"alarms": []}),
     dcc.Store(id="metric-logging-store"),
@@ -3114,17 +3098,6 @@ async def connect_and_discover_machine_tags(ip_address, machine_id, server_name=
         
         # Connect to server
         client.connect()
-
-        # Verify connection by requesting server time
-        try:
-            server_time = client.get_server_time()
-            logger.info(
-                f"Server time for machine {machine_id}: {server_time}"
-            )
-        except Exception as e:
-            logger.error(f"Connection failed: {e}")
-            return False
-
         logger.info(f"Connected successfully to machine {machine_id} at {ip_address}")
         
         # Discover tags using the exact same logic as main connection
