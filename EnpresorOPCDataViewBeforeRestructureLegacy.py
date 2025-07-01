@@ -3114,6 +3114,17 @@ async def connect_and_discover_machine_tags(ip_address, machine_id, server_name=
         
         # Connect to server
         client.connect()
+
+        # Verify connection by requesting server time
+        try:
+            server_time = client.get_server_time()
+            logger.info(
+                f"Server time for machine {machine_id}: {server_time}"
+            )
+        except Exception as e:
+            logger.error(f"Connection failed: {e}")
+            return False
+
         logger.info(f"Connected successfully to machine {machine_id} at {ip_address}")
         
         # Discover tags using the exact same logic as main connection
