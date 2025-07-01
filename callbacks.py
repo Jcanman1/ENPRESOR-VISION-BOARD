@@ -887,18 +887,15 @@ def _register_callbacks_impl(app):
         ctx = callback_context
         if not ctx.triggered:
             return dash.no_update, dash.no_update, dash.no_update
-        
-        # Find which card was clicked
-        triggered_prop = ctx.triggered[0]["prop_id"]
 
+        # Ignore spurious triggers when the layout re-renders
+        if not any(card_clicks):
+            raise PreventUpdate
+
+        triggered_id = ctx.triggered_id
         machine_id = None
-        
-        if '"type":"machine-card-click"' in triggered_prop:
-            for i, clicks in enumerate(card_clicks):
-                if clicks and i < len(card_ids):
-                    machine_id = card_ids[i]["index"]
-                    break
-        
+        if isinstance(triggered_id, dict) and triggered_id.get("type") == "machine-card-click":
+            machine_id = triggered_id.get("index")
 
         if machine_id is None:
             logger.warning("Machine card clicked but no machine ID found")
