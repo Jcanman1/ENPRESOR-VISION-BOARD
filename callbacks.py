@@ -4352,6 +4352,7 @@ def _register_callbacks_impl(app):
                     new_val = app_state.tags[opc_tag]["data"].latest_value
                     prev_val = machine_prev.get(opc_tag)
                     if prev_val is not None and new_val is not None and new_val != prev_val:
+                        logger.debug("Rate %s changed from %s to %s", opc_tag, prev_val, new_val)
                         add_control_log_entry(friendly_name, prev_val, new_val, machine_id=machine_id)
                     machine_prev[opc_tag] = new_val
     
