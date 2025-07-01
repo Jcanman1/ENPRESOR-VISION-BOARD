@@ -189,10 +189,10 @@ def _register_callbacks_impl(app):
         if n_clicks is None:
             return "new"
         
-        # CRITICAL FIX: Don't allow switching away from main dashboard if machine is active
-        if current == "main" and active_machine_data and active_machine_data.get("machine_id"):
-            logger.info(f"Preventing dashboard switch away from active machine {active_machine_data.get('machine_id')}")
-            return "main"  # Stay on main dashboard
+        # Allow toggling back to the floor/machine dashboard even when a machine
+        # is active.  The previous logic prevented leaving the main dashboard if
+        # a machine was selected which made the "Switch Dashboards" button appear
+        # unresponsive once a machine was chosen.
         
         # On every actual click, flip between "main" and "new"
         new_dashboard = "new" if current == "main" else "main"
