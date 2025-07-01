@@ -855,6 +855,9 @@ class AppState:
 app_state = AppState()
 
 # TagData class to store tag history
+from threading import Lock
+
+
 class TagData:
     def __init__(self, name, max_points=1000):
         self.name = name
@@ -862,16 +865,18 @@ class TagData:
         self.timestamps = []
         self.values = []
         self.latest_value = None
+        self.lock = Lock()
         
     def add_value(self, value, timestamp=None):
         """Add a new value to the tag history"""
         if timestamp is None:
             timestamp = datetime.now()
         
-        self.timestamps.append(timestamp)
-        self.values.append(value)
-        self.latest_value = value
-        
+        with self.lock:
+            self.timestamps.append(timestamp)
+            self.values.append(value)
+            self.latest_value = value
+
         # Keep only the latest max_points
         if len(self.timestamps) > self.max_points:
             self.timestamps = self.timestamps[-self.max_points:]
@@ -884,6 +889,25 @@ class TagData:
         return pd.DataFrame({'timestamp': self.timestamps, 'value': self.values})
 
 data_saver = initialize_data_saving()
+
+# ---------------------------------------------------------------------------
+# Helper to update tag values for all connected machines
+# ---------------------------------------------------------------------------
+def update_machine_connections():
+    """Iterate over ``machine_connections`` and refresh tag values."""
+    for machine_id, info in list(machine_connections.items()):
+        if not info.get("connected", False):
+            continue
+        tags = info.get("tags", {})
+        for tag_name, tag_info in tags.items():
+            try:
+                value = tag_info["node"].get_value()
+                tag_info["data"].add_value(value)
+            except Exception as e:
+                logger.debug(
+                    f"Error updating tag {tag_name} for machine {machine_id}: {e}"
+                )
+        info["last_update"] = datetime.now()
 
 # Initialize asyncio event loop
 def get_event_loop():
@@ -911,6 +935,9 @@ def opc_update_thread():
         # Track read failures for this cycle
         failure_counts = defaultdict(int)
         try:
+            # Always refresh tags for all connected machines
+            update_machine_connections()
+
             # Only update if we have an active, connected machine
             if not app_state.connected or not app_state.client:
                 logger.debug("No connected machine in update thread - sleeping")
@@ -2725,6 +2752,7 @@ app.layout = html.Div([
     dcc.Store(id="historical-data-cache",   data={}),
     dcc.Store(id="fullscreen-tracker",      data={"triggered": False}),
     dcc.Store(id="app-state",               data={"connected": False, "auto_connect": True}),
+    dcc.Store(id="dashboard-nav-safety"),
     dcc.Store(id="input-values",            data={"count": 1000, "weight": 500.0, "units": "lb"}),
     dcc.Store(id="user-inputs",             data={"units": "lb", "weight": 500.0, "count": 1000}),
     dcc.Store(id="opc-pause-state",         data={"paused": False}),
