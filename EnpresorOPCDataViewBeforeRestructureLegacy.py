@@ -908,6 +908,13 @@ def opc_update_thread():
                 consecutive_failures = 0  # Reset failure count when not connected
                 continue
                 
+            # Ensure a machine is selected before attempting updates
+            if active_machine_id is None:
+                logger.debug("No active machine selected in update thread - sleeping")
+                time.sleep(1)
+                consecutive_failures = 0
+                continue
+
             # Verify the active machine is still in machine_connections
             if active_machine_id not in machine_connections:
                 logger.warning(f"Active machine {active_machine_id} no longer in connections - stopping thread")
