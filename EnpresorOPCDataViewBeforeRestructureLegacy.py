@@ -3850,10 +3850,11 @@ def create_enhanced_machine_card_with_selection(machine, ip_options, floors_data
     clickable_overlay = html.Div(
         "",  # Empty content
         id={"type": "machine-card-click", "index": machine_id},
+        n_clicks=0,
         style={
             "position": "absolute",
             "top": "0",
-            "left": "0", 
+            "left": "0",
             "right": "0",
             "bottom": "0",
             "zIndex": "1",
