@@ -900,6 +900,12 @@ def opc_update_thread():
     max_failures = 5
     
     while not app_state.thread_stop_flag:
+        logger.debug(
+            "opc_update_thread loop: mode=%s, active_machine=%s, stop_flag=%s",
+            current_app_mode,
+            active_machine_id,
+            app_state.thread_stop_flag,
+        )
         try:
             # Only update if we have an active, connected machine
             if not app_state.connected or not app_state.client:
