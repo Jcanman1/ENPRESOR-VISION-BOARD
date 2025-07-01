@@ -890,6 +890,7 @@ def _register_callbacks_impl(app):
         
         # Find which card was clicked
         triggered_prop = ctx.triggered[0]["prop_id"]
+
         machine_id = None
         
         if '"type":"machine-card-click"' in triggered_prop:
@@ -898,6 +899,7 @@ def _register_callbacks_impl(app):
                     machine_id = card_ids[i]["index"]
                     break
         
+
         if machine_id is None:
             logger.warning("Machine card clicked but no machine ID found")
             return dash.no_update, dash.no_update, dash.no_update
