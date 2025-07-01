@@ -976,7 +976,17 @@ def opc_update_thread():
             
             # Update last update time
             app_state.last_update_time = datetime.now()
+
             machine_connections[active_machine_id]['last_update'] = app_state.last_update_time
+
+            # Log diagnostic counter after each update cycle
+            if "Diagnostic.Counter" in app_state.tags:
+                diag_value = app_state.tags["Diagnostic.Counter"]["data"].latest_value
+                logger.info(
+                    "Diagnostic.Counter=%s at %s",
+                    diag_value,
+                    datetime.now(),
+                )
             
             # Sleep between updates
             time.sleep(1)
@@ -2698,6 +2708,7 @@ app.layout = html.Div([
 
     # ─── Hidden state stores ───────────────────────────────────────────────
     dcc.Store(id="current-dashboard",       data="new"),
+    dcc.Store(id="dashboard-nav-safety"),
     dcc.Store(id="production-data-store",   data={"capacity": 50000, "accepts": 47500, "rejects": 2500}),
     dcc.Store(id="alarm-data",              data={"alarms": []}),
     dcc.Store(id="metric-logging-store"),
