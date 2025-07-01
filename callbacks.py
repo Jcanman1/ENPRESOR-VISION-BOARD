@@ -7,27 +7,6 @@ import autoconnect
 _REGISTERING = False
 
 
-def _extract_clicked_machine_id(triggered_prop, card_clicks, card_ids):
-    """Return machine id of the card that triggered the callback."""
-    import json
-    import re
-
-    match = re.search(r"\{[^}]+\}", triggered_prop)
-    if match:
-        try:
-            info = json.loads(match.group())
-            if info.get("type") == "machine-card-click":
-                return info.get("index")
-        except Exception:
-            pass
-
-    for i, clicks in enumerate(card_clicks or []):
-        if clicks and i < len(card_ids):
-            return card_ids[i].get("index")
-
-    return None
-
-
 def register_callbacks(app):
     """Public entry point that guards against re-entrant registration."""
     global _REGISTERING
@@ -201,18 +180,24 @@ def _register_callbacks_impl(app):
         Output("current-dashboard", "data"),
         Input("new-dashboard-btn", "n_clicks"),
         State("current-dashboard", "data"),
+        State("active-machine-store", "data"),  # ADD THIS STATE
         prevent_initial_call=False
     )
-    def manage_dashboard(n_clicks, current):
+    def manage_dashboard(n_clicks, current, active_machine_data):
+        """Improved dashboard management that preserves active machine context"""
         # On first load n_clicks is None → show the new dashboard
         if n_clicks is None:
-            print("DEBUG: manage_dashboard -> new (initial load)", flush=True)
             return "new"
-
-        # On every actual click, flip between “main” and “new”
-        new_value = "new" if current == "main" else "main"
-        print(f"DEBUG: manage_dashboard toggled to {new_value}", flush=True)
-        return new_value
+        
+        # CRITICAL FIX: Don't allow switching away from main dashboard if machine is active
+        if current == "main" and active_machine_data and active_machine_data.get("machine_id"):
+            logger.info(f"Preventing dashboard switch away from active machine {active_machine_data.get('machine_id')}")
+            return "main"  # Stay on main dashboard
+        
+        # On every actual click, flip between "main" and "new"
+        new_dashboard = "new" if current == "main" else "main"
+        logger.info(f"DEBUG: manage_dashboard toggled to {new_dashboard}")
+        return new_dashboard
 
     @app.callback(
         Output("export-data-button", "disabled"),
@@ -886,46 +871,53 @@ def _register_callbacks_impl(app):
 
     @app.callback(
         [Output("current-dashboard", "data", allow_duplicate=True),
-         Output("active-machine-store", "data"),
-         Output("app-state", "data", allow_duplicate=True)],
+        Output("active-machine-store", "data"),
+        Output("app-state", "data", allow_duplicate=True)],
         [Input({"type": "machine-card-click", "index": ALL}, "n_clicks")],
         [State("machines-data", "data"),
-         State("active-machine-store", "data"),
-         State("app-state", "data"),
-         State({"type": "machine-card-click", "index": ALL}, "id")],
+        State("active-machine-store", "data"),
+        State("app-state", "data"),
+        State({"type": "machine-card-click", "index": ALL}, "id")],
         prevent_initial_call=True
     )
     def handle_machine_selection(card_clicks, machines_data, active_machine_data, app_state_data, card_ids):
-        """Handle machine card clicks and switch to main dashboard"""
+        """Handle machine card clicks and switch to main dashboard - FIXED VERSION"""
         global active_machine_id, machine_connections, app_state
-
+        
         ctx = callback_context
         if not ctx.triggered:
             return dash.no_update, dash.no_update, dash.no_update
-
+        
         # Find which card was clicked
         triggered_prop = ctx.triggered[0]["prop_id"]
         machine_id = None
-
-        trig = getattr(ctx, "triggered_id", None)
-        if isinstance(trig, dict) and trig.get("type") == "machine-card-click":
-            machine_id = trig.get("index")
-        else:
-            machine_id = _extract_clicked_machine_id(triggered_prop, card_clicks, card_ids)
-
+        
+        if '"type":"machine-card-click"' in triggered_prop:
+            for i, clicks in enumerate(card_clicks):
+                if clicks and i < len(card_ids):
+                    machine_id = card_ids[i]["index"]
+                    break
+        
         if machine_id is None:
+            logger.warning("Machine card clicked but no machine ID found")
             return dash.no_update, dash.no_update, dash.no_update
-
-        print(f"DEBUG: handle_machine_selection triggered by {triggered_prop}, machine_id={machine_id}", flush=True)
-
-        # Set this machine as the active machine
+        
+        # CRITICAL FIX: Set global active_machine_id FIRST
         active_machine_id = machine_id
-        logger.info(f"Selected machine {machine_id} as active machine")
+        logger.info(f"=== MACHINE SELECTION: Selected machine {machine_id} as active machine ===")
+        
+        # CRITICAL FIX: Stop existing thread before starting new one
+        if app_state.update_thread is not None and app_state.update_thread.is_alive():
+            logger.info("Stopping existing OPC update thread...")
+            app_state.thread_stop_flag = True
+            app_state.update_thread.join(timeout=3)
+            if app_state.update_thread.is_alive():
+                logger.warning("Thread did not stop gracefully")
+            else:
+                logger.info("Successfully stopped existing OPC update thread")
         
         # Check if the machine is connected
-        is_conn = machine_id in machine_connections and machine_connections[machine_id].get('connected', False)
-        print(f"DEBUG: machine {machine_id} connected={is_conn}", flush=True)
-        if is_conn:
+        if machine_id in machine_connections and machine_connections[machine_id].get('connected', False):
             # Machine is connected - set up app_state to point to this machine's data
             connection_info = machine_connections[machine_id]
             
@@ -934,13 +926,12 @@ def _register_callbacks_impl(app):
             app_state.connected = True
             app_state.last_update_time = connection_info.get('last_update', datetime.now())
             
-            # Start/restart the update thread if not running
-            if app_state.update_thread is None or not app_state.update_thread.is_alive():
-                app_state.thread_stop_flag = False
-                app_state.update_thread = Thread(target=opc_update_thread)
-                app_state.update_thread.daemon = True
-                app_state.update_thread.start()
-                logger.info("Started OPC update thread for active machine")
+            # Start fresh thread for the selected machine
+            app_state.thread_stop_flag = False
+            app_state.update_thread = Thread(target=opc_update_thread)
+            app_state.update_thread.daemon = True
+            app_state.update_thread.start()
+            logger.info(f"Started new OPC update thread for machine {machine_id}")
             
             logger.info(f"Switched to connected machine {machine_id} - {len(app_state.tags)} tags available")
             app_state_data["connected"] = True
@@ -954,26 +945,22 @@ def _register_callbacks_impl(app):
             
             logger.info(f"Switched to disconnected machine {machine_id}")
             app_state_data["connected"] = False
-
-        # Ensure the update thread is running after switching machines
-        resume_update_thread()
-        alive = app_state.update_thread.is_alive() if app_state.update_thread else False
-        print(f"DEBUG: update thread alive={alive}", flush=True)
-
+        
         # Return to main dashboard with selected machine
+        logger.info(f"=== SWITCHING TO MAIN DASHBOARD with machine {machine_id} ===")
         return "main", {"machine_id": machine_id}, app_state_data
 
     @app.callback(
         Output("machines-data", "data", allow_duplicate=True),
         [Input({"type": "machine-connect-btn", "index": ALL}, "n_clicks")],
         [State("machines-data", "data"),
-         State({"type": "machine-ip-dropdown", "index": ALL}, "value"),
-         State({"type": "machine-connect-btn", "index": ALL}, "id"),
-         State("server-name-input", "value")],
+        State({"type": "machine-ip-dropdown", "index": ALL}, "value"),
+        State({"type": "machine-connect-btn", "index": ALL}, "id"),
+        State("server-name-input", "value")],
         prevent_initial_call=True
     )
     def handle_machine_connect_disconnect(n_clicks_list, machines_data, ip_values, button_ids, server_name):
-        """Handle connect/disconnect - separate from updates like main dashboard"""
+        """Handle connect/disconnect - IMPROVED VERSION with better thread management"""
         
         if not any(n_clicks_list) or not button_ids:
             return dash.no_update
@@ -1037,13 +1024,15 @@ def _register_callbacks_impl(app):
                             
                     logger.info(f"Successfully connected machine {machine_id}")
                     
-                    # IMPORTANT: Start the update thread if it's not running
-                    if app_state.update_thread is None or not app_state.update_thread.is_alive():
-                        app_state.thread_stop_flag = False
-                        app_state.update_thread = Thread(target=opc_update_thread)
-                        app_state.update_thread.daemon = True
-                        app_state.update_thread.start()
-                        logger.info("Started OPC update thread for all machines")
+                    # IMPROVED: Only start thread if no machines are currently active
+                    # If this is the first connection or the current active machine
+                    if active_machine_id == machine_id or active_machine_id is None:
+                        if app_state.update_thread is None or not app_state.update_thread.is_alive():
+                            app_state.thread_stop_flag = False
+                            app_state.update_thread = Thread(target=opc_update_thread)
+                            app_state.update_thread.daemon = True
+                            app_state.update_thread.start()
+                            logger.info("Started OPC update thread for connected machine")
                     
                 else:
                     logger.error(f"Failed to connect machine {machine_id}")
@@ -1833,6 +1822,7 @@ def _register_callbacks_impl(app):
         if which != "main":
             #print("DEBUG: Preventing update for section-1-1")
             raise PreventUpdate
+        
     
         global previous_counter_values
         
@@ -2561,6 +2551,14 @@ def _register_callbacks_impl(app):
         
           # only run when we’re in the “main” dashboard
         if which != "main":
+            raise PreventUpdate
+        # CRITICAL: Check if we actually have a connected machine and valid app_state
+        if not app_state_data.get("connected", False):
+            logger.debug("No connected machine - preventing section update")
+            raise PreventUpdate
+        
+        if not app_state.client or not app_state.tags:
+            logger.debug("No valid client or tags - preventing section update")
             raise PreventUpdate
             # or return [no_update, no_update]
         # Tag definitions
