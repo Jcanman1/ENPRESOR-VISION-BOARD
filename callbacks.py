@@ -1,6 +1,20 @@
 import importlib
 import sys
+from datetime import datetime
 import autoconnect
+
+# Tags for monitoring feeder rate changes - add this near the top of callbacks.py
+MONITORED_RATE_TAGS = {
+    "Status.Feeders.Feeder1.Rate": "Feeder 1",
+    "Status.Feeders.Feeder2.Rate": "Feeder 2",
+    "Status.Feeders.Feeder3.Rate": "Feeder 3",
+    "Status.Feeders.Feeder4.Rate": "Feeder 4",
+}
+
+SENSITIVITY_ACTIVE_TAGS = {
+    "Settings.ColorSort.Primary1.IsAssigned": 1,
+    "Settings.ColorSort.Primary2.IsAssigned": 2,
+}
 
 # Flag to prevent re-entrancy when the legacy module imports this module and
 # executes ``register_callbacks`` during import.
@@ -1030,6 +1044,11 @@ def _register_callbacks_impl(app):
                     logger.info(f"Successfully connected machine {machine_id}")
 
                     # Initialize previous values so the next change will be logged
+                    if machine_id not in prev_values:
+                        prev_values[machine_id] = {}
+                    if machine_id not in prev_active_states:
+                        prev_active_states[machine_id] = {}
+
                     tags = machine_connections[machine_id]["tags"]
                     for opc_tag in MONITORED_RATE_TAGS:
                         if opc_tag in tags:
@@ -2882,13 +2901,14 @@ def _register_callbacks_impl(app):
         if app_mode and isinstance(app_mode, dict) and "mode" in app_mode:
             mode = app_mode["mode"]
         logger.info("Section 3-2: mode=%s, connected=%s", mode, app_state_data.get("connected", False))
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
         if mode == "demo":
             # Demo mode values
             serial_number = "2025_1_4CH"
             status_text = "DEMO"
             model_text = "Enpresor RGB"
-            last_update = "NOW"
+            last_update = current_time
             status_class = "text-success"
         else:
             # Live mode - use original code with model tag
@@ -2905,7 +2925,7 @@ def _register_callbacks_impl(app):
             
             status_text = "Online" if app_state_data.get("connected", False) else "Offline"
             status_class = "text-success" if app_state_data.get("connected", False) else "text-secondary"
-            last_update = app_state.last_update_time.strftime("%H:%M:%S") if app_state.last_update_time else "Never"
+            last_update = current_time if app_state_data.get("connected", False) else "Never"
         
         return html.Div([
             # Title
@@ -4354,7 +4374,12 @@ def _register_callbacks_impl(app):
         mode = "demo"
         if app_mode and isinstance(app_mode, dict) and "mode" in app_mode:
             mode = app_mode["mode"]
+        logger.info("Section 7-2 callback triggered at %s", datetime.now())
         logger.info("Section 7-2: mode=%s, connected=%s", mode, app_state_data.get("connected", False))
+        logger.info(f"Section 7-2 Debug: machine_id={machine_id}")
+        logger.info(f"Section 7-2 Debug: MONITORED_RATE_TAGS={MONITORED_RATE_TAGS}")
+        logger.info(f"Section 7-2 Debug: prev_values keys={list(prev_values.get(machine_id, {}).keys())}")
+        logger.info(f"Available tags in app_state: {list(app_state.tags.keys())}")
     
         # Live monitoring of feeder rate tags
         if mode in LIVE_LIKE_MODES and app_state_data.get("connected", False):
@@ -4363,6 +4388,7 @@ def _register_callbacks_impl(app):
                 if opc_tag in app_state.tags:
                     new_val = app_state.tags[opc_tag]["data"].latest_value
                     prev_val = machine_prev.get(opc_tag)
+                    logger.info(f"Tag {opc_tag}: new_val={new_val}, prev_val={prev_val}")
                     if prev_val is not None and new_val is not None and new_val != prev_val:
                         logger.debug("Rate %s changed from %s to %s", opc_tag, prev_val, new_val)
                         add_control_log_entry(friendly_name, prev_val, new_val, machine_id=machine_id)
