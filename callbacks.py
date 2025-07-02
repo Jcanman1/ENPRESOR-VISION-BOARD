@@ -4364,205 +4364,205 @@ def _register_callbacks_impl(app):
         ])
 
     @app.callback(
-    Output("section-7-2", "children"),
-    [Input("status-update-interval", "n_intervals"),
-     Input("current-dashboard",       "data"),
-     Input("historical-time-index",   "data"),
-     Input("language-preference-store", "data")],
-    [State("app-state", "data"),
-     State("app-mode", "data"),
-     State("active-machine-store", "data")],
-    prevent_initial_call=True
-)
-def update_section_7_2(n_intervals, which, time_state, lang, app_state_data, app_mode, active_machine_data):
-    """Update section 7-2 with Machine Control Log"""
-    # only run when we're in the "main" dashboard
-    if which != "main":
-        raise PreventUpdate
-        
-    global prev_values, prev_active_states, machine_control_log
-
-    machine_id = active_machine_data.get("machine_id") if active_machine_data else None
-
-    # Determine current mode (live or demo)
-    mode = "demo"
-    if app_mode and isinstance(app_mode, dict) and "mode" in app_mode:
-        mode = app_mode["mode"]
-    
-    logger.info("Section 7-2 callback triggered at %s", datetime.now())
-    logger.info("Section 7-2: mode=%s, connected=%s", mode, app_state_data.get("connected", False))
-    logger.info(f"Section 7-2 Debug: machine_id={machine_id}")
-    logger.info(f"Section 7-2 Debug: MONITORED_RATE_TAGS={MONITORED_RATE_TAGS}")
-    logger.info(f"Section 7-2 Debug: prev_values keys={list(prev_values.get(machine_id, {}).keys())}")
-    logger.info(f"Available tags in app_state: {list(app_state.tags.keys())}")
-
-    # Live monitoring of feeder rate tags and sensitivity assignments
-    if mode in LIVE_LIKE_MODES and app_state_data.get("connected", False) and machine_id is not None:
-        try:
-            # Initialize machine_prev dictionaries if they don't exist
-            if machine_id not in prev_values:
-                prev_values[machine_id] = {}
-                logger.info(f"Initialized prev_values for machine {machine_id}")
-            if machine_id not in prev_active_states:
-                prev_active_states[machine_id] = {}
-                logger.info(f"Initialized prev_active_states for machine {machine_id}")
-            
-            machine_prev = prev_values[machine_id]
-            machine_prev_active = prev_active_states[machine_id]
-
-            # Monitor feeder rate changes
-            for opc_tag, friendly_name in MONITORED_RATE_TAGS.items():
-                try:
-                    if opc_tag in app_state.tags:
-                        new_val = app_state.tags[opc_tag]["data"].latest_value
-                        prev_val = machine_prev.get(opc_tag)
-                        logger.info(f"Tag {opc_tag}: new_val={new_val}, prev_val={prev_val}")
-
-                        if prev_val is not None and new_val is not None and new_val != prev_val:
-                            logger.info(f"CHANGE DETECTED! {opc_tag}: {prev_val} -> {new_val}")
-                            try:
-                                logger.debug("Rate %s changed from %s to %s", opc_tag, prev_val, new_val)
-                                add_control_log_entry(friendly_name, prev_val, new_val, machine_id=machine_id)
-                                logger.info(f"LOG ENTRY ADDED for {friendly_name}")
-                            except Exception as e:
-                                logger.error(f"ERROR adding log entry: {e}")
-
-                        machine_prev[opc_tag] = new_val
-                    else:
-                        logger.warning(f"Feeder tag {opc_tag} not found in app_state.tags")
-                except Exception as e:
-                    logger.error(f"Error monitoring feeder tag {opc_tag}: {e}")
-
-            # Monitor sensitivity assignment changes  
-            logger.info(f"Starting sensitivity tag checks")
-            for opc_tag, sens_num in SENSITIVITY_ACTIVE_TAGS.items():
-                try:
-                    if opc_tag in app_state.tags:
-                        new_val = app_state.tags[opc_tag]["data"].latest_value
-                        prev_val = machine_prev_active.get(opc_tag)
-                        logger.info(f"Sensitivity {sens_num} Tag {opc_tag}: new_val={new_val}, prev_val={prev_val}")
-                        
-                        if prev_val is not None and new_val is not None and bool(new_val) != bool(prev_val):
-                            logger.info(f"SENSITIVITY CHANGE DETECTED! Sens {sens_num}: {bool(prev_val)} -> {bool(new_val)}")
-                            try:
-                                add_activation_log_entry(sens_num, bool(new_val), machine_id=machine_id)
-                                logger.info(f"SENSITIVITY LOG ENTRY ADDED for Sensitivity {sens_num}")
-                            except Exception as e:
-                                logger.error(f"ERROR adding sensitivity log entry: {e}")
-                                
-                        machine_prev_active[opc_tag] = new_val
-                    else:
-                        logger.warning(f"Sensitivity tag {opc_tag} missing from app_state.tags")
-                except Exception as e:
-                    logger.error(f"Error monitoring sensitivity tag {opc_tag}: {e}")
-                    
-        except Exception as e:
-            logger.error(f"Fatal error in section 7-2 monitoring: {e}")
-            logger.exception("Full traceback:")
-
-    # Create the log entries display - with even more compact styling
-    log_entries = []
-
-    # Determine which log to display based on mode
-    display_log = machine_control_log
-    if mode == "historical":
-        hours = time_state.get("hours", 24) if isinstance(time_state, dict) else 24
-        machine_id = active_machine_data.get("machine_id") if active_machine_data else None
-        display_log = get_historical_control_log(timeframe=hours, machine_id=machine_id)
-        display_log = sorted(display_log, key=lambda e: e.get("timestamp"), reverse=True)
-    elif mode in LIVE_LIKE_MODES:
-        # Debug logging to see what's in the control log
-        logger.info(f"Total entries in machine_control_log: {len(machine_control_log)}")
-        logger.info(f"Looking for entries with machine_id={machine_id}")
-        
-        # More permissive filtering - include entries that match the machine_id
-        display_log = []
-        for entry in machine_control_log:
-            entry_machine_id = entry.get("machine_id")
-            is_demo = entry.get("demo", False)
-            logger.info(f"Entry: machine_id={entry_machine_id}, demo={is_demo}, tag={entry.get('tag', 'N/A')}")
-            
-            # Include if machine_id matches (regardless of demo flag for now)
-            if str(entry_machine_id) == str(machine_id):
-                display_log.append(entry)
-                logger.info(f"Including entry: {entry.get('tag', 'N/A')}")
-        
-        logger.info(f"Filtered to {len(display_log)} entries for machine {machine_id}")
-
-    # newest entries first - sort by timestamp if available
-    if display_log:
-        try:
-            display_log = sorted(display_log, key=lambda e: e.get("timestamp", datetime.min), reverse=True)
-        except Exception as e:
-            logger.error(f"Error sorting display_log: {e}")
-    
-    display_log = display_log[:20]
-
-    for idx, entry in enumerate(display_log, start=1):
-        timestamp = entry.get("display_timestamp")
-        if not timestamp:
-            ts = entry.get("timestamp")
-            if isinstance(ts, datetime):
-                timestamp = ts.strftime("%Y-%m-%d %H:%M:%S")
-            elif ts:
-                timestamp = str(ts)
-            else:
-                t = entry.get("time")
-                if isinstance(t, datetime):
-                    timestamp = t.strftime("%Y-%m-%d %H:%M:%S")
-                elif t:
-                    timestamp = str(t)
-                else:
-                    timestamp = ""
-
-        def _translate_tag(tag):
-            if tag.startswith("Sens "):
-                parts = tag.split()
-                if len(parts) >= 2:
-                    return f"{tr('sensitivity_label', lang)} {parts[1]}"
-            if tag.startswith("Feeder") or tag.startswith("Feed"):
-                parts = tag.split()
-                if len(parts) >= 2 and parts[1].isdigit():
-                    return tr(f"feeder_{parts[1]}", lang)
-                return tr('feeder_label', lang).rstrip(':')
-            return tag
-
-        tag_translated = _translate_tag(entry.get('tag', ''))
-
-        if entry.get("icon"):
-            color_class = "text-success" if entry.get("action") == "Enabled" else "text-danger"
-            icon = html.Span(entry.get("icon"), className=color_class)
-            log_entries.append(
-                html.Div(
-                    [f"{idx}. {tag_translated} {entry.get('action')} ", icon, f" {timestamp}"],
-                    className="mb-1 small",
-                    style={"whiteSpace": "nowrap"},
-                )
-            )
-        else:
-            description = f"{tag_translated} {entry.get('action', '')}".strip()
-            value_change = f"{entry.get('old_value', '')} -> {entry.get('new_value', '')}"
-            log_entries.append(
-                html.Div(
-                    f"{idx}. {description} {value_change} {timestamp}",
-                    className="mb-1 small",
-                    style={"whiteSpace": "nowrap"}
-                )
-            )
-
-    # If no entries, show placeholder
-    if not log_entries:
-        log_entries.append(
-            html.Div(tr("no_changes_yet", lang), className="text-center text-muted py-1")
-        )
-
-    # Return the section content with title
-    return html.Div(
-        [html.H5(tr("machine_control_log_title", lang), className="text-left mb-1"), *log_entries],
-        className="overflow-auto px-0",
-        # Use flexbox so this log grows with available space
-        style={"flex": "1"}
+        Output("section-7-2", "children"),
+        [Input("status-update-interval", "n_intervals"),
+         Input("current-dashboard",       "data"),
+         Input("historical-time-index",   "data"),
+         Input("language-preference-store", "data")],
+        [State("app-state", "data"),
+         State("app-mode", "data"),
+         State("active-machine-store", "data")],
+        prevent_initial_call=True
     )
+    def update_section_7_2(n_intervals, which, time_state, lang, app_state_data, app_mode, active_machine_data):
+        """Update section 7-2 with Machine Control Log"""
+        # only run when we're in the "main" dashboard
+        if which != "main":
+            raise PreventUpdate
+            
+        global prev_values, prev_active_states, machine_control_log
+    
+        machine_id = active_machine_data.get("machine_id") if active_machine_data else None
+    
+        # Determine current mode (live or demo)
+        mode = "demo"
+        if app_mode and isinstance(app_mode, dict) and "mode" in app_mode:
+            mode = app_mode["mode"]
+        
+        logger.info("Section 7-2 callback triggered at %s", datetime.now())
+        logger.info("Section 7-2: mode=%s, connected=%s", mode, app_state_data.get("connected", False))
+        logger.info(f"Section 7-2 Debug: machine_id={machine_id}")
+        logger.info(f"Section 7-2 Debug: MONITORED_RATE_TAGS={MONITORED_RATE_TAGS}")
+        logger.info(f"Section 7-2 Debug: prev_values keys={list(prev_values.get(machine_id, {}).keys())}")
+        logger.info(f"Available tags in app_state: {list(app_state.tags.keys())}")
+    
+        # Live monitoring of feeder rate tags and sensitivity assignments
+        if mode in LIVE_LIKE_MODES and app_state_data.get("connected", False) and machine_id is not None:
+            try:
+                # Initialize machine_prev dictionaries if they don't exist
+                if machine_id not in prev_values:
+                    prev_values[machine_id] = {}
+                    logger.info(f"Initialized prev_values for machine {machine_id}")
+                if machine_id not in prev_active_states:
+                    prev_active_states[machine_id] = {}
+                    logger.info(f"Initialized prev_active_states for machine {machine_id}")
+                
+                machine_prev = prev_values[machine_id]
+                machine_prev_active = prev_active_states[machine_id]
+    
+                # Monitor feeder rate changes
+                for opc_tag, friendly_name in MONITORED_RATE_TAGS.items():
+                    try:
+                        if opc_tag in app_state.tags:
+                            new_val = app_state.tags[opc_tag]["data"].latest_value
+                            prev_val = machine_prev.get(opc_tag)
+                            logger.info(f"Tag {opc_tag}: new_val={new_val}, prev_val={prev_val}")
+    
+                            if prev_val is not None and new_val is not None and new_val != prev_val:
+                                logger.info(f"CHANGE DETECTED! {opc_tag}: {prev_val} -> {new_val}")
+                                try:
+                                    logger.debug("Rate %s changed from %s to %s", opc_tag, prev_val, new_val)
+                                    add_control_log_entry(friendly_name, prev_val, new_val, machine_id=machine_id)
+                                    logger.info(f"LOG ENTRY ADDED for {friendly_name}")
+                                except Exception as e:
+                                    logger.error(f"ERROR adding log entry: {e}")
+    
+                            machine_prev[opc_tag] = new_val
+                        else:
+                            logger.warning(f"Feeder tag {opc_tag} not found in app_state.tags")
+                    except Exception as e:
+                        logger.error(f"Error monitoring feeder tag {opc_tag}: {e}")
+    
+                # Monitor sensitivity assignment changes  
+                logger.info(f"Starting sensitivity tag checks")
+                for opc_tag, sens_num in SENSITIVITY_ACTIVE_TAGS.items():
+                    try:
+                        if opc_tag in app_state.tags:
+                            new_val = app_state.tags[opc_tag]["data"].latest_value
+                            prev_val = machine_prev_active.get(opc_tag)
+                            logger.info(f"Sensitivity {sens_num} Tag {opc_tag}: new_val={new_val}, prev_val={prev_val}")
+                            
+                            if prev_val is not None and new_val is not None and bool(new_val) != bool(prev_val):
+                                logger.info(f"SENSITIVITY CHANGE DETECTED! Sens {sens_num}: {bool(prev_val)} -> {bool(new_val)}")
+                                try:
+                                    add_activation_log_entry(sens_num, bool(new_val), machine_id=machine_id)
+                                    logger.info(f"SENSITIVITY LOG ENTRY ADDED for Sensitivity {sens_num}")
+                                except Exception as e:
+                                    logger.error(f"ERROR adding sensitivity log entry: {e}")
+                                    
+                            machine_prev_active[opc_tag] = new_val
+                        else:
+                            logger.warning(f"Sensitivity tag {opc_tag} missing from app_state.tags")
+                    except Exception as e:
+                        logger.error(f"Error monitoring sensitivity tag {opc_tag}: {e}")
+                        
+            except Exception as e:
+                logger.error(f"Fatal error in section 7-2 monitoring: {e}")
+                logger.exception("Full traceback:")
+    
+        # Create the log entries display - with even more compact styling
+        log_entries = []
+    
+        # Determine which log to display based on mode
+        display_log = machine_control_log
+        if mode == "historical":
+            hours = time_state.get("hours", 24) if isinstance(time_state, dict) else 24
+            machine_id = active_machine_data.get("machine_id") if active_machine_data else None
+            display_log = get_historical_control_log(timeframe=hours, machine_id=machine_id)
+            display_log = sorted(display_log, key=lambda e: e.get("timestamp"), reverse=True)
+        elif mode in LIVE_LIKE_MODES:
+            # Debug logging to see what's in the control log
+            logger.info(f"Total entries in machine_control_log: {len(machine_control_log)}")
+            logger.info(f"Looking for entries with machine_id={machine_id}")
+            
+            # More permissive filtering - include entries that match the machine_id
+            display_log = []
+            for entry in machine_control_log:
+                entry_machine_id = entry.get("machine_id")
+                is_demo = entry.get("demo", False)
+                logger.info(f"Entry: machine_id={entry_machine_id}, demo={is_demo}, tag={entry.get('tag', 'N/A')}")
+                
+                # Include if machine_id matches (regardless of demo flag for now)
+                if str(entry_machine_id) == str(machine_id):
+                    display_log.append(entry)
+                    logger.info(f"Including entry: {entry.get('tag', 'N/A')}")
+            
+            logger.info(f"Filtered to {len(display_log)} entries for machine {machine_id}")
+    
+        # newest entries first - sort by timestamp if available
+        if display_log:
+            try:
+                display_log = sorted(display_log, key=lambda e: e.get("timestamp", datetime.min), reverse=True)
+            except Exception as e:
+                logger.error(f"Error sorting display_log: {e}")
+        
+        display_log = display_log[:20]
+    
+        for idx, entry in enumerate(display_log, start=1):
+            timestamp = entry.get("display_timestamp")
+            if not timestamp:
+                ts = entry.get("timestamp")
+                if isinstance(ts, datetime):
+                    timestamp = ts.strftime("%Y-%m-%d %H:%M:%S")
+                elif ts:
+                    timestamp = str(ts)
+                else:
+                    t = entry.get("time")
+                    if isinstance(t, datetime):
+                        timestamp = t.strftime("%Y-%m-%d %H:%M:%S")
+                    elif t:
+                        timestamp = str(t)
+                    else:
+                        timestamp = ""
+    
+            def _translate_tag(tag):
+                if tag.startswith("Sens "):
+                    parts = tag.split()
+                    if len(parts) >= 2:
+                        return f"{tr('sensitivity_label', lang)} {parts[1]}"
+                if tag.startswith("Feeder") or tag.startswith("Feed"):
+                    parts = tag.split()
+                    if len(parts) >= 2 and parts[1].isdigit():
+                        return tr(f"feeder_{parts[1]}", lang)
+                    return tr('feeder_label', lang).rstrip(':')
+                return tag
+    
+            tag_translated = _translate_tag(entry.get('tag', ''))
+    
+            if entry.get("icon"):
+                color_class = "text-success" if entry.get("action") == "Enabled" else "text-danger"
+                icon = html.Span(entry.get("icon"), className=color_class)
+                log_entries.append(
+                    html.Div(
+                        [f"{idx}. {tag_translated} {entry.get('action')} ", icon, f" {timestamp}"],
+                        className="mb-1 small",
+                        style={"whiteSpace": "nowrap"},
+                    )
+                )
+            else:
+                description = f"{tag_translated} {entry.get('action', '')}".strip()
+                value_change = f"{entry.get('old_value', '')} -> {entry.get('new_value', '')}"
+                log_entries.append(
+                    html.Div(
+                        f"{idx}. {description} {value_change} {timestamp}",
+                        className="mb-1 small",
+                        style={"whiteSpace": "nowrap"}
+                    )
+                )
+    
+        # If no entries, show placeholder
+        if not log_entries:
+            log_entries.append(
+                html.Div(tr("no_changes_yet", lang), className="text-center text-muted py-1")
+            )
+    
+        # Return the section content with title
+        return html.Div(
+            [html.H5(tr("machine_control_log_title", lang), className="text-left mb-1"), *log_entries],
+            className="overflow-auto px-0",
+            # Use flexbox so this log grows with available space
+            style={"flex": "1"}
+        )
 
     @app.callback(
         [Output("historical-time-index", "data"),
