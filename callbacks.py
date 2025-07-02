@@ -2587,6 +2587,7 @@ def _register_callbacks_impl(app):
         mode = "demo"  # Default to demo mode
         if app_mode and isinstance(app_mode, dict) and "mode" in app_mode:
             mode = app_mode["mode"]
+        logger.info("Section 2: mode=%s, connected=%s", mode, app_state_data.get("connected", False))
         
         # Define color styles for different states
         success_style = {"backgroundColor": "#28a745", "color": "white"}  # Green
@@ -2871,6 +2872,7 @@ def _register_callbacks_impl(app):
         mode = "demo"  # Default to demo mode
         if app_mode and isinstance(app_mode, dict) and "mode" in app_mode:
             mode = app_mode["mode"]
+        logger.info("Section 3-2: mode=%s, connected=%s", mode, app_state_data.get("connected", False))
         
         if mode == "demo":
             # Demo mode values
@@ -4343,6 +4345,7 @@ def _register_callbacks_impl(app):
         mode = "demo"
         if app_mode and isinstance(app_mode, dict) and "mode" in app_mode:
             mode = app_mode["mode"]
+        logger.info("Section 7-2: mode=%s, connected=%s", mode, app_state_data.get("connected", False))
     
         # Live monitoring of feeder rate tags
         if mode in LIVE_LIKE_MODES and app_state_data.get("connected", False):
