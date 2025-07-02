@@ -4396,7 +4396,12 @@ def _register_callbacks_impl(app):
         logger.info(f"Available tags in app_state: {list(app_state.tags.keys())}")
     
         # Live monitoring of feeder rate tags
-        if mode in LIVE_LIKE_MODES and app_state_data.get("connected", False):
+        if mode in LIVE_LIKE_MODES and app_state_data.get("connected", False) and machine_id is not None:
+            if machine_id not in prev_values:
+                prev_values[machine_id] = {}
+            if machine_id not in prev_active_states:
+                prev_active_states[machine_id] = {}
+
             machine_prev = prev_values[machine_id]
 
             for opc_tag, friendly_name in MONITORED_RATE_TAGS.items():
@@ -4417,6 +4422,7 @@ def _register_callbacks_impl(app):
                     machine_prev[opc_tag] = new_val
     
             machine_prev_active = prev_active_states[machine_id]
+            logger.info("Starting sensitivity tag checks")
             for opc_tag, sens_num in SENSITIVITY_ACTIVE_TAGS.items():
                 if opc_tag in app_state.tags:
                     new_val = app_state.tags[opc_tag]["data"].latest_value
@@ -4424,6 +4430,8 @@ def _register_callbacks_impl(app):
                     if prev_val is not None and new_val is not None and bool(new_val) != bool(prev_val):
                         add_activation_log_entry(sens_num, bool(new_val), machine_id=machine_id)
                     machine_prev_active[opc_tag] = new_val
+                else:
+                    logger.warning("Sensitivity tag %s missing from app_state.tags", opc_tag)
         
         # Create the log entries display - with even more compact styling
         log_entries = []
