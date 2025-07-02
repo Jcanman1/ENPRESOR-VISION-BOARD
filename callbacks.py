@@ -4399,41 +4399,22 @@ def _register_callbacks_impl(app):
         if mode in LIVE_LIKE_MODES and app_state_data.get("connected", False):
             machine_prev = prev_values[machine_id]
 
-            # First loop - detect changes and log them without modifying
-            # ``machine_prev`` so that we compare against the previous cycle's
-            # values consistently for all tags.
             for opc_tag, friendly_name in MONITORED_RATE_TAGS.items():
                 if opc_tag in app_state.tags:
                     new_val = app_state.tags[opc_tag]["data"].latest_value
                     prev_val = machine_prev.get(opc_tag)
-                    logger.info(
-                        "Tag %s: new_val=%s, prev_val=%s",
-                        opc_tag,
-                        new_val,
-                        prev_val,
-                    )
-                    if (
-                        prev_val is not None
-                        and new_val is not None
-                        and new_val != prev_val
-                    ):
-                        logger.debug(
-                            "Rate %s changed from %s to %s",
-                            opc_tag,
-                            prev_val,
-                            new_val,
-                        )
-                        add_control_log_entry(
-                            friendly_name, prev_val, new_val, machine_id=machine_id
-                        )
+                    logger.info(f"Tag {opc_tag}: new_val={new_val}, prev_val={prev_val}")
 
-            # Second loop - update ``machine_prev`` only after all changes have
-            # been processed.
-            for opc_tag, _friendly_name in MONITORED_RATE_TAGS.items():
-                if opc_tag in app_state.tags:
-                    new_val = app_state.tags[opc_tag]["data"].latest_value
-                    if new_val is not None:
-                        machine_prev[opc_tag] = new_val
+                    if prev_val is not None and new_val is not None and new_val != prev_val:
+                        logger.info(f"CHANGE DETECTED! {opc_tag}: {prev_val} -> {new_val}")
+                        try:
+                            logger.debug("Rate %s changed from %s to %s", opc_tag, prev_val, new_val)
+                            add_control_log_entry(friendly_name, prev_val, new_val, machine_id=machine_id)
+                            logger.info(f"LOG ENTRY ADDED for {friendly_name}")
+                        except Exception as e:
+                            logger.error(f"ERROR adding log entry: {e}")
+
+                    machine_prev[opc_tag] = new_val
     
             machine_prev_active = prev_active_states[machine_id]
             for opc_tag, sens_num in SENSITIVITY_ACTIVE_TAGS.items():
