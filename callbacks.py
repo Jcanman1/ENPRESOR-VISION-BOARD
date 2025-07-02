@@ -1028,6 +1028,15 @@ def _register_callbacks_impl(app):
                             break
                             
                     logger.info(f"Successfully connected machine {machine_id}")
+
+                    # Initialize previous values so the next change will be logged
+                    tags = machine_connections[machine_id]["tags"]
+                    for opc_tag in MONITORED_RATE_TAGS:
+                        if opc_tag in tags:
+                            prev_values[machine_id][opc_tag] = tags[opc_tag]["data"].latest_value
+                    for opc_tag in SENSITIVITY_ACTIVE_TAGS:
+                        if opc_tag in tags:
+                            prev_active_states[machine_id][opc_tag] = tags[opc_tag]["data"].latest_value
                     
                     # IMPROVED: Only start thread if no machines are currently active
                     # If this is the first connection or the current active machine
