@@ -595,7 +595,7 @@ def add_control_log_entry(tag_name, old_value, new_value, *, demo=False,
     # Add to log and keep only most recent 100 entries
     global machine_control_log
     machine_control_log.insert(0, entry)  # Insert at beginning (newest first)
-    machine_control_log = machine_control_log[:100]  # Keep only most recent 100
+    del machine_control_log[100:]  # Keep only most recent 100 entries
 
     entry_for_file = entry.copy()
     entry_for_file.pop("machine_id", None)
@@ -627,7 +627,7 @@ def add_activation_log_entry(sens_num, enabled, *, demo=False, machine_id=None):
 
     global machine_control_log
     machine_control_log.insert(0, entry)
-    machine_control_log = machine_control_log[:100]
+    del machine_control_log[100:]  # Keep only most recent 100 entries
 
     entry_for_file = entry.copy()
     entry_for_file.pop("machine_id", None)
