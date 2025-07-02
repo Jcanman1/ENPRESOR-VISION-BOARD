@@ -2748,7 +2748,6 @@ def initialize_floor_machine_data():
 
 
 # Then in your app.layout definition, use the loaded addresses:
-dcc.Store(id="ip-addresses-store", data=initial_ip_addresses),
 initial_floors_data, initial_machines_data = initialize_floor_machine_data()
 
 # Create the main layout matching the grid image
