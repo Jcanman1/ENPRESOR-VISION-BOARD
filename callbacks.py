@@ -14,6 +14,16 @@ MONITORED_RATE_TAGS = {
 SENSITIVITY_ACTIVE_TAGS = {
     "Settings.ColorSort.Primary1.IsAssigned": 1,
     "Settings.ColorSort.Primary2.IsAssigned": 2,
+    "Settings.ColorSort.Primary2.IsAssigned": 3,
+    "Settings.ColorSort.Primary2.IsAssigned": 4,
+    "Settings.ColorSort.Primary2.IsAssigned": 5,
+    "Settings.ColorSort.Primary2.IsAssigned": 6,
+    "Settings.ColorSort.Primary2.IsAssigned": 7,
+    "Settings.ColorSort.Primary2.IsAssigned": 8,
+    "Settings.ColorSort.Primary2.IsAssigned": 9,
+    "Settings.ColorSort.Primary2.IsAssigned": 10,
+    "Settings.ColorSort.Primary2.IsAssigned": 11,
+    "Settings.ColorSort.Primary2.IsAssigned": 12,
 }
 
 # Flag to prevent re-entrancy when the legacy module imports this module and
