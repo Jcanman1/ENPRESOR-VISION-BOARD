@@ -2759,7 +2759,6 @@ app.layout = html.Div([
 
     # ─── Hidden state stores ───────────────────────────────────────────────
     dcc.Store(id="current-dashboard",       data="new"),
-    dcc.Store(id="dashboard-nav-safety"),
     dcc.Store(id="production-data-store",   data={"capacity": 50000, "accepts": 47500, "rejects": 2500}),
     dcc.Store(id="alarm-data",              data={"alarms": []}),
     dcc.Store(id="metric-logging-store"),
@@ -2767,7 +2766,6 @@ app.layout = html.Div([
     dcc.Store(id="historical-data-cache",   data={}),
     dcc.Store(id="fullscreen-tracker",      data={"triggered": False}),
     dcc.Store(id="app-state",               data={"connected": False, "auto_connect": True}),
-    dcc.Store(id="dashboard-nav-safety"),
     dcc.Store(id="input-values",            data={"count": 1000, "weight": 500.0, "units": "lb"}),
     dcc.Store(id="user-inputs",             data={"units": "lb", "weight": 500.0, "count": 1000}),
     dcc.Store(id="opc-pause-state",         data={"paused": False}),
