@@ -5,10 +5,10 @@ import autoconnect
 
 # Tags for monitoring feeder rate changes - add this near the top of callbacks.py
 MONITORED_RATE_TAGS = {
-    "Status.Feeders.Feeder1.Rate": "Feeder 1",
-    "Status.Feeders.Feeder2.Rate": "Feeder 2",
-    "Status.Feeders.Feeder3.Rate": "Feeder 3",
-    "Status.Feeders.Feeder4.Rate": "Feeder 4",
+    "Status.Feeders.1Rate": "Feeder 1 Rate",
+    "Status.Feeders.2Rate": "Feeder 2 Rate", 
+    "Status.Feeders.3Rate": "Feeder 3 Rate",
+    "Status.Feeders.4Rate": "Feeder 4 Rate",
 }
 
 SENSITIVITY_ACTIVE_TAGS = {
