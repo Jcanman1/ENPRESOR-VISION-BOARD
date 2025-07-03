@@ -1,6 +1,7 @@
 import importlib
 import sys
 from datetime import datetime
+from collections import defaultdict
 import autoconnect
 
 # Tags for monitoring feeder rate changes - add this near the top of callbacks.py
@@ -25,6 +26,9 @@ SENSITIVITY_ACTIVE_TAGS = {
     "Settings.ColorSort.Primary11.IsAssigned": 11,
     "Settings.ColorSort.Primary12.IsAssigned": 12,
 }
+
+# Track last logged capacity per machine and filename to avoid duplicate rows
+last_logged_capacity = defaultdict(lambda: None)
 
 # Flag to prevent re-entrancy when the legacy module imports this module and
 # executes ``register_callbacks`` during import.
@@ -4957,8 +4961,12 @@ def _register_callbacks_impl(app):
         prevent_initial_call=True,
     )
     def log_current_metrics(n_intervals, app_state_data, app_mode, machines_data, production_data, weight_pref, lab_running, active_machine_data, lab_test_info):
-    
-        """Collect metrics for each connected machine and append to its file."""
+
+        """Collect metrics for each connected machine and append to its file.
+
+        In lab mode, metrics are logged only when the capacity value changes to
+        avoid duplicate rows.
+        """
         global machine_connections
     
         CAPACITY_TAG = "Status.ColorSort.Sort1.Throughput.KgPerHour.Current"
@@ -5059,6 +5067,11 @@ def _register_callbacks_impl(app):
     
             log_mode = "Lab" if mode == "lab" else "Live"
             if mode == "lab":
+                key = (str(machine_id), lab_filename)
+                prev_cap = last_logged_capacity.get(key)
+                if prev_cap is not None and metrics["capacity"] == prev_cap:
+                    continue
+                last_logged_capacity[key] = metrics["capacity"]
                 append_metrics(
                     metrics,
                     machine_id=str(machine_id),
