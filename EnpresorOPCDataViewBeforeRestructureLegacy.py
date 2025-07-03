@@ -2777,6 +2777,7 @@ app.layout = html.Div([
     dcc.Store(id="user-inputs",             data={"units": "lb", "weight": 500.0, "count": 1000}),
     dcc.Store(id="opc-pause-state",         data={"paused": False}),
     dcc.Store(id="lab-test-running",      data=False),
+    dcc.Store(id="lab-test-info",         data={}),
     dcc.Store(id="app-mode",                data={"mode": "live"}),
     # Store used only to trigger the callback that updates the global
     # ``current_app_mode`` variable.
