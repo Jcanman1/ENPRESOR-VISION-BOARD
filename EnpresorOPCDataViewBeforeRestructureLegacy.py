@@ -2148,7 +2148,7 @@ def connection_controls(lang=_initial_lang):
                     html.Span(tr("active_machine_label", lang), id="active-machine-label", className="fw-bold small me-1"),
                     html.Span(id="active-machine-display", className="small"),
                 ], className="mt-1"),
-            ], width={"xs":3, "md":3}, className="px-1"),
+            ], width={"xs":2, "md":2}, className="px-1"),
             
             # Status (keep this)
             dbc.Col([
@@ -2184,6 +2184,14 @@ def connection_controls(lang=_initial_lang):
                     children=[
                         dbc.Button(tr("start_test", lang), id="start-test-btn", color="success", size="sm", className="py-0 me-1"),
                         dbc.Button(tr("stop_test", lang), id="stop-test-btn", color="danger", size="sm", className="py-0 me-1"),
+                        dbc.Input(
+                            id="lab-test-name",
+                            type="text",
+                            placeholder=tr("test_lot_name_placeholder", lang),
+                            size="sm",
+                            className="me-1",
+                            style={"maxWidth": "150px"}
+                        ),
                         dbc.Button(tr("clear_data", lang), id="clear-data-btn", color="secondary", size="sm", className="py-0"),
                     ],
                 ),
