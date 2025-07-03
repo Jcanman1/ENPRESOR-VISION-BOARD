@@ -4643,6 +4643,25 @@ def _register_callbacks_impl(app):
         return running
 
     @app.callback(
+        Output("lab-test-info", "data"),
+        [Input("start-test-btn", "n_clicks"), Input("stop-test-btn", "n_clicks")],
+        [State("lab-test-name", "value")],
+        prevent_initial_call=True,
+    )
+    def manage_lab_test_info(start_click, stop_click, name):
+        ctx = callback_context
+        if not ctx.triggered:
+            raise PreventUpdate
+        trigger = ctx.triggered[0]["prop_id"].split(".")[0]
+        if trigger == "start-test-btn":
+            test_name = name or "Test"
+            filename = (
+                f"Lab_Test_{test_name}_{datetime.now().strftime('%m_%d_%Y')}.csv"
+            )
+            return {"filename": filename}
+        return {}
+
+    @app.callback(
         [Output("metric-logging-interval", "interval"), Output("metric-logging-interval", "disabled")],
         [Input("lab-test-running", "data"), Input("mode-selector", "value")],
     )
@@ -4916,10 +4935,12 @@ def _register_callbacks_impl(app):
          State("machines-data", "data"),
          State("production-data-store", "data"),
          State("weight-preference-store", "data"),
-         State("lab-test-running", "data")],
+         State("lab-test-running", "data"),
+         State("active-machine-store", "data"),
+         State("lab-test-info", "data")],
         prevent_initial_call=True,
     )
-    def log_current_metrics(n_intervals, app_state_data, app_mode, machines_data, production_data, weight_pref, lab_running):
+    def log_current_metrics(n_intervals, app_state_data, app_mode, machines_data, production_data, weight_pref, lab_running, active_machine_data, lab_test_info):
     
         """Collect metrics for each connected machine and append to its file."""
         global machine_connections
@@ -4963,7 +4984,22 @@ def _register_callbacks_impl(app):
         if mode == "lab" and not lab_running:
             return dash.no_update
 
-        for machine_id, info in machine_connections.items():
+        if mode == "lab":
+            active_machine_id = (
+                active_machine_data.get("machine_id") if active_machine_data else None
+            )
+            if not active_machine_id or active_machine_id not in machine_connections:
+                return dash.no_update
+            machines_iter = {active_machine_id: machine_connections[active_machine_id]}.items()
+            lab_filename = None
+            if isinstance(lab_test_info, dict):
+                lab_filename = lab_test_info.get("filename")
+            if not lab_filename:
+                lab_filename = f"Lab_Test_{datetime.now().strftime('%m_%d_%Y')}.csv"
+        else:
+            machines_iter = machine_connections.items()
+
+        for machine_id, info in machines_iter:
             if not info.get("connected", False):
                 continue
             tags = info["tags"]
@@ -5006,6 +5042,14 @@ def _register_callbacks_impl(app):
                 metrics[f"counter_{i}"] = val
     
             log_mode = "Lab" if mode == "lab" else "Live"
-            append_metrics(metrics, machine_id=str(machine_id), mode=log_mode)
+            if mode == "lab":
+                append_metrics(
+                    metrics,
+                    machine_id=str(machine_id),
+                    filename=lab_filename,
+                    mode=log_mode,
+                )
+            else:
+                append_metrics(metrics, machine_id=str(machine_id), mode=log_mode)
     
         return dash.no_update
