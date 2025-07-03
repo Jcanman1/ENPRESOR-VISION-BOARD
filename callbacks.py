@@ -2,6 +2,10 @@ import importlib
 import sys
 from datetime import datetime
 from collections import defaultdict
+import os
+import glob
+import shutil
+import tempfile
 import autoconnect
 
 # Tags for monitoring feeder rate changes - add this near the top of callbacks.py
@@ -291,10 +295,11 @@ def _register_callbacks_impl(app):
         if not n_clicks:
             raise PreventUpdate
     
-        data = generate_report.fetch_last_24h_metrics()
-
+        export_dir = generate_report.METRIC_EXPORT_DIR
         machines = None
         include_global = True
+        temp_dir = None
+
         if app_mode and isinstance(app_mode, dict) and app_mode.get("mode") == "lab":
             mid = active_machine_data.get("machine_id") if active_machine_data else None
             if not mid:
@@ -302,15 +307,34 @@ def _register_callbacks_impl(app):
             machines = [str(mid)]
             include_global = False
 
+            machine_dir = os.path.join(export_dir, str(mid))
+            lab_files = glob.glob(os.path.join(machine_dir, "Lab_Test_*.csv"))
+            if not lab_files:
+                raise PreventUpdate
+            latest_file = max(lab_files, key=os.path.getmtime)
+
+            temp_dir = tempfile.mkdtemp()
+            temp_machine_dir = os.path.join(temp_dir, str(mid))
+            os.makedirs(temp_machine_dir, exist_ok=True)
+            shutil.copy(latest_file, os.path.join(temp_machine_dir, "last_24h_metrics.csv"))
+            export_dir = temp_dir
+            data = {}
+        else:
+            data = generate_report.fetch_last_24h_metrics()
+
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
             generate_report.build_report(
                 data,
                 tmp.name,
+                export_dir=export_dir,
                 machines=machines,
                 include_global=include_global,
             )
             with open(tmp.name, "rb") as f:
                 pdf_bytes = f.read()
+
+        if temp_dir:
+            shutil.rmtree(temp_dir, ignore_errors=True)
     
         pdf_b64 = base64.b64encode(pdf_bytes).decode()
         timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
