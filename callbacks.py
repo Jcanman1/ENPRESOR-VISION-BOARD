@@ -274,9 +274,10 @@ def _register_callbacks_impl(app):
     @app.callback(
         Output("report-download", "data"),
         Input("generate-report-btn", "n_clicks"),
+        [State("app-mode", "data"), State("active-machine-store", "data")],
         prevent_initial_call=True,
     )
-    def generate_report_callback(n_clicks):
+    def generate_report_callback(n_clicks, app_mode, active_machine_data):
         """Generate a PDF report when the button is clicked.
     
         ``generate_report.fetch_last_24h_metrics`` now returns a dictionary of
@@ -287,8 +288,23 @@ def _register_callbacks_impl(app):
             raise PreventUpdate
     
         data = generate_report.fetch_last_24h_metrics()
+
+        machines = None
+        include_global = True
+        if app_mode and isinstance(app_mode, dict) and app_mode.get("mode") == "lab":
+            mid = active_machine_data.get("machine_id") if active_machine_data else None
+            if not mid:
+                raise PreventUpdate
+            machines = [str(mid)]
+            include_global = False
+
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
-            generate_report.build_report(data, tmp.name)
+            generate_report.build_report(
+                data,
+                tmp.name,
+                machines=machines,
+                include_global=include_global,
+            )
             with open(tmp.name, "rb") as f:
                 pdf_bytes = f.read()
     

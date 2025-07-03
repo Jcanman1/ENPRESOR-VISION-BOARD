@@ -165,3 +165,27 @@ def test_draw_header_uses_internal_assets_font(tmp_path, monkeypatch):
 
     assert captured["path"] == str(target)
     assert captured["registered"] == "Audiowide"
+
+
+def test_build_report_passes_options(monkeypatch):
+    captured = {}
+
+    def fake_draw(pdf_path, export_dir, machines=None, include_global=True):
+        captured["args"] = (pdf_path, export_dir, machines, include_global)
+
+    monkeypatch.setattr(generate_report, "draw_layout_standard", fake_draw)
+    generate_report.build_report({}, "out.pdf", export_dir="exp", machines=["1"], include_global=False)
+
+    assert captured["args"] == ("out.pdf", "exp", ["1"], False)
+
+
+def test_build_report_uses_optimized(monkeypatch):
+    called = {}
+
+    def fake_draw(pdf_path, export_dir, machines=None, include_global=True):
+        called["optimized"] = True
+
+    monkeypatch.setattr(generate_report, "draw_layout_optimized", fake_draw)
+    generate_report.build_report({}, "out.pdf", use_optimized=True, export_dir="exp")
+
+    assert called.get("optimized")

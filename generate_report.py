@@ -393,11 +393,17 @@ def draw_global_summary(c, csv_parent_dir, x0, y0, total_w, available_height):
     # Return the Y position where the next content should start
     return y_sec4 - spacing_gap
 
-def calculate_global_max_firing_average(csv_parent_dir):
-    """Calculate the global maximum firing average across all machines"""
-    machines = sorted([d for d in os.listdir(csv_parent_dir)
-                       if os.path.isdir(os.path.join(csv_parent_dir, d)) and d.isdigit()])
-    
+def calculate_global_max_firing_average(csv_parent_dir, machines=None):
+    """Calculate the global maximum firing average.
+
+    When ``machines`` is provided, only those machine IDs are considered."""
+    if machines is None:
+        machines = sorted(
+            d
+            for d in os.listdir(csv_parent_dir)
+            if os.path.isdir(os.path.join(csv_parent_dir, d)) and d.isdigit()
+        )
+
     global_max = 0
     
     for machine in machines:
@@ -455,18 +461,29 @@ def fetch_last_24h_metrics(export_dir: str = METRIC_EXPORT_DIR):
     return metrics
 
 
-def build_report(metrics: dict, pdf_path: str, *, use_optimized: bool = False,
-                 export_dir: str = METRIC_EXPORT_DIR) -> None:
+def build_report(
+    metrics: dict,
+    pdf_path: str,
+    *,
+    use_optimized: bool = False,
+    export_dir: str = METRIC_EXPORT_DIR,
+    machines: list | None = None,
+    include_global: bool = True,
+) -> None:
     """Generate a PDF report and write it to ``pdf_path``.
 
-    The ``metrics`` argument is currently unused but is accepted for
-    compatibility with :func:`fetch_last_24h_metrics`.
+    ``metrics`` is currently unused but retained for compatibility with
+    :func:`fetch_last_24h_metrics`.
     """
 
     if use_optimized:
-        draw_layout_optimized(pdf_path, export_dir)
+        draw_layout_optimized(
+            pdf_path, export_dir, machines=machines, include_global=include_global
+        )
     else:
-        draw_layout_standard(pdf_path, export_dir)
+        draw_layout_standard(
+            pdf_path, export_dir, machines=machines, include_global=include_global
+        )
 
 def draw_machine_sections(c, csv_parent_dir, machine, x0, y_start, total_w, available_height, global_max_firing=None):
     """Draw the three sections for a single machine - OPTIMIZED FOR 2 MACHINES PER PAGE"""
@@ -732,14 +749,16 @@ def draw_machine_sections(c, csv_parent_dir, machine, x0, y_start, total_w, avai
     return y_counts - spacing
 
 
-def draw_layout_optimized(pdf_path, csv_parent_dir):
+def draw_layout_optimized(
+    pdf_path, csv_parent_dir, *, machines=None, include_global=True
+):
     """Optimized version - CONSISTENT SIZING, 2 machines per page"""
     logger.debug("=== DEBUGGING MACHINE DATA ===")
     logger.debug("==============================")
     
     # Calculate global maximum firing average first
     logger.debug("Calculating global maximum firing average...")
-    global_max_firing = calculate_global_max_firing_average(csv_parent_dir)
+    global_max_firing = calculate_global_max_firing_average(csv_parent_dir, machines)
     logger.debug(f"Global maximum firing average: {global_max_firing:.2f}")
     
     c = canvas.Canvas(pdf_path, pagesize=letter)
@@ -749,19 +768,21 @@ def draw_layout_optimized(pdf_path, csv_parent_dir):
     x0 = margin
     total_w = width - 2 * margin
     
-    machines = sorted([d for d in os.listdir(csv_parent_dir)
-                       if os.path.isdir(os.path.join(csv_parent_dir, d)) and d.isdigit()])
+    machines = machines or sorted(
+        [d for d in os.listdir(csv_parent_dir)
+         if os.path.isdir(os.path.join(csv_parent_dir, d)) and d.isdigit()])
     
     logger.debug(f"Processing {len(machines)} machines: {machines}")
     
-    # PAGE 1: Global summary ONLY
-    page_number = 1
-    logger.debug("Creating Page 1: Global Summary Only")
-    content_start_y = draw_header(c, width, height, page_number)
-    available_height = content_start_y - margin - 50
-    
-    # Draw global summary (takes full page)
-    draw_global_summary(c, csv_parent_dir, x0, margin, total_w, available_height)
+    page_number = 0
+    if include_global:
+        page_number += 1
+        logger.debug("Creating Page 1: Global Summary Only")
+        content_start_y = draw_header(c, width, height, page_number)
+        available_height = content_start_y - margin - 50
+
+        # Draw global summary (takes full page)
+        draw_global_summary(c, csv_parent_dir, x0, margin, total_w, available_height)
     
     # Process machines in groups of 2 (HARD LIMIT)
     machines_per_page = 2
@@ -770,7 +791,8 @@ def draw_layout_optimized(pdf_path, csv_parent_dir):
     
     for batch_idx, machine_batch in enumerate(machine_batches):
         # Start new page for machines (page 2, 3, 4, etc.)
-        c.showPage()
+        if page_number > 0:
+            c.showPage()
         page_number += 1
         logger.debug(f"Creating Page {page_number}: Machines {machine_batch}")
         
@@ -795,20 +817,27 @@ def draw_layout_optimized(pdf_path, csv_parent_dir):
     c.save()
     logger.info(f"Optimized multi-page layout saved at: {os.path.abspath(pdf_path)}")
     logger.info(f"Total pages created: {page_number}")
-    logger.info("Page 1: Global Summary")
-    logger.info(
-        f"Pages 2+: Individual machines (CONSISTENT sizing, max {machines_per_page} per page)"
-    )
+    if include_global:
+        logger.info("Page 1: Global Summary")
+        logger.info(
+            f"Pages 2+: Individual machines (CONSISTENT sizing, max {machines_per_page} per page)"
+        )
+    else:
+        logger.info(
+            f"Machine pages only (CONSISTENT sizing, max {machines_per_page} per page)"
+        )
 
 
-def draw_layout_standard(pdf_path, csv_parent_dir):
+def draw_layout_standard(
+    pdf_path, csv_parent_dir, *, machines=None, include_global=True
+):
     """Standard layout - CONSISTENT SIZING with dynamic page breaks"""
     logger.debug("=== DEBUGGING MACHINE DATA ===")
     logger.debug("==============================")
     
     # Calculate global maximum firing average first
     logger.debug("Calculating global maximum firing average...")
-    global_max_firing = calculate_global_max_firing_average(csv_parent_dir)
+    global_max_firing = calculate_global_max_firing_average(csv_parent_dir, machines)
     logger.debug(f"Global maximum firing average: {global_max_firing:.2f}")
     
     c = canvas.Canvas(pdf_path, pagesize=letter)
@@ -819,19 +848,21 @@ def draw_layout_standard(pdf_path, csv_parent_dir):
     total_w = width - 2 * margin
     fixed_machine_height = 260  # INCREASED from 220 to 260 for larger sections
     
-    machines = sorted([d for d in os.listdir(csv_parent_dir)
-                       if os.path.isdir(os.path.join(csv_parent_dir, d)) and d.isdigit()])
+    machines = machines or sorted(
+        [d for d in os.listdir(csv_parent_dir)
+         if os.path.isdir(os.path.join(csv_parent_dir, d)) and d.isdigit()])
     
     logger.debug(f"Processing {len(machines)} machines: {machines}")
     
-    # PAGE 1: Global summary ONLY
-    page_number = 1
-    logger.debug("Creating Page 1: Global Summary Only")
-    content_start_y = draw_header(c, width, height, page_number)
-    available_height = content_start_y - margin - 50
-    
-    # Draw global summary (takes full page)
-    draw_global_summary(c, csv_parent_dir, x0, margin, total_w, available_height)
+    page_number = 0
+    if include_global:
+        page_number += 1
+        logger.debug("Creating Page 1: Global Summary Only")
+        content_start_y = draw_header(c, width, height, page_number)
+        available_height = content_start_y - margin - 50
+
+        # Draw global summary (takes full page)
+        draw_global_summary(c, csv_parent_dir, x0, margin, total_w, available_height)
     
     # Process machines starting on page 2
     machines_processed = 0
@@ -844,7 +875,8 @@ def draw_layout_standard(pdf_path, csv_parent_dir):
         if next_y is None or (next_y - margin) < fixed_machine_height:
             # Start new page
             logger.debug(f"Starting new page for Machine {machine}")
-            c.showPage()
+            if page_number > 0:
+                c.showPage()
             page_number += 1
             logger.debug(f"Creating Page {page_number}: Machine {machine}")
             
@@ -865,8 +897,11 @@ def draw_layout_standard(pdf_path, csv_parent_dir):
     c.save()
     logger.info(f"Standard multi-page layout saved at: {os.path.abspath(pdf_path)}")
     logger.info(f"Total pages created: {page_number}")
-    logger.info("Page 1: Global Summary")
-    logger.info("Pages 2+: Individual machines (CONSISTENT sizing)")
+    if include_global:
+        logger.info("Page 1: Global Summary")
+        logger.info("Pages 2+: Individual machines (CONSISTENT sizing)")
+    else:
+        logger.info("Machine pages only (CONSISTENT sizing)")
 
 
 if __name__=='__main__':
