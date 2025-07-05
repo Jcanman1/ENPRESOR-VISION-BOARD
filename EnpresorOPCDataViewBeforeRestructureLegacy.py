@@ -574,16 +574,19 @@ def add_control_log_entry(tag_name, old_value, new_value, *, demo=False,
     
     # Determine if value increased or decreased using arrows for compact display
     if new_value > old_value:
-        action = "\u2191"  # Up arrow for increase
+        icon = "\u2B06"  # Up arrow
     elif new_value < old_value:
-        action = "\u2193"  # Down arrow for decrease
+        icon = "\u2B07"  # Down arrow
     else:
-        action = "\u2192"  # Right arrow for unchanged values
+        icon = "\u2192"  # Right arrow for unchanged values
+
+    action = icon
     
     # Create log entry
     entry = {
         "tag": tag_name,
         "action": action,
+        "icon": icon,
         "old_value": old_value,
         "new_value": new_value,
         "display_timestamp": timestamp,
