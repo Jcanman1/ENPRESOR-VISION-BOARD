@@ -31,6 +31,9 @@ SENSITIVITY_ACTIVE_TAGS = {
     "Settings.ColorSort.Primary12.IsAssigned": 12,
 }
 
+# OPC tag for the preset name
+PRESET_NAME_TAG = "Status.Info.PresetName"
+
 # Track last logged capacity per machine and filename to avoid duplicate rows
 last_logged_capacity = defaultdict(lambda: None)
 
@@ -1102,6 +1105,8 @@ def _register_callbacks_impl(app):
                         prev_values[machine_id] = {}
                     if machine_id not in prev_active_states:
                         prev_active_states[machine_id] = {}
+                    if machine_id not in prev_preset_names:
+                        prev_preset_names[machine_id] = None
 
                     tags = machine_connections[machine_id]["tags"]
                     for opc_tag in MONITORED_RATE_TAGS:
@@ -1110,6 +1115,8 @@ def _register_callbacks_impl(app):
                     for opc_tag in SENSITIVITY_ACTIVE_TAGS:
                         if opc_tag in tags:
                             prev_active_states[machine_id][opc_tag] = tags[opc_tag]["data"].latest_value
+                    if PRESET_NAME_TAG in tags:
+                        prev_preset_names[machine_id] = tags[PRESET_NAME_TAG]["data"].latest_value
                     
                     # IMPROVED: Only start thread if no machines are currently active
                     # If this is the first connection or the current active machine
@@ -4433,7 +4440,7 @@ def _register_callbacks_impl(app):
         if which != "main":
             raise PreventUpdate
             
-        global prev_values, prev_active_states, machine_control_log
+        global prev_values, prev_active_states, prev_preset_names, machine_control_log
     
         machine_id = active_machine_data.get("machine_id") if active_machine_data else None
     
@@ -4508,7 +4515,15 @@ def _register_callbacks_impl(app):
                             logger.warning(f"Sensitivity tag {opc_tag} missing from app_state.tags")
                     except Exception as e:
                         logger.error(f"Error monitoring sensitivity tag {opc_tag}: {e}")
-                        
+
+                # Monitor preset name changes
+                if PRESET_NAME_TAG in app_state.tags:
+                    new_name = app_state.tags[PRESET_NAME_TAG]["data"].latest_value
+                    prev_name = prev_preset_names.get(machine_id)
+                    if prev_name is not None and new_name is not None and new_name != prev_name:
+                        add_preset_log_entry(prev_name, new_name, machine_id=machine_id)
+                    prev_preset_names[machine_id] = new_name
+
             except Exception as e:
                 logger.error(f"Fatal error in section 7-2 monitoring: {e}")
                 logger.exception("Full traceback:")
@@ -4600,6 +4615,15 @@ def _register_callbacks_impl(app):
                 log_entries.append(
                     html.Div(
                         [f"{idx}. {tag_translated} ", icon, f" {value_change} {timestamp}"],
+                        className="mb-1 small",
+                        style={"whiteSpace": "nowrap"},
+                    )
+                )
+            elif icon_val == "🔄":
+                icon = html.Span(icon_val)
+                log_entries.append(
+                    html.Div(
+                        [f"{idx}. Preset \"{entry.get('old_value', '')}\" ", icon, f" \"{entry.get('new_value', '')}\" {timestamp}"],
                         className="mb-1 small",
                         style={"whiteSpace": "nowrap"},
                     )

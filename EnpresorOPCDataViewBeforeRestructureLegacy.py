@@ -523,6 +523,9 @@ active_machine_id = None  # This will track which machine's data to display on m
 # threads can check the latest mode without needing a callback context.
 current_app_mode = "live"
 
+# Tag for the currently loaded preset name
+PRESET_NAME_TAG = "Status.Info.PresetName"
+
 # First, let's define which tags we want to monitor in a global variable
 MONITORED_TAGS = [
     f"Sensitivity {i}" for i in range(1, 13)  # Sensitivity 1-12
@@ -638,6 +641,37 @@ def add_activation_log_entry(sens_num, enabled, *, demo=False, machine_id=None):
 
     return entry
 
+
+def add_preset_log_entry(old_name, new_name, *, demo=False, machine_id=None):
+    """Log a preset name change event."""
+    if machine_id is None:
+        machine_id = active_machine_id
+
+    timestamp = datetime.now().strftime("%I:%M:%S %p")
+    icon = "\U0001F504"  # Swap icon
+
+    entry = {
+        "tag": "Preset",
+        "action": icon,
+        "icon": icon,
+        "old_value": old_name,
+        "new_value": new_name,
+        "display_timestamp": timestamp,
+        "time": datetime.now(),
+        "demo": demo,
+        "machine_id": machine_id,
+    }
+
+    global machine_control_log
+    machine_control_log.insert(0, entry)
+    del machine_control_log[100:]
+
+    entry_for_file = entry.copy()
+    entry_for_file.pop("machine_id", None)
+    append_control_log(entry_for_file, machine_id)
+
+    return entry
+
 # Initialize with some demo data
 if not machine_control_log:
     # Clear any existing entries
@@ -660,6 +694,9 @@ prev_values = defaultdict(lambda: {tag: None for tag in MONITORED_RATE_TAGS})
 prev_active_states = defaultdict(
     lambda: {tag: None for tag in SENSITIVITY_ACTIVE_TAGS}
 )
+
+# Dictionary of previous preset names per machine
+prev_preset_names = defaultdict(lambda: None)
 
 
 # Function to load display settings
