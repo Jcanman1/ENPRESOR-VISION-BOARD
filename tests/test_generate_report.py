@@ -304,3 +304,81 @@ def test_build_report_uses_optimized(monkeypatch):
     generate_report.build_report({}, "out.pdf", use_optimized=True, export_dir="exp")
 
     assert called.get("optimized")
+
+
+def _extract_total(strings, label):
+    """Return the first integer value found after a given label."""
+    found = False
+    for s in strings:
+        if found:
+            clean = s.replace(",", "")
+            if clean.isdigit():
+                return int(clean)
+        if s == label:
+            found = True
+    raise ValueError(f"label {label!r} not found")
+
+
+def test_objects_per_min_totals_match(tmp_path, monkeypatch):
+    """Global object count should equal the sum of machine totals."""
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+
+    m1 = data_dir / "1"
+    m1.mkdir()
+    (m1 / "last_24h_metrics.csv").write_text(
+        "timestamp,objects_per_min\n"
+        "2020-01-01 00:00:00,5\n"
+        "2020-01-01 00:01:00,10\n"
+    )
+
+    m2 = data_dir / "2"
+    m2.mkdir()
+    (m2 / "last_24h_metrics.csv").write_text(
+        "timestamp,objects_per_min\n"
+        "2020-01-01 00:00:00,2\n"
+        "2020-01-01 00:01:00,3\n"
+    )
+
+    layout = {
+        "machines": {
+            "machines": [{"id": 1}, {"id": 2}],
+            "next_machine_id": 3,
+        }
+    }
+    (data_dir / "floor_machine_layout.json").write_text(json.dumps(layout))
+
+    monkeypatch.setattr(generate_report, "__file__", str(tmp_path / "dummy.py"))
+    monkeypatch.setattr(generate_report.renderPDF, "draw", lambda *a, **k: None)
+
+    canvas_g = DummyCanvas()
+    generate_report.draw_global_summary(canvas_g, str(data_dir), 0, 0, 100, 100)
+
+    canvas_m1 = DummyCanvas()
+    generate_report.draw_machine_sections(
+        canvas_m1, str(data_dir), "1", 0, 200, 100, 200
+    )
+
+    canvas_m2 = DummyCanvas()
+    generate_report.draw_machine_sections(
+        canvas_m2, str(data_dir), "2", 0, 200, 100, 200
+    )
+
+    total1 = _extract_total(canvas_m1.strings, "Objects Processed:")
+    total2 = _extract_total(canvas_m2.strings, "Objects Processed:")
+    global_total = _extract_total(canvas_g.strings, "Total Objects Processed:")
+
+    assert global_total == total1 + total2
+
+    series1 = generate_report.pd.read_csv(m1 / "last_24h_metrics.csv")[
+        "objects_per_min"
+    ]
+    series2 = generate_report.pd.read_csv(m2 / "last_24h_metrics.csv")[
+        "objects_per_min"
+    ]
+
+    stats1 = generate_report.calculate_total_objects_from_csv_rates(series1)
+    stats2 = generate_report.calculate_total_objects_from_csv_rates(series2)
+
+    assert total1 == stats1["total_objects"]
+    assert total2 == stats2["total_objects"]
