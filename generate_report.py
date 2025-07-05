@@ -26,6 +26,66 @@ def _minutes_to_hm(minutes: float) -> str:
     hours, mins = divmod(m, 60)
     return f"{hours}:{mins:02d}"
 
+
+def calculate_total_capacity_from_csv_rates(csv_rate_entries, log_interval_minutes=1):
+    """Convert lbs/hr rates into total lbs and related stats."""
+    rates = []
+    for r in csv_rate_entries:
+        try:
+            val = float(r)
+        except (TypeError, ValueError):
+            continue
+        if not pd.isna(val):
+            rates.append(val)
+
+    if not rates:
+        return {
+            "total_capacity_lbs": 0,
+            "average_rate_lbs_per_hr": 0,
+            "max_rate_lbs_per_hr": 0,
+            "min_rate_lbs_per_hr": 0,
+        }
+
+    total_lbs = sum(val * (log_interval_minutes / 60.0) for val in rates)
+    avg_rate = sum(rates) / len(rates)
+
+    return {
+        "total_capacity_lbs": total_lbs,
+        "average_rate_lbs_per_hr": avg_rate,
+        "max_rate_lbs_per_hr": max(rates),
+        "min_rate_lbs_per_hr": min(rates),
+    }
+
+
+def calculate_total_objects_from_csv_rates(csv_rate_entries, log_interval_minutes=1):
+    """Convert objects/min rates into total objects."""
+    rates = []
+    for r in csv_rate_entries:
+        try:
+            val = float(r)
+        except (TypeError, ValueError):
+            continue
+        if not pd.isna(val):
+            rates.append(val)
+
+    if not rates:
+        return {
+            "total_objects": 0,
+            "average_rate_obj_per_min": 0,
+            "max_rate_obj_per_min": 0,
+            "min_rate_obj_per_min": 0,
+        }
+
+    total_objs = sum(val * log_interval_minutes for val in rates)
+    avg_rate = sum(rates) / len(rates)
+
+    return {
+        "total_objects": total_objs,
+        "average_rate_obj_per_min": avg_rate,
+        "max_rate_obj_per_min": max(rates),
+        "min_rate_obj_per_min": min(rates),
+    }
+
 from hourly_data_saving import EXPORT_DIR as METRIC_EXPORT_DIR, get_historical_data
 
 log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
@@ -195,11 +255,17 @@ def draw_global_summary(c, csv_parent_dir, x0, y0, total_w, available_height):
         fp = os.path.join(csv_parent_dir, m, 'last_24h_metrics.csv')
         if os.path.isfile(fp):
             df = pd.read_csv(fp)
-            total_capacity += df['capacity'].sum() if 'capacity' in df.columns else 0
+            if 'capacity' in df.columns:
+                stats = calculate_total_capacity_from_csv_rates(df['capacity'])
+                total_capacity += stats['total_capacity_lbs']
             ac = next((c for c in df.columns if c.lower()=='accepts'), None)
             rj = next((c for c in df.columns if c.lower()=='rejects'), None)
-            if ac: total_accepts += df[ac].sum()
-            if rj: total_rejects += df[rj].sum()
+            if ac:
+                stats = calculate_total_capacity_from_csv_rates(df[ac])
+                total_accepts += stats['total_capacity_lbs']
+            if rj:
+                stats = calculate_total_capacity_from_csv_rates(df[rj])
+                total_rejects += stats['total_capacity_lbs']
 
     # Section 1: Totals
     y_sec1 = current_y - h1
@@ -209,7 +275,12 @@ def draw_global_summary(c, csv_parent_dir, x0, y0, total_w, available_height):
     c.drawString(x0+10, y_sec1+h1-14, '24hr Production Totals:')
     col_w = total_w / 4
     labels = ['Machines:', 'Processed:', 'Accepted:', 'Rejected:']
-    values = [f"{machine_count}", f"{int(total_capacity):,} lbs", f"{int(total_accepts):,} lbs", f"{int(total_rejects):,} lbs"]
+    values = [
+        f"{machine_count}",
+        f"{int(total_capacity):,} lbs",
+        f"{int(total_accepts):,} lbs",
+        f"{int(total_rejects):,} lbs",
+    ]
     c.setFont('Helvetica-Bold', 12)
     for i,label in enumerate(labels):
         lw = c.stringWidth(label, 'Helvetica-Bold', 12)
@@ -364,15 +435,19 @@ def draw_global_summary(c, csv_parent_dir, x0, y0, total_w, available_height):
     c.rect(x0, y_sec4, total_w, h4)
     c.setFillColor(colors.HexColor('#1f77b4')); c.rect(x0, y_sec4, total_w, h4, fill=1, stroke=0)
     
-    total_objs=total_rem=0
+    total_objs = total_rem = 0
     for m in machines:
-        fp=os.path.join(csv_parent_dir,m,'last_24h_metrics.csv')
+        fp = os.path.join(csv_parent_dir, m, 'last_24h_metrics.csv')
         if os.path.isfile(fp):
-            df=pd.read_csv(fp)
-            total_objs+=df['objects_per_min'].sum() if 'objects_per_min' in df else 0
-            for i in range(1,13):
-                col=next((c for c in df.columns if c.lower()==f'counter_{i}'),None)
-                if col: total_rem+=df[col].sum()
+            df = pd.read_csv(fp)
+            if 'objects_per_min' in df.columns:
+                obj_stats = calculate_total_objects_from_csv_rates(df['objects_per_min'])
+                total_objs += obj_stats['total_objects']
+            for i in range(1, 13):
+                col = next((c for c in df.columns if c.lower() == f'counter_{i}'), None)
+                if col:
+                    c_stats = calculate_total_objects_from_csv_rates(df[col])
+                    total_rem += c_stats['total_objects']
     
     c.setFillColor(colors.white); c.setFont('Helvetica-Bold',10)
     c.drawString(x0+10,y_sec4+h4-14,'Counts:')
@@ -683,12 +758,16 @@ def draw_machine_sections(c, csv_parent_dir, machine, x0, y_start, total_w, avai
     y_counts = y_pie - counts_height - spacing
     
     # Calculate machine totals
-    machine_objs = df['objects_per_min'].sum() if 'objects_per_min' in df.columns else 0
+    machine_objs = 0
+    if 'objects_per_min' in df.columns:
+        obj_stats = calculate_total_objects_from_csv_rates(df['objects_per_min'])
+        machine_objs = obj_stats['total_objects']
     machine_rem = 0
     for i in range(1, 13):
         col = next((c for c in df.columns if c.lower() == f'counter_{i}'), None)
         if col:
-            machine_rem += df[col].sum()
+            c_stats = calculate_total_objects_from_csv_rates(df[col])
+            machine_rem += c_stats['total_objects']
     
     machine_accepts = df[ac_col].sum() if ac_col else 0
     machine_rejects = df[rj_col].sum() if rj_col else 0

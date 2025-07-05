@@ -35,6 +35,47 @@ class DummyCanvas:
     def setLineWidth(self, *args, **kwargs):
         pass
 
+
+def test_calculate_total_capacity_from_csv_rates():
+    series = generate_report.pd.Series([60, 120, None])
+    stats = generate_report.calculate_total_capacity_from_csv_rates(series)
+    assert stats["total_capacity_lbs"] == pytest.approx(3.0)
+    assert stats["max_rate_lbs_per_hr"] == 120
+
+
+def test_calculate_total_objects_from_csv_rates():
+    series = generate_report.pd.Series([10, 20])
+    stats = generate_report.calculate_total_objects_from_csv_rates(series, log_interval_minutes=2)
+    assert stats["total_objects"] == 60
+    assert stats["average_rate_obj_per_min"] == 15
+
+
+def test_draw_global_summary_totals(tmp_path, monkeypatch):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    machine_dir = tmp_path / "1"
+    machine_dir.mkdir()
+
+    csv = machine_dir / "last_24h_metrics.csv"
+    csv.write_text(
+        "timestamp,capacity,accepts,rejects,objects_per_min,counter_1\n"
+        "2020-01-01 00:00:00,60,30,30,10,1\n"
+        "2020-01-01 00:01:00,60,30,30,10,1\n"
+    )
+
+    layout = {"machines": {"machines": [{"id": 1, "name": "M1"}], "next_machine_id": 2}}
+    (data_dir / "floor_machine_layout.json").write_text(json.dumps(layout))
+
+    monkeypatch.setattr(generate_report, "__file__", str(tmp_path / "dummy.py"))
+    monkeypatch.setattr(generate_report.renderPDF, "draw", lambda *a, **k: None)
+
+    canvas = DummyCanvas()
+    generate_report.draw_global_summary(canvas, str(tmp_path), 0, 0, 100, 100)
+
+    assert "2 lbs" in canvas.strings
+    assert "1 lbs" in canvas.strings
+    assert "20" in canvas.strings
+
 def test_draw_global_summary_single_machine(tmp_path, monkeypatch):
     data_dir = tmp_path / "data"
     data_dir.mkdir()
