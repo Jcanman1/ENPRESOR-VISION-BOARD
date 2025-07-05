@@ -831,14 +831,14 @@ def draw_machine_sections(c, csv_parent_dir, machine, x0, y_start, total_w, avai
     # Center the labels over their data
     c.setFont('Helvetica-Bold', 8)
     for i, lab in enumerate(labs_bottom):
-        center_x = x0 + third_counts * i + third_counts/2
+        center_x = x0 + half_counts * i + half_counts/2
         lw = c.stringWidth(lab, 'Helvetica-Bold', 8)
         c.drawString(center_x - lw/2, y_counts + counts_height * 0.3, lab)
 
     # Increase data text size and center over labels
     c.setFont('Helvetica-Bold', 14)
     for i, val in enumerate(vals_bottom):
-        center_x = x0 + third_counts * i + third_counts/2
+        center_x = x0 + half_counts * i + half_counts/2
         vw = c.stringWidth(val, 'Helvetica-Bold', 14)
         c.drawString(center_x - vw/2, y_counts + counts_height * 0.3 - 14, val)
     
