@@ -4582,12 +4582,24 @@ def _register_callbacks_impl(app):
     
             tag_translated = _translate_tag(entry.get('tag', ''))
     
-            if entry.get("icon"):
+            icon_val = entry.get("icon")
+            if icon_val in ("✅", "❌"):
                 color_class = "text-success" if entry.get("action") == "Enabled" else "text-danger"
-                icon = html.Span(entry.get("icon"), className=color_class)
+                icon = html.Span(icon_val, className=color_class)
                 log_entries.append(
                     html.Div(
                         [f"{idx}. {tag_translated} {entry.get('action')} ", icon, f" {timestamp}"],
+                        className="mb-1 small",
+                        style={"whiteSpace": "nowrap"},
+                    )
+                )
+            elif icon_val in ("⬆", "⬇"):
+                color_class = "text-success" if icon_val == "⬆" else "text-danger"
+                icon = html.Span(icon_val, className=color_class)
+                value_change = f"{entry.get('old_value', '')} -> {entry.get('new_value', '')}"
+                log_entries.append(
+                    html.Div(
+                        [f"{idx}. {tag_translated} ", icon, f" {value_change} {timestamp}"],
                         className="mb-1 small",
                         style={"whiteSpace": "nowrap"},
                     )

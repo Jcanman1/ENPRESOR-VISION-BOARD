@@ -30,7 +30,11 @@ def test_update_section_7_2_logs_changes(monkeypatch):
 
     func.__wrapped__(0, "main", {}, "en", {"connected": True}, {"mode": "live"}, {"machine_id": machine_id})
     assert len(legacy.machine_control_log) == 1
+    assert legacy.machine_control_log[0]["icon"] == "⬆"
 
     callbacks.app_state.tags[tag_name]["data"].latest_value = 30
     func.__wrapped__(1, "main", {}, "en", {"connected": True}, {"mode": "live"}, {"machine_id": machine_id})
     assert len(legacy.machine_control_log) == 2
+    # Most recent entry is first in the log
+    assert legacy.machine_control_log[0]["icon"] == "⬆"
+    assert legacy.machine_control_log[1]["icon"] == "⬆"
