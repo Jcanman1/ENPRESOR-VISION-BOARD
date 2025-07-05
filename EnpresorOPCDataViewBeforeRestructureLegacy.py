@@ -4219,6 +4219,8 @@ def get_machine_operational_data(machine_id):
     # Production tags
     CAPACITY_TAG = "Status.ColorSort.Sort1.Throughput.KgPerHour.Current"
     REJECTS_TAG = "Status.ColorSort.Sort1.Total.Percentage.Current"
+    OPM_TAG = "Status.ColorSort.Sort1.Throughput.ObjectPerMin.Current"
+    COUNTER_TAG = "Status.ColorSort.Sort1.DefectCount{}.Rate.Current"
     
     # NEW: Diagnostic counter tag
     DIAGNOSTIC_COUNTER_TAG = "Diagnostic.Counter"
@@ -4295,11 +4297,19 @@ def get_machine_operational_data(machine_id):
             total_capacity = convert_capacity_from_kg(capacity_value, pref)
             logger.info(f"DEBUG: Capacity: {total_capacity}")
     
-    if REJECTS_TAG in tags:
-        reject_percentage_value = tags[REJECTS_TAG]["data"].latest_value
-        if reject_percentage_value is not None:
-            reject_percentage = reject_percentage_value
-            logger.info(f"DEBUG: Reject %: {reject_percentage}")
+    reject_count = 0
+    for i in range(1, 13):
+        tname = COUNTER_TAG.format(i)
+        if tname in tags:
+            val = tags[tname]["data"].latest_value
+            if val is not None:
+                reject_count += val
+
+    opm = 0
+    if OPM_TAG in tags:
+        opm_val = tags[OPM_TAG]["data"].latest_value
+        if opm_val is not None:
+            opm = opm_val
     
     # Get current diagnostic counter
     diagnostic_counter = 0
@@ -4310,7 +4320,9 @@ def get_machine_operational_data(machine_id):
             logger.info(f"DEBUG: Diagnostic counter: {diagnostic_counter}")
     
     # Calculate production values
-    rejects = (reject_percentage / 100.0) * total_capacity if total_capacity > 0 else 0
+    reject_pct = (reject_count / opm) if opm else 0
+    rejects = total_capacity * reject_pct
+    reject_percentage = reject_pct * 100
     accepts = total_capacity - rejects
     if accepts < 0:
         accepts = 0
