@@ -1926,6 +1926,7 @@ def _register_callbacks_impl(app):
         CAPACITY_TAG = "Status.ColorSort.Sort1.Throughput.KgPerHour.Current"
         ACCEPTS_TAG = "Status.Production.Accepts"  # Not used in live mode calculation
         REJECTS_TAG = "Status.ColorSort.Sort1.Total.Percentage.Current"
+        OPM_TAG = "Status.ColorSort.Sort1.Throughput.ObjectPerMin.Current"
     
         # Determine if we're in Live or Demo mode
         mode = "demo"  # Default to demo mode
@@ -1947,9 +1948,17 @@ def _register_callbacks_impl(app):
                 else:
                     total_capacity = 0
     
-            # Rejects come from section 5-2 counter totals
+            # Rejects come from section 5-2 counter totals and OPM reading
             reject_count = sum(previous_counter_values) if previous_counter_values else 0
-            rejects = convert_capacity_from_kg(reject_count * 46, weight_pref)
+
+            opm = 0
+            if OPM_TAG in app_state.tags:
+                opm_val = app_state.tags[OPM_TAG]["data"].latest_value
+                if opm_val is not None:
+                    opm = opm_val
+
+            reject_pct = (reject_count / opm) if opm else 0
+            rejects = total_capacity * reject_pct
     
             # Calculate accepts as total_capacity minus rejects
             accepts = total_capacity - rejects
@@ -5052,16 +5061,26 @@ def _register_callbacks_impl(app):
                 continue
             tags = info["tags"]
             capacity_value = tags.get(CAPACITY_TAG, {}).get("data").latest_value if CAPACITY_TAG in tags else None
-            reject_pct = tags.get(REJECTS_TAG, {}).get("data").latest_value if REJECTS_TAG in tags else None
-    
+
             capacity_lbs = capacity_value * 2.205 if capacity_value is not None else 0
-            reject_pct = reject_pct if reject_pct is not None else 0
-            rejects_lbs = (reject_pct / 100.0) * capacity_lbs
-            accepts_lbs = capacity_lbs - rejects_lbs
-    
+
             opm = tags.get(OPM_TAG, {}).get("data").latest_value if OPM_TAG in tags else 0
             if opm is None:
                 opm = 0
+
+            reject_count = 0
+            counters = {}
+            for i in range(1, 13):
+                tname = COUNTER_TAG.format(i)
+                val = tags.get(tname, {}).get("data").latest_value if tname in tags else 0
+                if val is None:
+                    val = 0
+                counters[f"counter_{i}"] = val
+                reject_count += val
+
+            reject_pct = (reject_count / opm) if opm else 0
+            rejects_lbs = capacity_lbs * reject_pct
+            accepts_lbs = capacity_lbs - rejects_lbs
     
             # Determine feeder running state
             feeder_running = False
@@ -5081,13 +5100,7 @@ def _register_callbacks_impl(app):
                 "running": 1 if feeder_running else 0,
                 "stopped": 0 if feeder_running else 1,
             }
-    
-            for i in range(1, 13):
-                tname = COUNTER_TAG.format(i)
-                val = tags.get(tname, {}).get("data").latest_value if tname in tags else 0
-                if val is None:
-                    val = 0
-                metrics[f"counter_{i}"] = val
+            metrics.update(counters)
     
             log_mode = "Lab" if mode == "lab" else "Live"
             if mode == "lab":
