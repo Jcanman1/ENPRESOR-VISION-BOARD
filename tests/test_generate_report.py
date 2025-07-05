@@ -115,19 +115,24 @@ def test_draw_machine_sections_runtime_line(tmp_path, monkeypatch):
     assert any("Run Time:" in s for s in canvas.strings)
 
 
+
 def test_draw_machine_sections_totals_match_calculation(tmp_path, monkeypatch):
+
     machine_dir = tmp_path / "1"
     machine_dir.mkdir()
     csv_file = machine_dir / "last_24h_metrics.csv"
     csv_file.write_text(
+
         "timestamp,accepts,rejects,running,stopped\n"
         "2020-01-01 00:00:00,30,10,50,10\n"
         "2020-01-01 00:01:00,30,10,50,10\n"
+
     )
 
     monkeypatch.setattr(generate_report.renderPDF, "draw", lambda *a, **k: None)
     canvas = DummyCanvas()
     generate_report.draw_machine_sections(canvas, str(tmp_path), "1", 0, 200, 100, 200)
+
 
     df = generate_report.pd.read_csv(csv_file)
     a_stats = generate_report.calculate_total_capacity_from_csv_rates(df["accepts"])
@@ -181,6 +186,7 @@ def test_global_summary_totals_sum_machines(tmp_path, monkeypatch):
     assert f"{int(total_capacity):,} lbs" in canvas.strings
     assert f"{int(total_accepts):,} lbs" in canvas.strings
     assert f"{int(total_rejects):,} lbs" in canvas.strings
+
 
 
 def test_draw_header_uses_meipass_font(tmp_path, monkeypatch):

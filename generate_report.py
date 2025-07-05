@@ -778,6 +778,7 @@ def draw_machine_sections(c, csv_parent_dir, machine, x0, y_start, total_w, avai
             c_stats = calculate_total_objects_from_csv_rates(df[col])
             machine_rem += c_stats['total_objects']
     
+
     machine_accepts = 0
     if ac_col:
         a_stats = calculate_total_capacity_from_csv_rates(df[ac_col])
@@ -786,6 +787,7 @@ def draw_machine_sections(c, csv_parent_dir, machine, x0, y_start, total_w, avai
     if rj_col:
         r_stats = calculate_total_capacity_from_csv_rates(df[rj_col])
         machine_rejects = r_stats["total_capacity_lbs"]
+
     
     # Draw SMALLER blue counts section
     c.setFillColor(colors.HexColor('#1f77b4'))
@@ -817,6 +819,7 @@ def draw_machine_sections(c, csv_parent_dir, machine, x0, y_start, total_w, avai
         vw = c.stringWidth(val, 'Helvetica-Bold', 14)
         c.drawString(center_x - vw/2, y_counts + counts_height * 0.7 - 14, val)
     
+
     # BOTTOM ROW: Accepts and Rejects
     labs_bottom = ['Accepts:', 'Rejects:']  # Shortened labels
     vals_bottom = [
@@ -824,17 +827,18 @@ def draw_machine_sections(c, csv_parent_dir, machine, x0, y_start, total_w, avai
         f"{int(machine_rejects):,} lbs",
     ]
     
+
     # Center the labels over their data
-    c.setFont('Helvetica-Bold', 8)  # Keep label font size the same
+    c.setFont('Helvetica-Bold', 8)
     for i, lab in enumerate(labs_bottom):
-        center_x = x0 + half_counts * i + half_counts/2
+        center_x = x0 + third_counts * i + third_counts/2
         lw = c.stringWidth(lab, 'Helvetica-Bold', 8)
         c.drawString(center_x - lw/2, y_counts + counts_height * 0.3, lab)
-    
+
     # Increase data text size and center over labels
-    c.setFont('Helvetica-Bold', 14)  # Increased from 10 to 14
+    c.setFont('Helvetica-Bold', 14)
     for i, val in enumerate(vals_bottom):
-        center_x = x0 + half_counts * i + half_counts/2
+        center_x = x0 + third_counts * i + third_counts/2
         vw = c.stringWidth(val, 'Helvetica-Bold', 14)
         c.drawString(center_x - vw/2, y_counts + counts_height * 0.3 - 14, val)
     
