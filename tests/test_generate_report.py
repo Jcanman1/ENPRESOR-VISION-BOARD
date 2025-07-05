@@ -115,6 +115,74 @@ def test_draw_machine_sections_runtime_line(tmp_path, monkeypatch):
     assert any("Run Time:" in s for s in canvas.strings)
 
 
+def test_draw_machine_sections_totals_match_calculation(tmp_path, monkeypatch):
+    machine_dir = tmp_path / "1"
+    machine_dir.mkdir()
+    csv_file = machine_dir / "last_24h_metrics.csv"
+    csv_file.write_text(
+        "timestamp,accepts,rejects,running,stopped\n"
+        "2020-01-01 00:00:00,30,10,50,10\n"
+        "2020-01-01 00:01:00,30,10,50,10\n"
+    )
+
+    monkeypatch.setattr(generate_report.renderPDF, "draw", lambda *a, **k: None)
+    canvas = DummyCanvas()
+    generate_report.draw_machine_sections(canvas, str(tmp_path), "1", 0, 200, 100, 200)
+
+    df = generate_report.pd.read_csv(csv_file)
+    a_stats = generate_report.calculate_total_capacity_from_csv_rates(df["accepts"])
+    r_stats = generate_report.calculate_total_capacity_from_csv_rates(df["rejects"])
+
+    assert f"{int(a_stats['total_capacity_lbs']):,} lbs" in canvas.strings
+    assert f"{int(r_stats['total_capacity_lbs']):,} lbs" in canvas.strings
+
+
+def test_global_summary_totals_sum_machines(tmp_path, monkeypatch):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+
+    layout = {
+        "machines": {
+            "machines": [
+                {"id": 1, "name": "M1"},
+                {"id": 2, "name": "M2"},
+            ],
+            "next_machine_id": 3,
+        }
+    }
+    (data_dir / "floor_machine_layout.json").write_text(json.dumps(layout))
+
+    for m_id in [1, 2]:
+        mdir = tmp_path / str(m_id)
+        mdir.mkdir()
+        csv = mdir / "last_24h_metrics.csv"
+        csv.write_text(
+            "timestamp,capacity,accepts,rejects\n"
+            "2020-01-01 00:00:00,60,30,10\n"
+            "2020-01-01 00:01:00,60,30,10\n"
+        )
+
+    monkeypatch.setattr(generate_report, "__file__", str(tmp_path / "dummy.py"))
+    monkeypatch.setattr(generate_report.renderPDF, "draw", lambda *a, **k: None)
+
+    canvas = DummyCanvas()
+    generate_report.draw_global_summary(canvas, str(tmp_path), 0, 0, 100, 100)
+
+    total_accepts = total_rejects = total_capacity = 0
+    for m_id in [1, 2]:
+        df = generate_report.pd.read_csv(tmp_path / str(m_id) / "last_24h_metrics.csv")
+        stats = generate_report.calculate_total_capacity_from_csv_rates(df["capacity"])
+        total_capacity += stats["total_capacity_lbs"]
+        stats = generate_report.calculate_total_capacity_from_csv_rates(df["accepts"])
+        total_accepts += stats["total_capacity_lbs"]
+        stats = generate_report.calculate_total_capacity_from_csv_rates(df["rejects"])
+        total_rejects += stats["total_capacity_lbs"]
+
+    assert f"{int(total_capacity):,} lbs" in canvas.strings
+    assert f"{int(total_accepts):,} lbs" in canvas.strings
+    assert f"{int(total_rejects):,} lbs" in canvas.strings
+
+
 def test_draw_header_uses_meipass_font(tmp_path, monkeypatch):
     font_src = Path(__file__).resolve().parents[1] / "Audiowide-Regular.ttf"
     target = tmp_path / "Audiowide-Regular.ttf"

@@ -28,7 +28,16 @@ def _minutes_to_hm(minutes: float) -> str:
 
 
 def calculate_total_capacity_from_csv_rates(csv_rate_entries, log_interval_minutes=1):
-    """Convert lbs/hr rates into total lbs and related stats."""
+    """Convert lbs/hr rates into total lbs and related stats.
+
+    Parameters
+    ----------
+    csv_rate_entries : iterable
+        Sequence of lbs/hr rate samples.
+    log_interval_minutes : int, optional
+        Interval between samples in minutes. Defaults to ``1`` minute to match
+        the CSV sampling rate.
+    """
     rates = []
     for r in csv_rate_entries:
         try:
@@ -769,8 +778,14 @@ def draw_machine_sections(c, csv_parent_dir, machine, x0, y_start, total_w, avai
             c_stats = calculate_total_objects_from_csv_rates(df[col])
             machine_rem += c_stats['total_objects']
     
-    machine_accepts = df[ac_col].sum() if ac_col else 0
-    machine_rejects = df[rj_col].sum() if rj_col else 0
+    machine_accepts = 0
+    if ac_col:
+        a_stats = calculate_total_capacity_from_csv_rates(df[ac_col])
+        machine_accepts = a_stats["total_capacity_lbs"]
+    machine_rejects = 0
+    if rj_col:
+        r_stats = calculate_total_capacity_from_csv_rates(df[rj_col])
+        machine_rejects = r_stats["total_capacity_lbs"]
     
     # Draw SMALLER blue counts section
     c.setFillColor(colors.HexColor('#1f77b4'))
@@ -804,7 +819,10 @@ def draw_machine_sections(c, csv_parent_dir, machine, x0, y_start, total_w, avai
     
     # BOTTOM ROW: Accepts and Rejects
     labs_bottom = ['Accepts:', 'Rejects:']  # Shortened labels
-    vals_bottom = [f"{int(machine_accepts):,} lbs", f"{int(machine_rejects):,} lbs"]
+    vals_bottom = [
+        f"{int(machine_accepts):,} lbs",
+        f"{int(machine_rejects):,} lbs",
+    ]
     
     # Center the labels over their data
     c.setFont('Helvetica-Bold', 8)  # Keep label font size the same
