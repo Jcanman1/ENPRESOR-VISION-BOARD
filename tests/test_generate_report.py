@@ -115,6 +115,24 @@ def test_draw_machine_sections_runtime_line(tmp_path, monkeypatch):
     assert any("Run Time:" in s for s in canvas.strings)
 
 
+def test_draw_machine_sections_processed_weight(tmp_path, monkeypatch):
+    machine_dir = tmp_path / "1"
+    machine_dir.mkdir()
+    csv_file = machine_dir / "last_24h_metrics.csv"
+    csv_file.write_text(
+        "timestamp,capacity,accepts,rejects,running,stopped\n"
+        "2020-01-01 00:00:00,60,30,30,65,5\n"
+        "2020-01-01 00:01:00,60,30,30,65,5\n"
+    )
+
+    monkeypatch.setattr(generate_report.renderPDF, "draw", lambda *a, **k: None)
+    canvas = DummyCanvas()
+    generate_report.draw_machine_sections(canvas, str(tmp_path), "1", 0, 200, 100, 200)
+
+    assert "Processed:" in canvas.strings
+    assert "2 lbs" in canvas.strings
+
+
 def test_draw_header_uses_meipass_font(tmp_path, monkeypatch):
     font_src = Path(__file__).resolve().parents[1] / "Audiowide-Regular.ttf"
     target = tmp_path / "Audiowide-Regular.ttf"
