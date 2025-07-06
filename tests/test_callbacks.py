@@ -160,3 +160,24 @@ def test_refresh_text_includes_lab_controls(monkeypatch):
     assert "start-test-btn.children" in outputs
     assert "lab-test-name.placeholder" in outputs
     assert "display-tab.label" in outputs
+
+
+def test_memory_management_callback(monkeypatch):
+    monkeypatch.setattr(autoconnect, "initialize_autoconnect", lambda: None)
+    app = dash.Dash(__name__)
+    callbacks.register_callbacks(app)
+
+    # Find memory management callback
+    key = next(k for k in app.callback_map if "memory-metrics-store.data" in k)
+    func = app.callback_map[key]["callback"]
+
+    # Populate history with more than max_points entries
+    callbacks.app_state.counter_history = {
+        i: {"times": list(range(150)), "values": list(range(150))} for i in range(1, 13)
+    }
+
+    result = func.__wrapped__(0)
+
+    max_points = result["max_points"]
+    assert all(len(callbacks.app_state.counter_history[i]["times"]) <= max_points for i in range(1, 13))
+    assert "rss_mb" in result
