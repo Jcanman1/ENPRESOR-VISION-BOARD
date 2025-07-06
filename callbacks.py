@@ -7,6 +7,7 @@ import glob
 import shutil
 import tempfile
 import autoconnect
+import image_manager as img_utils
 try:
     import resource
 except ImportError:  # pragma: no cover - resource not available on Windows
@@ -4893,12 +4894,12 @@ def _register_callbacks_impl(app):
             return dash.no_update, dash.no_update, None
 
         logger.info(f"Processing image upload: {filename}")
-        processed, err = image_manager.validate_and_process_image(contents)
+        processed, err = img_utils.validate_and_process_image(contents)
         if err:
             logger.error(f"Image validation failed: {err}")
             return dash.no_update, html.Div(f"Error uploading image: {err}", className="text-danger"), err
 
-        success, err = image_manager.cache_image(processed)
+        success, err = img_utils.cache_image(processed)
         if not success:
             logger.error(f"Error caching image: {err}")
             return dash.no_update, html.Div(f"Error uploading image: {err}", className="text-danger"), err
