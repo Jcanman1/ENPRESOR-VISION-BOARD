@@ -7,7 +7,8 @@ import glob
 import shutil
 import tempfile
 import autoconnect
-import image_manager
+import resource
+
 
 # Tags for monitoring feeder rate changes - add this near the top of callbacks.py
 MONITORED_RATE_TAGS = {
@@ -909,6 +910,29 @@ def _register_callbacks_impl(app):
             return machines_data
         
         return dash.no_update
+
+    @app.callback(
+        Output("memory-metrics-store", "data"),
+        Input("metric-logging-interval", "n_intervals"),
+        prevent_initial_call=True,
+    )
+    def test_memory_management(_):
+        """Return memory usage metrics for tests and enforce history limits."""
+        max_points = 120
+        if hasattr(app_state, "counter_history"):
+            for i in range(1, 13):
+                history = app_state.counter_history[i]
+                if len(history["times"]) > max_points:
+                    history["times"] = history["times"][-max_points:]
+                    history["values"] = history["values"][-max_points:]
+            lengths = {
+                i: len(app_state.counter_history[i]["times"]) for i in range(1, 13)
+            }
+        else:
+            lengths = {}
+
+        rss_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
+        return {"rss_mb": rss_mb, "max_points": max_points, "history_lengths": lengths}
 
     @app.callback(
         Output("saved-ip-list", "children"),
