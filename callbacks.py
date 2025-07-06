@@ -4025,7 +4025,7 @@ def _register_callbacks_impl(app):
     )
     def update_section_6_1(n_intervals, which, state_data, lang, app_state_data, app_mode, active_machine_data):
         """Update section 6-1 with trend graph for the 12 counters, supporting historical data."""
-        memory_monitor.log_memory_if_high()
+        mem_utils.log_memory_if_high()
         if which != "main":
             raise PreventUpdate
         global previous_counter_values, display_settings
