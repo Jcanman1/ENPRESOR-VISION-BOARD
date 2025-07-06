@@ -2848,6 +2848,7 @@ app.layout = html.Div([
     dcc.Store(id="app-mode-tracker"),
     dcc.Store(id="ip-addresses-store",      data=load_ip_addresses()),
     dcc.Store(id="additional-image-store",  data=load_saved_image()),
+    dcc.Store(id="image-error-store"),
     dcc.Store(id="weight-preference-store", data=load_weight_preference()),
     dcc.Store(id="language-preference-store", data=load_language_preference()),
     dcc.Store(id="email-settings-store",   data=load_email_settings()),
@@ -2911,7 +2912,8 @@ app.layout = html.Div([
                 },
                 multiple=False
             ),
-            html.Div(id="upload-status")
+            html.Div(id="upload-status"),
+            dbc.Alert(id="image-error-alert", color="danger", is_open=False, className="mt-2")
         ]),
         dbc.ModalFooter([
             dbc.Button(tr("close"), id="close-upload-modal", color="secondary")

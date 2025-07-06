@@ -7,8 +7,9 @@ import glob
 import shutil
 import tempfile
 import autoconnect
-import memory_monitor
-import counter_manager
+import resource
+
+
 
 # Tags for monitoring feeder rate changes - add this near the top of callbacks.py
 MONITORED_RATE_TAGS = {
@@ -910,6 +911,29 @@ def _register_callbacks_impl(app):
             return machines_data
         
         return dash.no_update
+
+    @app.callback(
+        Output("memory-metrics-store", "data"),
+        Input("metric-logging-interval", "n_intervals"),
+        prevent_initial_call=True,
+    )
+    def test_memory_management(_):
+        """Return memory usage metrics for tests and enforce history limits."""
+        max_points = 120
+        if hasattr(app_state, "counter_history"):
+            for i in range(1, 13):
+                history = app_state.counter_history[i]
+                if len(history["times"]) > max_points:
+                    history["times"] = history["times"][-max_points:]
+                    history["values"] = history["values"][-max_points:]
+            lengths = {
+                i: len(app_state.counter_history[i]["times"]) for i in range(1, 13)
+            }
+        else:
+            lengths = {}
+
+        rss_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
+        return {"rss_mb": rss_mb, "max_points": max_points, "history_lengths": lengths}
 
     @app.callback(
         Output("saved-ip-list", "children"),
@@ -4846,32 +4870,40 @@ def _register_callbacks_impl(app):
 
     @app.callback(
         [Output("additional-image-store", "data"),
-         Output("upload-status", "children")],
+         Output("upload-status", "children"),
+         Output("image-error-store", "data")],
         [Input("upload-image", "contents")],
         [State("upload-image", "filename")]
     )
-    def process_uploaded_image(contents, filename):
-        """Process the uploaded image and store it"""
+    def handle_image_upload_enhanced(contents, filename):
+        """Validate, cache, and store uploaded image."""
         if contents is None:
-            return dash.no_update, dash.no_update
-        
-        try:
-            # Log the content for debugging
-            logger.info(f"Processing image upload: {filename}")
-            
-            # Store the image content in the data store
-            new_data = {"image": contents}
-            
-            # Save the image for persistence
-            save_success = save_uploaded_image(contents)
-            
-            # Log the result for debugging
-            logger.info(f"Image save result: {save_success}")
-            
-            return new_data, html.Div(f"Uploaded: {filename}", className="text-success")
-        except Exception as e:
-            logger.error(f"Error uploading image: {str(e)}")
-            return dash.no_update, html.Div(f"Error uploading image: {str(e)}", className="text-danger")
+            return dash.no_update, dash.no_update, None
+
+        logger.info(f"Processing image upload: {filename}")
+        processed, err = image_manager.validate_and_process_image(contents)
+        if err:
+            logger.error(f"Image validation failed: {err}")
+            return dash.no_update, html.Div(f"Error uploading image: {err}", className="text-danger"), err
+
+        success, err = image_manager.cache_image(processed)
+        if not success:
+            logger.error(f"Error caching image: {err}")
+            return dash.no_update, html.Div(f"Error uploading image: {err}", className="text-danger"), err
+
+        new_data = {"image": processed}
+        return new_data, html.Div(f"Uploaded: {filename}", className="text-success"), None
+
+    @app.callback(
+        [Output("image-error-alert", "children"),
+         Output("image-error-alert", "is_open")],
+        Input("image-error-store", "data"),
+        prevent_initial_call=True,
+    )
+    def show_image_errors(msg):
+        if msg:
+            return msg, True
+        return "", False
 
     @app.callback(
         Output("update-counts-modal", "is_open"),
