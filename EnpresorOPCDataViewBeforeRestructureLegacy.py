@@ -1153,8 +1153,10 @@ async def connect_to_server(server_url, server_name=None):
         app_state.connected = False
         return False
 
-def create_threshold_settings_form():
-    """Create a form for threshold settings"""
+def create_threshold_settings_form(lang=None):
+    """Create a form for threshold settings."""
+    if lang is None:
+        lang = load_language_preference()
     form_rows = []
     
     # Create row for each counter
@@ -1164,7 +1166,10 @@ def create_threshold_settings_form():
         form_rows.append(
             dbc.Row([
                 # Counter label
-                dbc.Col(html.Div(f"Sensitivity {i}:", className="fw-bold"), width=2),
+                dbc.Col(
+                    html.Div(f"{tr('sensitivity_label', lang)} {i}:", className="fw-bold"),
+                    width=2,
+                ),
                                                 
                 # Min Value Input
                 dbc.Col(
@@ -1682,7 +1687,7 @@ else:  # pragma: no cover - optional dependency
 threshold_modal = dbc.Modal([
     dbc.ModalHeader(html.Span(tr("threshold_settings_title"), id="threshold-modal-header")),
     dbc.ModalBody([
-        html.Div(id="threshold-form-container", children=create_threshold_settings_form())
+        html.Div(id="threshold-form-container", children=create_threshold_settings_form(load_language_preference()))
     ]),
     dbc.ModalFooter([
         dbc.Button(tr("close"), id="close-threshold-settings", color="secondary", className="me-2"),
@@ -4789,6 +4794,8 @@ previous_counter_values = [0] * 12
 # Function to create display settings form
 def create_display_settings_form(lang=_initial_lang):
     """Create a form for display settings"""
+    if lang is None:
+        lang = load_language_preference()
     global display_settings
     
     form_items = []
@@ -4819,10 +4826,10 @@ def create_display_settings_form(lang=_initial_lang):
                 # Counter label with matching color
                 dbc.Col(
                     html.Div(
-                        f"Sensitivity {i}:", 
-                        className="fw-bold", 
+                        f"{tr('sensitivity_label', lang)} {i}:",
+                        className="fw-bold",
                         style={"color": color}
-                    ), 
+                    ),
                     width=4
                 ),
                 # Use a switch instead of a checkbox for better visibility
