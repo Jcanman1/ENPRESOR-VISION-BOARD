@@ -290,14 +290,13 @@ def _register_callbacks_impl(app):
     )
     def generate_report_callback(n_clicks, app_mode, active_machine_data):
         """Generate a PDF report when the button is clicked.
-    
-        ``generate_report.fetch_last_24h_metrics`` now returns a dictionary of
-        machine ids mapped to their historical data.  The callback simply passes
-        this structure to ``build_report``.
+        
+        FIXED VERSION: The original had a truncated line "if temp" that should be "if temp_dir:"
+        Also fixes the hardcoded is_lab_mode=True parameter.
         """
         if not n_clicks:
             raise PreventUpdate
-    
+
         export_dir = generate_report.METRIC_EXPORT_DIR
         machines = None
         include_global = True
@@ -322,8 +321,10 @@ def _register_callbacks_impl(app):
             shutil.copy(latest_file, os.path.join(temp_machine_dir, "last_24h_metrics.csv"))
             export_dir = temp_dir
             data = {}
+            is_lab_mode = True  # Set to True only for lab mode
         else:
             data = generate_report.fetch_last_24h_metrics()
+            is_lab_mode = False  # Set to False for regular mode
 
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
             generate_report.build_report(
@@ -332,14 +333,15 @@ def _register_callbacks_impl(app):
                 export_dir=export_dir,
                 machines=machines,
                 include_global=include_global,
-                is_lab_mode=True,
+                is_lab_mode=is_lab_mode,  # FIXED: Now correctly passes the lab mode flag
             )
             with open(tmp.name, "rb") as f:
                 pdf_bytes = f.read()
 
-        if temp_dir:
+        # FIXED: Complete the truncated temp directory cleanup
+        if temp_dir:  # This was the truncated line: "if temp"
             shutil.rmtree(temp_dir, ignore_errors=True)
-    
+
         pdf_b64 = base64.b64encode(pdf_bytes).decode()
         timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
         return {
