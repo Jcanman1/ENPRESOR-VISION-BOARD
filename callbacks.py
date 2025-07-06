@@ -7,6 +7,9 @@ import glob
 import shutil
 import tempfile
 import autoconnect
+import resource
+
+
 
 # Tags for monitoring feeder rate changes - add this near the top of callbacks.py
 MONITORED_RATE_TAGS = {
@@ -908,6 +911,29 @@ def _register_callbacks_impl(app):
             return machines_data
         
         return dash.no_update
+
+    @app.callback(
+        Output("memory-metrics-store", "data"),
+        Input("metric-logging-interval", "n_intervals"),
+        prevent_initial_call=True,
+    )
+    def test_memory_management(_):
+        """Return memory usage metrics for tests and enforce history limits."""
+        max_points = 120
+        if hasattr(app_state, "counter_history"):
+            for i in range(1, 13):
+                history = app_state.counter_history[i]
+                if len(history["times"]) > max_points:
+                    history["times"] = history["times"][-max_points:]
+                    history["values"] = history["values"][-max_points:]
+            lengths = {
+                i: len(app_state.counter_history[i]["times"]) for i in range(1, 13)
+            }
+        else:
+            lengths = {}
+
+        rss_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
+        return {"rss_mb": rss_mb, "max_points": max_points, "history_lengths": lengths}
 
     @app.callback(
         Output("saved-ip-list", "children"),
@@ -3980,81 +4006,60 @@ def _register_callbacks_impl(app):
         return section_content
 
     @app.callback(
-    
         Output("section-6-1", "children"),
         [Input("status-update-interval", "n_intervals"),
-         Input("current-dashboard",       "data"),
-         Input("historical-time-index",   "data"),
+         Input("current-dashboard", "data"),
+         Input("historical-time-index", "data"),
          Input("language-preference-store", "data")],
         [State("app-state", "data"),
          State("app-mode", "data"),
          State("active-machine-store", "data")],
-        prevent_initial_call=True
+        prevent_initial_call=True,
     )
     def update_section_6_1(n_intervals, which, state_data, lang, app_state_data, app_mode, active_machine_data):
-    
-        """Update section 6-1 with trend graph for the 12 counters, supporting historical data"""
-        # only run when we’re in the “main” dashboard
+        """Update section 6-1 with trend graph for the 12 counters, supporting historical data."""
+        memory_monitor.log_memory_if_high()
         if which != "main":
             raise PreventUpdate
-            # or return [no_update, no_update]
         global previous_counter_values, display_settings
-    
-        # Ensure baseline values exist for the trend graph
+
         if not previous_counter_values or len(previous_counter_values) < 12:
             previous_counter_values = [0] * 12
-        
-        # Define title for the section
+
         section_title = tr("counter_values_trend_title", lang)
-        
-        # Define colors for each counter - matching section 5-2
+
         counter_colors = {
-            1: "green",       # Blue
-            2: "lightgreen",      # Green
-            3: "orange",     # Orange
-            4: "blue",      # Black
-            5: "#f9d70b",    # Yellow (using hex to ensure visibility)
-            6: "magenta",    # Magenta
-            7: "cyan",       # Cyan
-            8: "red",        # Red
+            1: "green",
+            2: "lightgreen",
+            3: "orange",
+            4: "blue",
+            5: "#f9d70b",
+            6: "magenta",
+            7: "cyan",
+            8: "red",
             9: "purple",
             10: "brown",
             11: "gray",
-            12: "lightblue"
+            12: "lightblue",
         }
-        
-        # Determine if we're in Live, Demo, or Historical mode
-        mode = "demo"  # Default to demo mode
+
+        mode = "demo"
         if app_mode and isinstance(app_mode, dict) and "mode" in app_mode:
             mode = app_mode["mode"]
-        
-        # If in historical mode, load data from file instead of using app_state
-    
+
         if mode == "historical":
-            # Load historical data for the selected timeframe
             hours = state_data.get("hours", 24) if isinstance(state_data, dict) else 24
             active_id = active_machine_data.get("machine_id") if active_machine_data else None
             historical_data = get_historical_data(timeframe=f"{hours}h", machine_id=active_id)
-    
-            
-            # Create figure
+
             fig = go.Figure()
-            
-            # Add a trace for each counter based on display settings
             for i in range(1, 13):
-                # Only add trace if this counter is set to be displayed
-                if display_settings.get(i, True):  # Default to True if not in settings
+                if display_settings.get(i, True):
                     counter_name = f"Counter {i}"
                     color = counter_colors.get(i, "gray")
-                    
-                    # Get historical data for this counter
                     times = historical_data[i]['times']
                     values = historical_data[i]['values']
-                    
-                    # Format times for display
                     time_labels = [t.strftime("%H:%M:%S") if isinstance(t, datetime) else t for t in times]
-                    
-                    # Add trace if we have data
                     if times and values:
                         fig.add_trace(go.Scatter(
                             x=time_labels,
@@ -4063,24 +4068,22 @@ def _register_callbacks_impl(app):
                             name=counter_name,
                             line=dict(color=color, width=2),
                             hoverinfo='text',
-                            hovertext=[f"{counter_name}: {value}" for value in values]
+                            hovertext=[f"{counter_name}: {value}" for value in values],
                         ))
-            
-            # Determine tick labels similar to live mode
+
             ref_times = historical_data[1]['times'] if historical_data[1]['times'] else []
             label_list = [t.strftime('%H:%M:%S') if isinstance(t, datetime) else t for t in ref_times]
             step = max(1, len(label_list) // 5) if label_list else 1
-    
+
             hist_values = [historical_data[i]['values'][-1] if historical_data[i]['values'] else None for i in range(1, 13)]
             logger.info(f"Section 6-1 latest values (historical mode): {hist_values}")
-    
-            # Update layout with timeline slider for historical data
+
             fig.update_layout(
                 title=None,
                 xaxis=dict(
                     showgrid=False,
                     gridcolor='rgba(211,211,211,0.3)',
-                    rangeslider=dict(visible=False),  # Add range slider for historical data
+                    rangeslider=dict(visible=False),
                     tickmode='array',
                     tickvals=list(range(0, len(label_list), step)) if label_list else [],
                     ticktext=[label_list[i] for i in range(0, len(label_list), step) if i < len(label_list)] if label_list else [],
@@ -4091,161 +4094,116 @@ def _register_callbacks_impl(app):
                     gridcolor='rgba(211,211,211,0.3)',
                 ),
                 margin=dict(l=5, r=5, t=5, b=5),
-                # Match the live mode graph height so the component fits
-                # within the fixed card dimensions when viewing
-                # historical data.
                 height=200,
                 plot_bgcolor='var(--chart-bg)',
                 paper_bgcolor='var(--chart-bg)',
                 hovermode='closest',
-                showlegend=False
+                showlegend=False,
             )
-            
-            # Return the section content.  The header indicates historical
-            # mode so no extra indicator is needed.
+
             return html.Div([
-                # Header row with title and display settings button
                 dbc.Row([
                     dbc.Col(html.H5(f"{section_title} (Historical View)", className="mb-0"), width=9),
                     dbc.Col(
                         dbc.Button(tr("display_button", lang),
-                                id={"type": "open-display", "index": 0},
-                                color="primary",
-                                size="sm",
-                                className="float-end"),
-                        width=3
-                    )
+                                   id={"type": "open-display", "index": 0},
+                                   color="primary",
+                                   size="sm",
+                                   className="float-end"),
+                        width=3,
+                    ),
                 ], className="mb-2 align-items-center"),
-                # Trend graph with range slider
                 dcc.Graph(
                     id='counter-trend-graph',
                     figure=fig,
                     config={'displayModeBar': False, 'responsive': True},
                     style={'width': '100%', 'height': '100%'}
-                )
+                ),
             ])
-        
+
+        if not hasattr(app_state, 'counter_history'):
+            app_state.counter_history = {i: {'times': [], 'values': []} for i in range(1, 13)}
+
+        current_time = datetime.now()
+
+        if mode in LIVE_LIKE_MODES and app_state_data.get("connected", False):
+            for i, value in enumerate(previous_counter_values):
+                counter_manager.add_data_point(app_state.counter_history, i + 1, current_time, value)
+        elif mode == "demo":
+            for i, value in enumerate(previous_counter_values):
+                counter_manager.add_data_point(app_state.counter_history, i + 1, current_time, value)
         else:
-            # Initialize trend data if it doesn't exist in app state
-            if not hasattr(app_state, 'counter_history'):
-                app_state.counter_history = {i: {'times': [], 'values': []} for i in range(1, 13)}
-            
-            # Get current time
-            current_time = datetime.now()
-            
-            # Update the trend data with current values
-            if mode in LIVE_LIKE_MODES and app_state_data.get("connected", False):
-                # Use the latest values from section 5-2 for consistency
-                for i, value in enumerate(previous_counter_values):
-                    counter_num = i + 1
-    
-                    # Add current value to history
-                    app_state.counter_history[counter_num]['times'].append(current_time)
-                    app_state.counter_history[counter_num]['values'].append(value)
-            elif mode == "demo":
-                # Demo mode - use previous_counter_values
-                for i, value in enumerate(previous_counter_values):
-                    counter_num = i + 1
-    
-                    # Add current value to history
-                    app_state.counter_history[counter_num]['times'].append(current_time)
-                    app_state.counter_history[counter_num]['values'].append(value)
-            else:
-                # Live mode but not connected - keep previous values
-                for i in range(1, 13):
-                    prev_vals = app_state.counter_history[i]['values']
-                    prev_value = prev_vals[-1] if prev_vals else 0
-                    app_state.counter_history[i]['times'].append(current_time)
-                    app_state.counter_history[i]['values'].append(prev_value)
-    
-            # Limit history size for all counters
             for i in range(1, 13):
-                # Limit history size to prevent memory issues (keep last 120 points)
-                max_points = 120
-                if len(app_state.counter_history[i]['times']) > max_points:
-                    app_state.counter_history[i]['times'] = app_state.counter_history[i]['times'][-max_points:]
-                    app_state.counter_history[i]['values'] = app_state.counter_history[i]['values'][-max_points:]
-    
-            latest_values = [app_state.counter_history[i]['values'][-1] if app_state.counter_history[i]['values'] else None for i in range(1, 13)]
-            logger.info(f"Section 6-1 latest values ({mode} mode): {latest_values}")
-            
-            # Create figure
-            fig = go.Figure()
-            
-            # Add a trace for each counter based on display settings
-            for i in range(1, 13):
-                # Only add trace if this counter is set to be displayed
-                if display_settings.get(i, True):  # Default to True if not in settings
-                    counter_name = f"Counter {i}"
-                    color = counter_colors.get(i, "gray")
-                    
-                    # Get time and value data
-                    times = app_state.counter_history[i]['times']
-                    values = app_state.counter_history[i]['values']
-                    
-                    # Format times for display
-                    time_labels = [t.strftime("%H:%M:%S") for t in times]
-                    
-                    # Add trace if we have data
-                    if times and values:
-                        fig.add_trace(go.Scatter(
-                            x=time_labels,
-                            y=values,
-                            mode='lines',
-                            name=counter_name,
-                            line=dict(color=color, width=2),
-                            hoverinfo='text',
-                            hovertext=[f"{counter_name}: {value}" for value in values]
-                        ))
-            
-            # Update layout
-            fig.update_layout(
+                prev_vals = app_state.counter_history[i]['values']
+                prev_value = prev_vals[-1] if prev_vals else 0
+                counter_manager.add_data_point(app_state.counter_history, i, current_time, prev_value)
+
+        latest_values = [app_state.counter_history[i]['values'][-1] if app_state.counter_history[i]['values'] else None for i in range(1, 13)]
+        logger.info(f"Section 6-1 latest values ({mode} mode): {latest_values}")
+
+        fig = go.Figure()
+
+        for i in range(1, 13):
+            if display_settings.get(i, True):
+                counter_name = f"Counter {i}"
+                color = counter_colors.get(i, "gray")
+                times = app_state.counter_history[i]['times']
+                values = app_state.counter_history[i]['values']
+                time_labels = [t.strftime("%H:%M:%S") for t in times]
+                if times and values:
+                    fig.add_trace(go.Scatter(
+                        x=time_labels,
+                        y=values,
+                        mode='lines',
+                        name=counter_name,
+                        line=dict(color=color, width=2),
+                        hoverinfo='text',
+                        hovertext=[f"{counter_name}: {value}" for value in values],
+                    ))
+
+        fig.update_layout(
+            title=None,
+            xaxis=dict(
+                showgrid=False,
+                gridcolor='rgba(211,211,211,0.3)',
+                tickmode='array',
+                tickvals=list(range(0, len(time_labels), max(1, len(time_labels) // 5))) if time_labels else [],
+                ticktext=[time_labels[i] for i in range(0, len(time_labels),
+                                                    max(1, len(time_labels) // 5))
+                        if i < len(time_labels)] if time_labels else [],
+            ),
+            yaxis=dict(
                 title=None,
-                xaxis=dict(
-                    showgrid=False,
-                    gridcolor='rgba(211,211,211,0.3)',
-                    tickmode='array',
-                    tickvals=list(range(0, len(time_labels), max(1, len(time_labels) // 5))) if time_labels else [],
-                    ticktext=[time_labels[i] for i in range(0, len(time_labels), 
-                                                                max(1, len(time_labels) // 5))
-                            if i < len(time_labels)] if time_labels else [],
+                showgrid=False,
+                gridcolor='rgba(211,211,211,0.3)',
+            ),
+            margin=dict(l=5, r=5, t=5, b=5),
+            height=200,
+            plot_bgcolor='var(--chart-bg)',
+            paper_bgcolor='var(--chart-bg)',
+            hovermode='closest',
+            showlegend=False,
+        )
+
+        return html.Div([
+            dbc.Row([
+                dbc.Col(html.H5(section_title, className="mb-0"), width=9),
+                dbc.Col(
+                    dbc.Button(tr("display_button", lang),
+                               id={"type": "open-display", "index": 0},
+                               color="primary",
+                               size="sm",
+                               className="float-end"),
+                    width=3,
                 ),
-                yaxis=dict(
-                    title=None,
-                    showgrid=False,
-                    gridcolor='rgba(211,211,211,0.3)',
-                ),
-                margin=dict(l=5, r=5, t=5, b=5),
-                height=200,
-                plot_bgcolor='var(--chart-bg)',
-                paper_bgcolor='var(--chart-bg)',
-                hovermode='closest',
-                showlegend=False
-            )
-            
-            # Return the section content
-            return html.Div([
-                # Header row with title and display settings button
-                dbc.Row([
-                    dbc.Col(html.H5(section_title, className="mb-0"), width=9),
-                    dbc.Col(
-                        dbc.Button(tr("display_button", lang),
-                                id={"type": "open-display", "index": 0},
-                                color="primary",
-                                size="sm",
-                                className="float-end"),
-                        width=3
-                    )
-                ], className="mb-2 align-items-center"),
-                
-                # Trend graph
-                dcc.Graph(
-                    id='counter-trend-graph',
-                    figure=fig,
-                    config={'displayModeBar': False, 'responsive': True},
-                    style={'width': '100%', 'height': '100%'}
-                )
-            ])
+            ], className="mb-2 align-items-center"),
+            dcc.Graph(
+                id='counter-trend-graph',
+                figure=fig,
+                config={'displayModeBar': False, 'responsive': True},
+                style={'width': '100%', 'height': '100%'}
+            ),
+        ])
 
     @app.callback(
         Output("section-6-2", "children"),
@@ -4912,32 +4870,40 @@ def _register_callbacks_impl(app):
 
     @app.callback(
         [Output("additional-image-store", "data"),
-         Output("upload-status", "children")],
+         Output("upload-status", "children"),
+         Output("image-error-store", "data")],
         [Input("upload-image", "contents")],
         [State("upload-image", "filename")]
     )
-    def process_uploaded_image(contents, filename):
-        """Process the uploaded image and store it"""
+    def handle_image_upload_enhanced(contents, filename):
+        """Validate, cache, and store uploaded image."""
         if contents is None:
-            return dash.no_update, dash.no_update
-        
-        try:
-            # Log the content for debugging
-            logger.info(f"Processing image upload: {filename}")
-            
-            # Store the image content in the data store
-            new_data = {"image": contents}
-            
-            # Save the image for persistence
-            save_success = save_uploaded_image(contents)
-            
-            # Log the result for debugging
-            logger.info(f"Image save result: {save_success}")
-            
-            return new_data, html.Div(f"Uploaded: {filename}", className="text-success")
-        except Exception as e:
-            logger.error(f"Error uploading image: {str(e)}")
-            return dash.no_update, html.Div(f"Error uploading image: {str(e)}", className="text-danger")
+            return dash.no_update, dash.no_update, None
+
+        logger.info(f"Processing image upload: {filename}")
+        processed, err = image_manager.validate_and_process_image(contents)
+        if err:
+            logger.error(f"Image validation failed: {err}")
+            return dash.no_update, html.Div(f"Error uploading image: {err}", className="text-danger"), err
+
+        success, err = image_manager.cache_image(processed)
+        if not success:
+            logger.error(f"Error caching image: {err}")
+            return dash.no_update, html.Div(f"Error uploading image: {err}", className="text-danger"), err
+
+        new_data = {"image": processed}
+        return new_data, html.Div(f"Uploaded: {filename}", className="text-success"), None
+
+    @app.callback(
+        [Output("image-error-alert", "children"),
+         Output("image-error-alert", "is_open")],
+        Input("image-error-store", "data"),
+        prevent_initial_call=True,
+    )
+    def show_image_errors(msg):
+        if msg:
+            return msg, True
+        return "", False
 
     @app.callback(
         Output("update-counts-modal", "is_open"),
