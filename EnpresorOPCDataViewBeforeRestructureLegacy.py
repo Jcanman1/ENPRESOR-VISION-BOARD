@@ -2399,7 +2399,7 @@ settings_modal = dbc.Modal([
                         ], width=8),
                     ], className="mb-3"),
                 ])
-            ], label=tr("display_tab_label", _initial_lang)),
+            ], label=tr("display_tab_label", _initial_lang), id="display-tab"),
             
             # Updated System tab with "Add machine IP" and ADD button
             dbc.Tab([
@@ -2462,7 +2462,7 @@ settings_modal = dbc.Modal([
                     ),
                     html.Div(id="system-settings-save-status", className="text-success mt-2"),
                 ])
-            ], label="System"),
+            ], label=tr("system_tab_label", _initial_lang), id="system-tab"),
 
             dbc.Tab([
                 html.Div([
@@ -2496,7 +2496,7 @@ settings_modal = dbc.Modal([
                     ),
                     html.Div(id="email-settings-save-status", className="text-success mt-2"),
                 ])
-            ], label="Email Setup"),
+            ], label=tr("email_tab_label", _initial_lang), id="email-tab"),
             
             # About tab remains the same
             dbc.Tab([
@@ -2525,7 +2525,7 @@ settings_modal = dbc.Modal([
                         "(281) 276-3700"
                     ], className="mb-1"),
                 ])
-            ], label="About"),
+            ], label=tr("about_tab_label", _initial_lang), id="about-tab"),
         ]),
     ]),
     dbc.ModalFooter([
