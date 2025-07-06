@@ -147,3 +147,16 @@ def test_lab_buttons_callback(monkeypatch):
     # Other mode
     res = func.__wrapped__(False, "live")
     assert res == (True, "secondary", True, "secondary")
+
+
+def test_refresh_text_includes_lab_controls(monkeypatch):
+    monkeypatch.setattr(autoconnect, "initialize_autoconnect", lambda: None)
+    app = dash.Dash(__name__)
+    callbacks.register_callbacks(app)
+
+    key = next(k for k in app.callback_map if "threshold-modal-header.children" in k)
+    outputs = [out.component_id + "." + out.component_property for out in app.callback_map[key]["output"]]
+
+    assert "start-test-btn.children" in outputs
+    assert "lab-test-name.placeholder" in outputs
+    assert "display-tab.label" in outputs

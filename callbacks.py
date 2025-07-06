@@ -1344,8 +1344,19 @@ def _register_callbacks_impl(app):
          Output("smtp-username-label", "children"),
          Output("smtp-password-label", "children"),
          Output("smtp-from-label", "children"),
-         Output("save-email-settings", "children"),
-         Output("production-rate-unit-selector", "options")],
+        Output("save-email-settings", "children"),
+        Output("production-rate-unit-selector", "options"),
+        Output("display-tab", "label"),
+        Output("system-tab", "label"),
+        Output("email-tab", "label"),
+        Output("about-tab", "label"),
+        Output("start-test-btn", "children"),
+        Output("stop-test-btn", "children"),
+        Output("lab-test-name", "placeholder"),
+        Output("clear-data-btn", "children"),
+        Output("upload-image", "children"),
+        Output("add-ip-button", "children"),
+        Output("save-system-settings", "children")],
         [Input("language-preference-store", "data")]
     )
     def refresh_text(lang):
@@ -1406,6 +1417,20 @@ def _register_callbacks_impl(app):
                 {"label": tr("objects_per_min", lang), "value": "objects"},
                 {"label": tr("capacity", lang), "value": "capacity"},
             ],
+            tr("display_tab_label", lang),
+            tr("system_tab_label", lang),
+            tr("email_tab_label", lang),
+            tr("about_tab_label", lang),
+            tr("start_test", lang),
+            tr("stop_test", lang),
+            tr("test_lot_name_placeholder", lang),
+            tr("clear_data", lang),
+            html.Div([
+                tr("drag_and_drop", lang),
+                html.A(tr("select_image", lang))
+            ]),
+            tr("add_button", lang),
+            tr("save_system_settings", lang),
         )
 
     @app.callback(
