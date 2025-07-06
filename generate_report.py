@@ -355,7 +355,7 @@ def draw_header(c, width, height, page_number=None):
 
 
 
-def draw_global_summary(c, csv_parent_dir, x0, y0, total_w, available_height):
+def draw_global_summary(c, csv_parent_dir, x0, y0, total_w, available_height, is_lab_mode=False):
     """Draw the global summary sections (totals, pie, trend, counts)"""
     machines = sorted(
         [d for d in os.listdir(csv_parent_dir)
@@ -722,7 +722,7 @@ def build_report(
             pdf_path, export_dir, machines=machines, include_global=include_global
         )
 
-def draw_machine_sections(c, csv_parent_dir, machine, x0, y_start, total_w, available_height, global_max_firing=None):
+def draw_machine_sections(c, csv_parent_dir, machine, x0, y_start, total_w, available_height, global_max_firing=None, is_lab_mode=False):
     """Draw the three sections for a single machine - OPTIMIZED FOR 2 MACHINES PER PAGE"""
     fp = os.path.join(csv_parent_dir, machine, 'last_24h_metrics.csv')
     if not os.path.isfile(fp):
@@ -1054,7 +1054,7 @@ def draw_layout_optimized(
         available_height = content_start_y - margin - 50
 
         # Draw global summary (takes full page)
-        draw_global_summary(c, csv_parent_dir, x0, margin, total_w, available_height)
+        draw_global_summary(c, csv_parent_dir, x0, margin, total_w, available_height, is_lab_mode=False)
     
     # Process machines in groups of 2 (HARD LIMIT)
     machines_per_page = 2
@@ -1134,7 +1134,7 @@ def draw_layout_standard(
         available_height = content_start_y - margin - 50
 
         # Draw global summary (takes full page)
-        draw_global_summary(c, csv_parent_dir, x0, margin, total_w, available_height)
+        draw_global_summary(c, csv_parent_dir, x0, margin, total_w, available_height, is_lab_mode=False)
     
     # Process machines starting on page 2
     machines_processed = 0
@@ -1159,7 +1159,7 @@ def draw_layout_standard(
         # Draw machine sections with FIXED height and global max
         logger.debug(f"  Drawing Machine {machine} - FIXED SIZE ({fixed_machine_height}px)")
         next_y = draw_machine_sections(c, csv_parent_dir, machine, x0, next_y, 
-                                     total_w, fixed_machine_height, global_max_firing)
+                                     total_w, fixed_machine_height, global_max_firing, is_lab_mode=False)
         
         machines_processed += 1
         
