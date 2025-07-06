@@ -14,6 +14,11 @@ except ImportError:  # pragma: no cover - resource not available on Windows
 
 import memory_monitor as mem_utils
 
+# ``counter_manager`` is imported dynamically from the legacy module, so use
+# an alias for the helper functions defined in ``counter_manager.py`` to avoid
+# name clashes.
+import counter_manager as counter_utils
+
 
 
 # Tags for monitoring feeder rate changes - add this near the top of callbacks.py
@@ -4135,15 +4140,15 @@ def _register_callbacks_impl(app):
 
         if mode in LIVE_LIKE_MODES and app_state_data.get("connected", False):
             for i, value in enumerate(previous_counter_values):
-                counter_manager.add_data_point(app_state.counter_history, i + 1, current_time, value)
+                counter_utils.add_data_point(app_state.counter_history, i + 1, current_time, value)
         elif mode == "demo":
             for i, value in enumerate(previous_counter_values):
-                counter_manager.add_data_point(app_state.counter_history, i + 1, current_time, value)
+                counter_utils.add_data_point(app_state.counter_history, i + 1, current_time, value)
         else:
             for i in range(1, 13):
                 prev_vals = app_state.counter_history[i]['values']
                 prev_value = prev_vals[-1] if prev_vals else 0
-                counter_manager.add_data_point(app_state.counter_history, i, current_time, prev_value)
+                counter_utils.add_data_point(app_state.counter_history, i, current_time, prev_value)
 
         latest_values = [app_state.counter_history[i]['values'][-1] if app_state.counter_history[i]['values'] else None for i in range(1, 13)]
         logger.info(f"Section 6-1 latest values ({mode} mode): {latest_values}")
