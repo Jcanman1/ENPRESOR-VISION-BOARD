@@ -125,3 +125,25 @@ def test_register_callbacks_no_recursion(monkeypatch):
     callbacks.register_callbacks(app)
 
     assert init_calls == [1]
+
+
+def test_lab_buttons_callback(monkeypatch):
+    """Start/stop button callback should be registered and return proper state."""
+    monkeypatch.setattr(autoconnect, "initialize_autoconnect", lambda: None)
+    app = dash.Dash(__name__)
+    callbacks.register_callbacks(app)
+
+    key = next(k for k in app.callback_map if "start-test-btn.disabled" in k)
+    func = app.callback_map[key]["callback"]
+
+    # Not running yet
+    res = func.__wrapped__(False, "lab")
+    assert res == (False, "success", True, "secondary")
+
+    # Running
+    res = func.__wrapped__(True, "lab")
+    assert res == (True, "secondary", False, "danger")
+
+    # Other mode
+    res = func.__wrapped__(False, "live")
+    assert res == (True, "secondary", True, "secondary")
