@@ -1158,16 +1158,35 @@ def create_threshold_settings_form(lang=None):
     if lang is None:
         lang = load_language_preference()
     form_rows = []
-    
+
+    counter_colors = {
+        1: "green",
+        2: "lightgreen",
+        3: "orange",
+        4: "blue",
+        5: "#f9d70b",
+        6: "magenta",
+        7: "cyan",
+        8: "red",
+        9: "purple",
+        10: "brown",
+        11: "gray",
+        12: "lightblue",
+    }
+
     # Create row for each counter
     for i in range(1, 13):
         settings = threshold_settings[i]
-        
+
         form_rows.append(
             dbc.Row([
                 # Counter label
                 dbc.Col(
-                    html.Div(f"{tr('sensitivity_label', lang)} {i}:", className="fw-bold"),
+                    html.Div(
+                        f"{tr('sensitivity_label', lang)} {i}:",
+                        className="fw-bold",
+                        style={"color": counter_colors.get(i, "black")},
+                    ),
                     width=2,
                 ),
                                                 
@@ -1229,7 +1248,7 @@ def create_threshold_settings_form(lang=None):
     form_rows.append(
         dbc.Row([
             # Label
-            dbc.Col(html.Div("Email Notifications:", className="fw-bold"), width=2),
+            dbc.Col(html.Div(f"{tr('notification_label', lang)}:", className="fw-bold"), width=2),
             
             # Email Input
             dbc.Col(

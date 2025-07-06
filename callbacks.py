@@ -5034,6 +5034,25 @@ def _register_callbacks_impl(app):
         return [no_update]  # Return as a list with one element
 
     @app.callback(
+        Output("threshold-form-container", "children"),
+        [Input({"type": "open-threshold", "index": ALL}, "n_clicks"),
+         Input("language-preference-store", "data")],
+        prevent_initial_call=True,
+    )
+    def refresh_threshold_form(open_clicks, lang):
+        ctx = callback_context
+        if not ctx.triggered:
+            raise PreventUpdate
+
+        trigger = ctx.triggered[0]["prop_id"]
+        if '"type":"open-threshold"' in trigger:
+            if any(click is not None for click in open_clicks):
+                return create_threshold_settings_form(lang)
+        if trigger == "language-preference-store.data":
+            return create_threshold_settings_form(lang)
+        raise PreventUpdate
+
+    @app.callback(
         Output("metric-logging-store", "data"),
         [Input("metric-logging-interval", "n_intervals")],
     
