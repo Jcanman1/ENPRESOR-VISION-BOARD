@@ -4716,6 +4716,21 @@ def _register_callbacks_impl(app):
         return "d-flex" if mode == "lab" else "d-none"
 
     @app.callback(
+        [Output("start-test-btn", "disabled"),
+         Output("start-test-btn", "color"),
+         Output("stop-test-btn", "disabled"),
+         Output("stop-test-btn", "color")],
+        [Input("lab-test-running", "data"), Input("mode-selector", "value")],
+    )
+    def toggle_lab_test_buttons(running, mode):
+        """Enable/disable lab start/stop buttons based on test state."""
+        if mode != "lab":
+            return True, "secondary", True, "secondary"
+        if running:
+            return True, "secondary", False, "danger"
+        return False, "success", True, "secondary"
+
+    @app.callback(
         Output("lab-test-running", "data"),
         [Input("start-test-btn", "n_clicks"), Input("stop-test-btn", "n_clicks"), Input("mode-selector", "value")],
         [State("lab-test-running", "data")],
