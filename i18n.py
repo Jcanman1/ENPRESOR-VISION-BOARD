@@ -119,6 +119,7 @@ TRANSLATIONS = {
         'password_label': 'Password:',
         'from_address_label': 'From Address:',
         'save_email_settings': 'Save Email Settings',
+        'notification_label': 'Notification',
         'about_this_dashboard_title': 'About This Dashboard',
     },
     'es': {
@@ -241,6 +242,7 @@ TRANSLATIONS = {
         'password_label': 'Contraseña:',
         'from_address_label': 'Dirección del remitente:',
         'save_email_settings': 'Guardar configuración de email',
+        'notification_label': 'Notificación',
         'about_this_dashboard_title': 'Acerca de este tablero',
     },
     'ja': {
@@ -363,6 +365,7 @@ TRANSLATIONS = {
         'password_label': 'パスワード:',
         'from_address_label': '送信元アドレス:',
         'save_email_settings': 'メール設定を保存',
+        'notification_label': '通知',
         'about_this_dashboard_title': 'このダッシュボードについて',
     },
 }
