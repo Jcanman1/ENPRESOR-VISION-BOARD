@@ -51,7 +51,9 @@ Windows installer using the provided Inno Setup script, make sure the
 `Audiowide-Regular.ttf` font file is bundled with the application. `draw_header`
 will look for the font either in the application directory or an `assets`
 subfolder. The installer script copies the file into `assets` automatically so
-the PDF headers render with the correct font.
+the PDF headers render with the correct font. When generating Japanese
+reports you must also include `NotoSansJP-Regular.otf` in the `assets`
+folder so the text renders correctly.
 
 To include the `assets` folder when creating the executable with PyInstaller use
 the `--add-data` option. The separator differs by platform:
