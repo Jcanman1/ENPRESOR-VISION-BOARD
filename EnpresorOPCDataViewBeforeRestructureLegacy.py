@@ -894,6 +894,27 @@ class AppState:
         
 app_state = AppState()
 
+# ---------------------------------------------------------------------------
+# Memory management helpers
+# ---------------------------------------------------------------------------
+from memory_leak_fixes import (
+    MemoryMonitor,
+    CounterHistoryManager,
+    ImageManager,
+    DataFrameProcessor,
+    AppStateManager,
+)
+import atexit
+
+# Instantiate helpers so callbacks can access them
+memory_monitor = MemoryMonitor()
+counter_manager = CounterHistoryManager()
+image_manager = ImageManager()
+data_frame_processor = DataFrameProcessor()
+app_state_manager = AppStateManager(app_state)
+app_state_manager.start_cleanup_thread()
+atexit.register(app_state_manager.stop_cleanup_thread)
+
 # TagData class to store tag history
 from threading import Lock
 
