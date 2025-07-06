@@ -27,17 +27,28 @@ def _minutes_to_hm(minutes: float) -> str:
     return f"{hours}:{mins:02d}"
 
 
-def calculate_total_capacity_from_csv_rates(csv_rate_entries, log_interval_minutes=1):
-    """Convert lbs/hr rates into total lbs and related stats.
-
+def calculate_total_capacity_from_csv_rates(csv_rate_entries, log_interval_minutes=1, 
+                                          timestamps=None, is_lab_mode=False):
+    """
+    Convert lbs/hr rates into total lbs and related stats.
+    
+    Enhanced to handle both regular and lab mode data correctly.
+    
     Parameters
     ----------
     csv_rate_entries : iterable
         Sequence of lbs/hr rate samples.
     log_interval_minutes : int, optional
-        Interval between samples in minutes. Defaults to ``1`` minute to match
-        the CSV sampling rate.
+        Interval between samples in minutes. Only used for regular mode.
+    timestamps : iterable, optional
+        Timestamp data for lab mode calculations.
+    is_lab_mode : bool, optional
+        Whether to use irregular interval calculation for lab mode.
     """
+    if is_lab_mode and timestamps is not None:
+        return _calculate_capacity_lab_mode(timestamps, csv_rate_entries)
+    
+    # Existing regular mode calculation (unchanged)
     rates = []
     for r in csv_rate_entries:
         try:
@@ -65,9 +76,130 @@ def calculate_total_capacity_from_csv_rates(csv_rate_entries, log_interval_minut
         "min_rate_lbs_per_hr": min(rates),
     }
 
+def _calculate_capacity_lab_mode(timestamps, rates):
+    """Calculate capacity totals using actual time intervals for lab mode data."""
+    if len(timestamps) < 2 or len(rates) < 2:
+        return {
+            "total_capacity_lbs": 0,
+            "average_rate_lbs_per_hr": 0,
+            "max_rate_lbs_per_hr": 0,
+            "min_rate_lbs_per_hr": 0,
+        }
+    
+    total_lbs = 0
+    valid_rates = []
+    
+    for i in range(len(timestamps) - 1):
+        try:
+            current_rate = float(rates[i])
+            if pd.isna(current_rate):
+                continue
+                
+            # Parse timestamps
+            current_time = pd.to_datetime(timestamps[i])
+            next_time = pd.to_datetime(timestamps[i + 1])
+            
+            # Calculate actual time interval in hours
+            time_diff_hours = (next_time - current_time).total_seconds() / 3600
+            
+            # Add production for this interval
+            total_lbs += current_rate * time_diff_hours
+            valid_rates.append(current_rate)
+            
+        except (ValueError, TypeError):
+            continue
+    
+    # Add the last rate for statistics
+    try:
+        last_rate = float(rates[-1])
+        if not pd.isna(last_rate):
+            valid_rates.append(last_rate)
+    except (ValueError, TypeError):
+        pass
+    
+    if not valid_rates:
+        return {
+            "total_capacity_lbs": 0,
+            "average_rate_lbs_per_hr": 0,
+            "max_rate_lbs_per_hr": 0,
+            "min_rate_lbs_per_hr": 0,
+        }
+    
+    return {
+        "total_capacity_lbs": total_lbs,
+        "average_rate_lbs_per_hr": sum(valid_rates) / len(valid_rates),
+        "max_rate_lbs_per_hr": max(valid_rates),
+        "min_rate_lbs_per_hr": min(valid_rates),
+    }
 
-def calculate_total_objects_from_csv_rates(csv_rate_entries, log_interval_minutes=1):
-    """Convert objects/min rates into total objects."""
+def _calculate_objects_lab_mode(timestamps, rates):
+    """Calculate object totals using actual time intervals for lab mode data."""
+    if len(timestamps) < 2 or len(rates) < 2:
+        return {
+            "total_objects": 0,
+            "average_rate_obj_per_min": 0,
+            "max_rate_obj_per_min": 0,
+            "min_rate_obj_per_min": 0,
+        }
+    
+    total_objects = 0
+    valid_rates = []
+    
+    for i in range(len(timestamps) - 1):
+        try:
+            current_rate = float(rates[i])
+            if pd.isna(current_rate):
+                continue
+                
+            # Parse timestamps
+            current_time = pd.to_datetime(timestamps[i])
+            next_time = pd.to_datetime(timestamps[i + 1])
+            
+            # Calculate actual time interval in minutes
+            time_diff_minutes = (next_time - current_time).total_seconds() / 60
+            
+            # Add production for this interval
+            total_objects += current_rate * time_diff_minutes
+            valid_rates.append(current_rate)
+            
+        except (ValueError, TypeError):
+            continue
+    
+    # Add the last rate for statistics
+    try:
+        last_rate = float(rates[-1])
+        if not pd.isna(last_rate):
+            valid_rates.append(last_rate)
+    except (ValueError, TypeError):
+        pass
+    
+    if not valid_rates:
+        return {
+            "total_objects": 0,
+            "average_rate_obj_per_min": 0,
+            "max_rate_obj_per_min": 0,
+            "min_rate_obj_per_min": 0,
+        }
+    
+    return {
+        "total_objects": total_objects,
+        "average_rate_obj_per_min": sum(valid_rates) / len(valid_rates),
+        "max_rate_obj_per_min": max(valid_rates),
+        "min_rate_obj_per_min": min(valid_rates),
+    }
+
+
+def calculate_total_objects_from_csv_rates(csv_rate_entries, log_interval_minutes=1,
+                                         timestamps=None, is_lab_mode=False):
+    """
+    Convert objects/min rates into total objects.
+    
+    Enhanced to handle both regular and lab mode data correctly.
+    """
+    if is_lab_mode and timestamps is not None:
+        return _calculate_objects_lab_mode(timestamps, csv_rate_entries)
+    
+    # Existing regular mode calculation (unchanged)
     rates = []
     for r in csv_rate_entries:
         try:
@@ -265,15 +397,27 @@ def draw_global_summary(c, csv_parent_dir, x0, y0, total_w, available_height):
         if os.path.isfile(fp):
             df = pd.read_csv(fp)
             if 'capacity' in df.columns:
-                stats = calculate_total_capacity_from_csv_rates(df['capacity'])
+                stats = calculate_total_capacity_from_csv_rates(
+                    df['capacity'],
+                    timestamps=df['timestamp'] if is_lab_mode else None,
+                    is_lab_mode=is_lab_mode
+                )
                 total_capacity += stats['total_capacity_lbs']
             ac = next((c for c in df.columns if c.lower()=='accepts'), None)
             rj = next((c for c in df.columns if c.lower()=='rejects'), None)
             if ac:
-                stats = calculate_total_capacity_from_csv_rates(df[ac])
+                stats = calculate_total_capacity_from_csv_rates(
+                    df[ac],
+                    timestamps=df['timestamp'] if is_lab_mode else None,
+                    is_lab_mode=is_lab_mode
+                )
                 total_accepts += stats['total_capacity_lbs']
             if rj:
-                stats = calculate_total_capacity_from_csv_rates(df[rj])
+                stats = calculate_total_capacity_from_csv_rates(
+                    df[rj],
+                    timestamps=df['timestamp'] if is_lab_mode else None,
+                    is_lab_mode=is_lab_mode
+                )
                 total_rejects += stats['total_capacity_lbs']
 
     # Section 1: Totals
@@ -450,12 +594,20 @@ def draw_global_summary(c, csv_parent_dir, x0, y0, total_w, available_height):
         if os.path.isfile(fp):
             df = pd.read_csv(fp)
             if 'objects_per_min' in df.columns:
-                obj_stats = calculate_total_objects_from_csv_rates(df['objects_per_min'])
+                obj_stats = calculate_total_objects_from_csv_rates(
+                    df['objects_per_min'],
+                    timestamps=df['timestamp'] if is_lab_mode else None,
+                    is_lab_mode=is_lab_mode
+                )
                 total_objs += obj_stats['total_objects']
             for i in range(1, 13):
                 col = next((c for c in df.columns if c.lower() == f'counter_{i}'), None)
                 if col:
-                    c_stats = calculate_total_objects_from_csv_rates(df[col])
+                    c_stats = calculate_total_objects_from_csv_rates(
+                        df[col],
+                        timestamps=df['timestamp'] if is_lab_mode else None,
+                        is_lab_mode=is_lab_mode
+                    )
                     total_rem += c_stats['total_objects']
     
     c.setFillColor(colors.white); c.setFont('Helvetica-Bold',10)
@@ -553,6 +705,7 @@ def build_report(
     export_dir: str = METRIC_EXPORT_DIR,
     machines: list | None = None,
     include_global: bool = True,
+    is_lab_mode: bool = False,
 ) -> None:
     """Generate a PDF report and write it to ``pdf_path``.
 
@@ -766,26 +919,44 @@ def draw_machine_sections(c, csv_parent_dir, machine, x0, y_start, total_w, avai
     # Section 3: Machine counts (full width) - SIGNIFICANTLY REDUCED HEIGHT
     y_counts = y_pie - counts_height - spacing
     
+   
     # Calculate machine totals
     machine_objs = 0
     if 'objects_per_min' in df.columns:
-        obj_stats = calculate_total_objects_from_csv_rates(df['objects_per_min'])
+        obj_stats = calculate_total_objects_from_csv_rates(
+            df['objects_per_min'],
+            timestamps=df['timestamp'] if is_lab_mode else None,
+            is_lab_mode=is_lab_mode
+        )
         machine_objs = obj_stats['total_objects']
     machine_rem = 0
     for i in range(1, 13):
         col = next((c for c in df.columns if c.lower() == f'counter_{i}'), None)
         if col:
-            c_stats = calculate_total_objects_from_csv_rates(df[col])
+            c_stats = calculate_total_objects_from_csv_rates(
+                df[col],
+                timestamps=df['timestamp'] if is_lab_mode else None,
+                is_lab_mode=is_lab_mode
+            )
             machine_rem += c_stats['total_objects']
     
 
     machine_accepts = 0
     if ac_col:
-        a_stats = calculate_total_capacity_from_csv_rates(df[ac_col])
+        a_stats = calculate_total_capacity_from_csv_rates(
+            df[ac_col],
+            timestamps=df['timestamp'] if is_lab_mode else None,
+            is_lab_mode=is_lab_mode
+        )
         machine_accepts = a_stats["total_capacity_lbs"]
+
     machine_rejects = 0
     if rj_col:
-        r_stats = calculate_total_capacity_from_csv_rates(df[rj_col])
+        r_stats = calculate_total_capacity_from_csv_rates(
+            df[rj_col],
+            timestamps=df['timestamp'] if is_lab_mode else None,
+            is_lab_mode=is_lab_mode
+        )
         machine_rejects = r_stats["total_capacity_lbs"]
 
     
