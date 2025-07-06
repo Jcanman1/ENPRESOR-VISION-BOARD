@@ -285,10 +285,10 @@ def _register_callbacks_impl(app):
     @app.callback(
         Output("report-download", "data"),
         Input("generate-report-btn", "n_clicks"),
-        [State("app-mode", "data"), State("active-machine-store", "data")],
+        [State("app-mode", "data"), State("active-machine-store", "data"), State("language-preference-store", "data")],
         prevent_initial_call=True,
     )
-    def generate_report_callback(n_clicks, app_mode, active_machine_data):
+    def generate_report_callback(n_clicks, app_mode, active_machine_data, lang_store):
         """Generate a PDF report when the button is clicked.
         
         FIXED VERSION: The original had a truncated line "if temp" that should be "if temp_dir:"
@@ -298,6 +298,7 @@ def _register_callbacks_impl(app):
             raise PreventUpdate
 
         export_dir = generate_report.METRIC_EXPORT_DIR
+        lang = lang_store or load_language_preference()
         machines = None
         include_global = True
         temp_dir = None
@@ -333,7 +334,8 @@ def _register_callbacks_impl(app):
                 export_dir=export_dir,
                 machines=machines,
                 include_global=include_global,
-                is_lab_mode=is_lab_mode,  # FIXED: Now correctly passes the lab mode flag
+                is_lab_mode=is_lab_mode,
+                lang=lang,  # pass language
             )
             with open(tmp.name, "rb") as f:
                 pdf_bytes = f.read()
