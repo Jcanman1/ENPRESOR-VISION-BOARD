@@ -406,3 +406,30 @@ def test_draw_global_summary_spanish_labels(tmp_path, monkeypatch):
     generate_report.draw_global_summary(canvas, str(tmp_path), 0, 0, 100, 100, lang="es")
 
     assert any("Aceptados" in s for s in canvas.strings)
+
+def test_draw_header_registers_japanese_font(tmp_path, monkeypatch):
+    font_src = Path(__file__).resolve().parents[1] / "assets" / "NotoSansJP-Regular.otf"
+    target = tmp_path / "NotoSansJP-Regular.otf"
+    target.write_bytes(font_src.read_bytes())
+
+    monkeypatch.setattr(generate_report, "__file__", str(tmp_path / "dummy.py"))
+
+    captured = {}
+
+    def fake_TTFont(name, path):
+        if name == "NotoSansJP":
+            captured["path"] = path
+        return types.SimpleNamespace(name=name)
+
+    def fake_register(font):
+        if font.name == "NotoSansJP":
+            captured["registered"] = font.name
+
+    monkeypatch.setattr(generate_report, "TTFont", fake_TTFont)
+    monkeypatch.setattr(generate_report.pdfmetrics, "registerFont", fake_register)
+
+    canvas = DummyCanvas()
+    generate_report.draw_header(canvas, 100, 100, lang="ja")
+
+    assert captured.get("registered") == "NotoSansJP"
+    assert captured.get("path") == str(target)

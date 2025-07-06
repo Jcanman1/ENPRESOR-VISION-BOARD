@@ -15,8 +15,11 @@ from reportlab.graphics.charts.piecharts import Pie
 from reportlab.graphics import renderPDF
 from reportlab.lib import colors
 import math  # for label angle calculations
-from i18n import tr
+# Default fonts used throughout the report
+FONT_DEFAULT = "Helvetica"
+FONT_BOLD = "Helvetica-Bold"
 
+from i18n import tr
 
 def _minutes_to_hm(minutes: float) -> str:
     """Return an "H:MM" string from a minute count."""
@@ -243,6 +246,7 @@ if not logging.getLogger().handlers:
 
 def draw_header(c, width, height, page_number=None, *, lang="en"):
     """Draw the header section on each page with optional page number"""
+    global FONT_DEFAULT, FONT_BOLD
     # Determine directories to search for the font
     if getattr(sys, "frozen", False):
         # When frozen with PyInstaller, resources may be located next to the
@@ -277,9 +281,18 @@ def draw_header(c, width, height, page_number=None, *, lang="en"):
         'audiowide-regular.ttf',
         'audiowide.ttf'
     ]
+
+    # Possible filenames for the Japanese default font
+    possible_jp_fonts = [
+        'NotoSansJP-Regular.otf',
+        'NotoSansJP-Regular.ttf',
+        'NotoSansJP.otf',
+        'NotoSansJP.ttf'
+    ]
     
-    font_enpresor = 'Helvetica-Bold'  # Default fallback
+    font_enpresor = FONT_BOLD  # Default fallback
     chosen_path = None
+    jp_font_path = None
 
     for d in search_dirs:
         for font_filename in possible_font_files:
@@ -298,6 +311,22 @@ def draw_header(c, width, height, page_number=None, *, lang="en"):
         if chosen_path:
             break
 
+    # Search for Japanese font
+    for d in search_dirs:
+        for font_filename in possible_jp_fonts:
+            jp_path = os.path.join(d, font_filename)
+            logger.debug(f"Trying JP font file: {jp_path}")
+            if os.path.isfile(jp_path):
+                try:
+                    pdfmetrics.registerFont(TTFont('NotoSansJP', jp_path))
+                    jp_font_path = jp_path
+                    logger.info(f"Japanese font loaded from: {jp_path}")
+                    break
+                except Exception as e:
+                    logger.debug(f"\u274C Error registering font from {jp_path}: {e}")
+        if jp_font_path:
+            break
+
     if not chosen_path:
         logger.debug("\u26A0\ufe0f  No Audiowide font file found.")
         logger.debug("The file you downloaded might be named 'Audiowide-Regular.ttf'")
@@ -305,13 +334,21 @@ def draw_header(c, width, height, page_number=None, *, lang="en"):
         for d in search_dirs:
             logger.debug(d)
 
+    # Update global default fonts depending on language
+    if lang == "ja" and jp_font_path:
+        FONT_DEFAULT = "NotoSansJP"
+        FONT_BOLD = "NotoSansJP"
+    else:
+        FONT_DEFAULT = "Helvetica"
+        FONT_BOLD = "Helvetica-Bold"
+
     # Document title
     title_size = 24
     x_center = width / 2
     satake = "Satake "
     enpresor = "Enpresor"
     data_rep = tr("data_report", lang)
-    font_default = 'Helvetica-Bold'
+    font_default = FONT_BOLD
     
     # Calculate widths for centering
     w_sat = c.stringWidth(satake, font_default, title_size)
@@ -338,18 +375,18 @@ def draw_header(c, width, height, page_number=None, *, lang="en"):
 
     # Date stamp
     date_str = datetime.datetime.now().strftime('%m/%d/%Y')
-    c.setFont('Helvetica', 10)
+    c.setFont(FONT_DEFAULT, 10)
     c.setFillColor(colors.black)
     c.drawCentredString(x_center, height - 70, date_str)
     
     # Add page number in bottom right corner
     if page_number is not None:
         margin = 40  # Same margin as used in layout
-        c.setFont('Helvetica', 10)
+        c.setFont(FONT_DEFAULT, 10)
         c.setFillColor(colors.black)
         page_text = tr("page_label", lang).format(page=page_number)
         # Position: right margin minus text width, bottom margin
-        text_width = c.stringWidth(page_text, 'Helvetica', 10)
+        text_width = c.stringWidth(page_text, FONT_DEFAULT, 10)
         c.drawString(width - margin - text_width, margin - 10, page_text)
     
     return height - 100  # Return the Y position where content can start
@@ -425,7 +462,7 @@ def draw_global_summary(c, csv_parent_dir, x0, y0, total_w, available_height, *,
     y_sec1 = current_y - h1
     c.setFillColor(colors.HexColor('#1f77b4'))
     c.rect(x0, y_sec1, total_w, h1, fill=1, stroke=0)
-    c.setFillColor(colors.white); c.setFont('Helvetica-Bold', 10)
+    c.setFillColor(colors.white); c.setFont(FONT_BOLD, 10)
     c.drawString(x0+10, y_sec1+h1-14, tr('24hr_totals', lang))
     col_w = total_w / 4
     labels = [
@@ -440,13 +477,13 @@ def draw_global_summary(c, csv_parent_dir, x0, y0, total_w, available_height, *,
         f"{int(total_accepts):,} lbs",
         f"{int(total_rejects):,} lbs",
     ]
-    c.setFont('Helvetica-Bold', 12)
+    c.setFont(FONT_BOLD, 12)
     for i,label in enumerate(labels):
-        lw = c.stringWidth(label, 'Helvetica-Bold', 12)
+        lw = c.stringWidth(label, FONT_BOLD, 12)
         c.drawString(x0 + col_w*i + (col_w - lw)/2, y_sec1 + h1/2 - 4, label)
-    c.setFont('Helvetica-Bold', 14)
+    c.setFont(FONT_BOLD, 14)
     for i,val in enumerate(values):
-        vw = c.stringWidth(val, 'Helvetica-Bold', 14)
+        vw = c.stringWidth(val, FONT_BOLD, 14)
         c.drawString(x0 + col_w*i + (col_w - vw)/2, y_sec1 + h1/2 - 22, val)
     c.setStrokeColor(colors.black)
     c.rect(x0, y_sec1, total_w, h1)
@@ -455,7 +492,7 @@ def draw_global_summary(c, csv_parent_dir, x0, y0, total_w, available_height, *,
     y_sec2 = y_sec1 - h2 - spacing_gap
     c.setStrokeColor(colors.black)
     c.rect(x0, y_sec2, w_left, h2)
-    c.setFont('Helvetica-Bold',12); c.setFillColor(colors.black)
+    c.setFont(FONT_BOLD,12); c.setFillColor(colors.black)
     c.drawCentredString(x0+w_left/2, y_sec2+h2-15, tr('total_accepts_rejects_title', lang))
     
     # Draw pie chart logic (keeping your existing pie chart code)
@@ -501,25 +538,25 @@ def draw_global_summary(c, csv_parent_dir, x0, y0, total_w, available_height, *,
             c.setLineWidth(1)
             c.line(cx, cy, ex, ey)
             
-            c.setFont('Helvetica-Bold', 8)
+            c.setFont(FONT_BOLD, 8)
             c.setFillColor(colors.black)
             label_text = f"{label}"
             pct_text = f"{pct:.1f}%"
             
             if math.cos(angle_rad) >= 0:
                 c.drawString(ex + 3, ey + 2, label_text)
-                c.setFont('Helvetica', 7)
+                c.setFont(FONT_DEFAULT, 7)
                 c.drawString(ex + 3, ey - 8, pct_text)
             else:
-                label_width = c.stringWidth(label_text, 'Helvetica-Bold', 8)
-                pct_width = c.stringWidth(pct_text, 'Helvetica', 7)
+                label_width = c.stringWidth(label_text, FONT_BOLD, 8)
+                pct_width = c.stringWidth(pct_text, FONT_DEFAULT, 7)
                 c.drawString(ex - 3 - label_width, ey + 2, label_text)
-                c.setFont('Helvetica', 7)
+                c.setFont(FONT_DEFAULT, 7)
                 c.drawString(ex - 3 - pct_width, ey - 8, pct_text)
 
     # Section 3: Trend graph
     c.rect(x0+w_left, y_sec2, w_right, h2)
-    c.setFont('Helvetica-Bold',12); c.setFillColor(colors.black)
+    c.setFont(FONT_BOLD,12); c.setFillColor(colors.black)
     c.drawCentredString(x0+w_left+w_right/2, y_sec2+h2-15, tr('production_rates_title', lang))
     
     # Your existing trend graph code here
@@ -584,10 +621,10 @@ def draw_global_summary(c, csv_parent_dir, x0, y0, total_w, available_height, *,
             if idx < len(cols):
                 c.setStrokeColor(cols[idx]); c.setLineWidth(2)
                 yL=ly-idx*15; c.line(lx,yL,lx+10,yL)
-                c.setFont('Helvetica',8); c.setFillColor(colors.black)
+                c.setFont(FONT_DEFAULT,8); c.setFillColor(colors.black)
                 c.drawString(lx+15,yL-3,f"{tr('machine_label', lang)} {m}")
     else:
-        c.setFont('Helvetica',12); c.setFillColor(colors.gray)
+        c.setFont(FONT_DEFAULT,12); c.setFillColor(colors.gray)
         c.drawCentredString(x0+w_left+w_right/2, y_sec2+h2/2, tr('no_data_available', lang))
 
     # Section 4: Counts
@@ -617,20 +654,20 @@ def draw_global_summary(c, csv_parent_dir, x0, y0, total_w, available_height, *,
                     )
                     total_rem += c_stats['total_objects']
     
-    c.setFillColor(colors.white); c.setFont('Helvetica-Bold',10)
+    c.setFillColor(colors.white); c.setFont(FONT_BOLD,10)
     c.drawString(x0+10, y_sec4+h4-14, tr('counts_title', lang))
     labs4=[
         tr('total_objects_processed_label', lang),
         tr('total_impurities_removed_label', lang),
     ]
     vals4=[f"{int(total_objs):,}",f"{int(total_rem):,}"]
-    half=total_w/2; c.setFont('Helvetica-Bold',12)
+    half=total_w/2; c.setFont(FONT_BOLD,12)
     for i,lab in enumerate(labs4):
-        lw=c.stringWidth(lab,'Helvetica-Bold',12)
+        lw=c.stringWidth(lab,FONT_BOLD,12)
         c.drawString(x0+half*i+(half-lw)/2,y_sec4+h4/2+8,lab)
-    c.setFont('Helvetica-Bold',14)
+    c.setFont(FONT_BOLD,14)
     for i,val in enumerate(vals4):
-        vw=c.stringWidth(val,'Helvetica-Bold',14)
+        vw=c.stringWidth(val,FONT_BOLD,14)
         c.drawString(x0+half*i+(half-vw)/2,y_sec4+h4/2-14,val)
     c.setFillColor(colors.black)
     c.setStrokeColor(colors.black)
@@ -794,7 +831,7 @@ def draw_machine_sections(
     
     # Pie chart title
     title_pie = f"{tr('machine_label', lang)} {machine}"
-    c.setFont('Helvetica-Bold', 10)  # Smaller font
+    c.setFont(FONT_BOLD, 10)  # Smaller font
     c.setFillColor(colors.black)
     c.drawCentredString(x0 + w_left/2, y_pie + pie_height - 12, title_pie)
     
@@ -843,23 +880,23 @@ def draw_machine_sections(
                 c.setLineWidth(1)
                 c.line(cx, cy, ex, ey)
                 
-                c.setFont('Helvetica-Bold', 7)  # Smaller font
+                c.setFont(FONT_BOLD, 7)  # Smaller font
                 c.setFillColor(colors.black)
                 label_text = f"{label}"
                 pct_text = f"{pct:.1f}%"
                 
                 if math.cos(angle_rad) >= 0:
                     c.drawString(ex + 2, ey + 1, label_text)
-                    c.setFont('Helvetica', 6)
+                    c.setFont(FONT_DEFAULT, 6)
                     c.drawString(ex + 2, ey - 6, pct_text)
                 else:
-                    label_width = c.stringWidth(label_text, 'Helvetica-Bold', 7)
-                    pct_width = c.stringWidth(pct_text, 'Helvetica', 6)
+                    label_width = c.stringWidth(label_text, FONT_BOLD, 7)
+                    pct_width = c.stringWidth(pct_text, FONT_DEFAULT, 6)
                     c.drawString(ex - 2 - label_width, ey + 1, label_text)
-                    c.setFont('Helvetica', 6)
+                    c.setFont(FONT_DEFAULT, 6)
                     c.drawString(ex - 2 - pct_width, ey - 6, pct_text)
     else:
-        c.setFont('Helvetica', 8)
+        c.setFont(FONT_DEFAULT, 8)
         c.setFillColor(colors.gray)
         c.drawCentredString(x0 + w_left/2, y_pie + pie_height/2, tr('no_data_available', lang))
 
@@ -868,7 +905,7 @@ def draw_machine_sections(
         f"{tr('run_time_label', lang)} {_minutes_to_hm(run_total)}  "
         f"{tr('stop_time_label', lang)} {_minutes_to_hm(stop_total)}"
     )
-    c.setFont('Helvetica', 8)
+    c.setFont(FONT_DEFAULT, 8)
     c.setFillColor(colors.black)
     c.drawCentredString(x0 + w_left/2, y_pie + 4, runtime_text)
 
@@ -877,7 +914,7 @@ def draw_machine_sections(
     c.rect(x0 + w_left, y_pie, w_right, bar_height)
     
     title_bar = f"{tr('machine_label', lang)} {machine} - {tr('sensitivity_firing_avg_title', lang)}"
-    c.setFont('Helvetica-Bold', 12)  # Increased from 9 to 12
+    c.setFont(FONT_BOLD, 12)  # Increased from 9 to 12
     c.setFillColor(colors.black)
     c.drawCentredString(x0 + w_left + w_right/2, y_pie + bar_height - 10, title_bar)
     
@@ -921,12 +958,12 @@ def draw_machine_sections(
             c.setStrokeColor(colors.black)
             c.rect(bar_x, bar_y, bar_width, bar_height_val, fill=1, stroke=1)
             
-            c.setFont('Helvetica', 8)  # Increased X-axis label size from 6 to 8
+            c.setFont(FONT_DEFAULT, 8)  # Increased X-axis label size from 6 to 8
             c.setFillColor(colors.black)
             label_x = bar_x + bar_width/2
             c.drawCentredString(label_x, bar_y - 8, counter_name)
             
-            c.setFont('Helvetica', 5)  # Smaller font
+            c.setFont(FONT_DEFAULT, 5)  # Smaller font
             c.drawCentredString(label_x, bar_y + bar_height_val + 2, f"{avg_val:.1f}")
         
         # Draw axes with LARGER fonts
@@ -936,7 +973,7 @@ def draw_machine_sections(
         c.line(chart_x - 5, chart_y, chart_x + chart_w, chart_y)
         
         # Y-axis tick marks and values with LARGER font
-        c.setFont('Helvetica', 7)  # Increased Y-axis label size from 5 to 7
+        c.setFont(FONT_DEFAULT, 7)  # Increased Y-axis label size from 5 to 7
         c.setFillColor(colors.black)
         for i in range(4):  # Reduced tick marks
             y_val = (max_avg * i / 3) if max_avg > 0 else 0
@@ -946,7 +983,7 @@ def draw_machine_sections(
         
         # NOTE: Y-axis title/label has been removed as requested
     else:
-        c.setFont('Helvetica', 8)
+        c.setFont(FONT_DEFAULT, 8)
         c.setFillColor(colors.gray)
         c.drawCentredString(x0 + w_left + w_right/2, y_pie + bar_height/2, tr('no_counter_data', lang))
     
@@ -1000,7 +1037,7 @@ def draw_machine_sections(
     
     # Draw section title
     c.setFillColor(colors.white)
-    c.setFont('Helvetica-Bold', 8)  # Smaller font
+    c.setFont(FONT_BOLD, 8)  # Smaller font
     c.drawString(
         x0 + 8,
         y_counts + counts_height - 10,
@@ -1020,17 +1057,17 @@ def draw_machine_sections(
     vals_top = [f"{int(machine_objs):,}", f"{int(machine_rem):,}"]
     
     # Center the labels over their data
-    c.setFont('Helvetica-Bold', 8)  # Keep label font size the same
+    c.setFont(FONT_BOLD, 8)  # Keep label font size the same
     for i, lab in enumerate(labs_top):
         center_x = x0 + half_counts * i + half_counts/2
-        lw = c.stringWidth(lab, 'Helvetica-Bold', 8)
+        lw = c.stringWidth(lab, FONT_BOLD, 8)
         c.drawString(center_x - lw/2, y_counts + counts_height * 0.7, lab)
     
     # Increase data text size and center over labels
-    c.setFont('Helvetica-Bold', 14)  # Increased from 10 to 14
+    c.setFont(FONT_BOLD, 14)  # Increased from 10 to 14
     for i, val in enumerate(vals_top):
         center_x = x0 + half_counts * i + half_counts/2
-        vw = c.stringWidth(val, 'Helvetica-Bold', 14)
+        vw = c.stringWidth(val, FONT_BOLD, 14)
         c.drawString(center_x - vw/2, y_counts + counts_height * 0.7 - 14, val)
     
 
@@ -1043,17 +1080,17 @@ def draw_machine_sections(
     
 
     # Center the labels over their data
-    c.setFont('Helvetica-Bold', 8)
+    c.setFont(FONT_BOLD, 8)
     for i, lab in enumerate(labs_bottom):
         center_x = x0 + half_counts * i + half_counts/2
-        lw = c.stringWidth(lab, 'Helvetica-Bold', 8)
+        lw = c.stringWidth(lab, FONT_BOLD, 8)
         c.drawString(center_x - lw/2, y_counts + counts_height * 0.3, lab)
 
     # Increase data text size and center over labels
-    c.setFont('Helvetica-Bold', 14)
+    c.setFont(FONT_BOLD, 14)
     for i, val in enumerate(vals_bottom):
         center_x = x0 + half_counts * i + half_counts/2
-        vw = c.stringWidth(val, 'Helvetica-Bold', 14)
+        vw = c.stringWidth(val, FONT_BOLD, 14)
         c.drawString(center_x - vw/2, y_counts + counts_height * 0.3 - 14, val)
     
     c.setFillColor(colors.black)
