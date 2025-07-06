@@ -332,6 +332,7 @@ def _register_callbacks_impl(app):
                 export_dir=export_dir,
                 machines=machines,
                 include_global=include_global,
+                is_lab_mode=True,
             )
             with open(tmp.name, "rb") as f:
                 pdf_bytes = f.read()
