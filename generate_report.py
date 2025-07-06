@@ -3,6 +3,7 @@ import sys
 import json
 import datetime
 import pandas as pd
+import df_processor
 import logging
 from datetime import timedelta
 from reportlab.lib.pagesizes import letter
@@ -31,7 +32,7 @@ def _minutes_to_hm(minutes: float) -> str:
     return f"{hours}:{mins:02d}"
 
 
-def calculate_total_capacity_from_csv_rates(csv_rate_entries, log_interval_minutes=1, 
+def calculate_total_capacity_from_csv_rates(csv_rate_entries, log_interval_minutes=1,
                                           timestamps=None, is_lab_mode=False):
     """
     Convert lbs/hr rates into total lbs and related stats.
@@ -49,36 +50,38 @@ def calculate_total_capacity_from_csv_rates(csv_rate_entries, log_interval_minut
     is_lab_mode : bool, optional
         Whether to use irregular interval calculation for lab mode.
     """
-    if is_lab_mode and timestamps is not None:
-        return _calculate_capacity_lab_mode(timestamps, csv_rate_entries)
-    
-    # Existing regular mode calculation (unchanged)
-    rates = []
-    for r in csv_rate_entries:
-        try:
-            val = float(r)
-        except (TypeError, ValueError):
-            continue
-        if not pd.isna(val):
-            rates.append(val)
+    def _calc(entries):
+        if is_lab_mode and timestamps is not None:
+            return _calculate_capacity_lab_mode(timestamps, entries)
 
-    if not rates:
+        rates = []
+        for r in entries:
+            try:
+                val = float(r)
+            except (TypeError, ValueError):
+                continue
+            if not pd.isna(val):
+                rates.append(val)
+
+        if not rates:
+            return {
+                "total_capacity_lbs": 0,
+                "average_rate_lbs_per_hr": 0,
+                "max_rate_lbs_per_hr": 0,
+                "min_rate_lbs_per_hr": 0,
+            }
+
+        total_lbs = sum(val * (log_interval_minutes / 60.0) for val in rates)
+        avg_rate = sum(rates) / len(rates)
+
         return {
-            "total_capacity_lbs": 0,
-            "average_rate_lbs_per_hr": 0,
-            "max_rate_lbs_per_hr": 0,
-            "min_rate_lbs_per_hr": 0,
+            "total_capacity_lbs": total_lbs,
+            "average_rate_lbs_per_hr": avg_rate,
+            "max_rate_lbs_per_hr": max(rates),
+            "min_rate_lbs_per_hr": min(rates),
         }
 
-    total_lbs = sum(val * (log_interval_minutes / 60.0) for val in rates)
-    avg_rate = sum(rates) / len(rates)
-
-    return {
-        "total_capacity_lbs": total_lbs,
-        "average_rate_lbs_per_hr": avg_rate,
-        "max_rate_lbs_per_hr": max(rates),
-        "min_rate_lbs_per_hr": min(rates),
-    }
+    return df_processor.process_with_cleanup(csv_rate_entries, _calc)
 
 def _calculate_capacity_lab_mode(timestamps, rates):
     """Calculate capacity totals using actual time intervals for lab mode data."""
@@ -200,36 +203,38 @@ def calculate_total_objects_from_csv_rates(csv_rate_entries, log_interval_minute
     
     Enhanced to handle both regular and lab mode data correctly.
     """
-    if is_lab_mode and timestamps is not None:
-        return _calculate_objects_lab_mode(timestamps, csv_rate_entries)
-    
-    # Existing regular mode calculation (unchanged)
-    rates = []
-    for r in csv_rate_entries:
-        try:
-            val = float(r)
-        except (TypeError, ValueError):
-            continue
-        if not pd.isna(val):
-            rates.append(val)
+    def _calc(entries):
+        if is_lab_mode and timestamps is not None:
+            return _calculate_objects_lab_mode(timestamps, entries)
 
-    if not rates:
+        rates = []
+        for r in entries:
+            try:
+                val = float(r)
+            except (TypeError, ValueError):
+                continue
+            if not pd.isna(val):
+                rates.append(val)
+
+        if not rates:
+            return {
+                "total_objects": 0,
+                "average_rate_obj_per_min": 0,
+                "max_rate_obj_per_min": 0,
+                "min_rate_obj_per_min": 0,
+            }
+
+        total_objs = sum(val * log_interval_minutes for val in rates)
+        avg_rate = sum(rates) / len(rates)
+
         return {
-            "total_objects": 0,
-            "average_rate_obj_per_min": 0,
-            "max_rate_obj_per_min": 0,
-            "min_rate_obj_per_min": 0,
+            "total_objects": total_objs,
+            "average_rate_obj_per_min": avg_rate,
+            "max_rate_obj_per_min": max(rates),
+            "min_rate_obj_per_min": min(rates),
         }
 
-    total_objs = sum(val * log_interval_minutes for val in rates)
-    avg_rate = sum(rates) / len(rates)
-
-    return {
-        "total_objects": total_objs,
-        "average_rate_obj_per_min": avg_rate,
-        "max_rate_obj_per_min": max(rates),
-        "min_rate_obj_per_min": min(rates),
-    }
+    return df_processor.process_with_cleanup(csv_rate_entries, _calc)
 
 from hourly_data_saving import EXPORT_DIR as METRIC_EXPORT_DIR, get_historical_data
 
@@ -433,7 +438,7 @@ def draw_global_summary(c, csv_parent_dir, x0, y0, total_w, available_height, *,
     for m in machines:
         fp = os.path.join(csv_parent_dir, m, 'last_24h_metrics.csv')
         if os.path.isfile(fp):
-            df = pd.read_csv(fp)
+            df = df_processor.safe_read_csv(fp)
             if 'capacity' in df.columns:
                 stats = calculate_total_capacity_from_csv_rates(
                     df['capacity'],
@@ -566,7 +571,7 @@ def draw_global_summary(c, csv_parent_dir, x0, y0, total_w, available_height, *,
         fp = os.path.join(csv_parent_dir, m, 'last_24h_metrics.csv')
         if os.path.isfile(fp):
             try:
-                df = pd.read_csv(fp, parse_dates=['timestamp'])
+                df = df_processor.safe_read_csv(fp, parse_dates=['timestamp'])
                 if 'capacity' in df.columns and 'timestamp' in df.columns and not df.empty:
                     valid_data = df.dropna(subset=['timestamp', 'capacity'])
                     if not valid_data.empty:
@@ -636,7 +641,7 @@ def draw_global_summary(c, csv_parent_dir, x0, y0, total_w, available_height, *,
     for m in machines:
         fp = os.path.join(csv_parent_dir, m, 'last_24h_metrics.csv')
         if os.path.isfile(fp):
-            df = pd.read_csv(fp)
+            df = df_processor.safe_read_csv(fp)
             if 'objects_per_min' in df.columns:
                 obj_stats = calculate_total_objects_from_csv_rates(
                     df['objects_per_min'],
@@ -693,7 +698,7 @@ def calculate_global_max_firing_average(csv_parent_dir, machines=None):
         fp = os.path.join(csv_parent_dir, machine, 'last_24h_metrics.csv')
         if os.path.isfile(fp):
             try:
-                df = pd.read_csv(fp)
+                df = df_processor.safe_read_csv(fp)
                 # Find counter averages for this machine
                 for i in range(1, 13):
                     col_name = next((c for c in df.columns if c.lower() == f'counter_{i}'), None)
@@ -705,6 +710,84 @@ def calculate_global_max_firing_average(csv_parent_dir, machines=None):
                 logger.error(f"Error calculating max for machine {machine}: {e}")
     
     return global_max
+
+
+def enhanced_calculate_stats_for_machine(csv_parent_dir, machine, *, is_lab_mode=False):
+    """Return aggregated production stats for a machine.
+
+    This helper reads ``last_24h_metrics.csv`` for ``machine`` using
+    :func:`df_processor.safe_read_csv` and computes totals for common metrics.
+    ``df_processor.process_with_cleanup`` is used when running the calculation
+    helpers to ensure any temporary pandas objects are cleaned up.
+    """
+    fp = os.path.join(csv_parent_dir, str(machine), "last_24h_metrics.csv")
+    if not os.path.isfile(fp):
+        return {
+            "capacity_lbs": 0,
+            "accepts_lbs": 0,
+            "rejects_lbs": 0,
+            "objects": 0,
+            "removed": 0,
+            "running_mins": 0,
+            "stopped_mins": 0,
+        }
+
+    df = df_processor.safe_read_csv(fp)
+    if df.empty:
+        return {
+            "capacity_lbs": 0,
+            "accepts_lbs": 0,
+            "rejects_lbs": 0,
+            "objects": 0,
+            "removed": 0,
+            "running_mins": 0,
+            "stopped_mins": 0,
+        }
+
+    ts = df.get("timestamp") if is_lab_mode else None
+
+    def calc_cap(series):
+        return calculate_total_capacity_from_csv_rates(series, timestamps=ts, is_lab_mode=is_lab_mode)
+
+    def calc_obj(series):
+        return calculate_total_objects_from_csv_rates(series, timestamps=ts, is_lab_mode=is_lab_mode)
+
+    capacity_total = 0
+    if "capacity" in df.columns:
+        capacity_total = df_processor.process_with_cleanup(df["capacity"], calc_cap)["total_capacity_lbs"]
+
+    accepts_total = 0
+    ac_col = next((c for c in df.columns if c.lower() == "accepts"), None)
+    if ac_col:
+        accepts_total = df_processor.process_with_cleanup(df[ac_col], calc_cap)["total_capacity_lbs"]
+
+    rejects_total = 0
+    rj_col = next((c for c in df.columns if c.lower() == "rejects"), None)
+    if rj_col:
+        rejects_total = df_processor.process_with_cleanup(df[rj_col], calc_cap)["total_capacity_lbs"]
+
+    objects_total = 0
+    if "objects_per_min" in df.columns:
+        objects_total = df_processor.process_with_cleanup(df["objects_per_min"], calc_obj)["total_objects"]
+
+    removed_total = 0
+    for i in range(1, 13):
+        col = next((c for c in df.columns if c.lower() == f"counter_{i}"), None)
+        if col:
+            removed_total += df_processor.process_with_cleanup(df[col], calc_obj)["total_objects"]
+
+    running_mins = df.get("running", pd.Series(dtype=float)).sum() if "running" in df.columns else 0
+    stopped_mins = df.get("stopped", pd.Series(dtype=float)).sum() if "stopped" in df.columns else 0
+
+    return {
+        "capacity_lbs": capacity_total,
+        "accepts_lbs": accepts_total,
+        "rejects_lbs": rejects_total,
+        "objects": objects_total,
+        "removed": removed_total,
+        "running_mins": running_mins,
+        "stopped_mins": stopped_mins,
+    }
 
 def generate_report_filename(script_dir):
     """Generate date-stamped filename for the report"""
@@ -797,7 +880,7 @@ def draw_machine_sections(
         return y_start  # Return same position if no data
     
     try:
-        df = pd.read_csv(fp)
+        df = df_processor.safe_read_csv(fp)
     except Exception as e:
         logger.error(f"Error reading data for machine {machine}: {e}")
         return y_start
