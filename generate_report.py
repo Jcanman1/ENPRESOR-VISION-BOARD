@@ -15,6 +15,7 @@ from reportlab.graphics.charts.piecharts import Pie
 from reportlab.graphics import renderPDF
 from reportlab.lib import colors
 import math  # for label angle calculations
+from i18n import tr
 
 
 def _minutes_to_hm(minutes: float) -> str:
@@ -240,7 +241,7 @@ if not logging.getLogger().handlers:
 
 
 
-def draw_header(c, width, height, page_number=None):
+def draw_header(c, width, height, page_number=None, *, lang="en"):
     """Draw the header section on each page with optional page number"""
     # Determine directories to search for the font
     if getattr(sys, "frozen", False):
@@ -309,7 +310,7 @@ def draw_header(c, width, height, page_number=None):
     x_center = width / 2
     satake = "Satake "
     enpresor = "Enpresor"
-    data_rep = " Data Report"
+    data_rep = tr("data_report", lang)
     font_default = 'Helvetica-Bold'
     
     # Calculate widths for centering
@@ -346,7 +347,7 @@ def draw_header(c, width, height, page_number=None):
         margin = 40  # Same margin as used in layout
         c.setFont('Helvetica', 10)
         c.setFillColor(colors.black)
-        page_text = f"Page {page_number}"
+        page_text = tr("page_label", lang).format(page=page_number)
         # Position: right margin minus text width, bottom margin
         text_width = c.stringWidth(page_text, 'Helvetica', 10)
         c.drawString(width - margin - text_width, margin - 10, page_text)
@@ -355,7 +356,7 @@ def draw_header(c, width, height, page_number=None):
 
 
 
-def draw_global_summary(c, csv_parent_dir, x0, y0, total_w, available_height, is_lab_mode=False):
+def draw_global_summary(c, csv_parent_dir, x0, y0, total_w, available_height, *, is_lab_mode=False, lang="en"):
     """Draw the global summary sections (totals, pie, trend, counts)"""
     machines = sorted(
         [d for d in os.listdir(csv_parent_dir)
@@ -425,9 +426,14 @@ def draw_global_summary(c, csv_parent_dir, x0, y0, total_w, available_height, is
     c.setFillColor(colors.HexColor('#1f77b4'))
     c.rect(x0, y_sec1, total_w, h1, fill=1, stroke=0)
     c.setFillColor(colors.white); c.setFont('Helvetica-Bold', 10)
-    c.drawString(x0+10, y_sec1+h1-14, '24hr Production Totals:')
+    c.drawString(x0+10, y_sec1+h1-14, tr('24hr_totals', lang))
     col_w = total_w / 4
-    labels = ['Machines:', 'Processed:', 'Accepted:', 'Rejected:']
+    labels = [
+        tr('machines_label', lang),
+        tr('processed_label', lang),
+        tr('accepted_label', lang),
+        tr('rejected_label', lang),
+    ]
     values = [
         f"{machine_count}",
         f"{int(total_capacity):,} lbs",
@@ -450,7 +456,7 @@ def draw_global_summary(c, csv_parent_dir, x0, y0, total_w, available_height, is
     c.setStrokeColor(colors.black)
     c.rect(x0, y_sec2, w_left, h2)
     c.setFont('Helvetica-Bold',12); c.setFillColor(colors.black)
-    c.drawCentredString(x0+w_left/2, y_sec2+h2-15,'Total Accepts/Rejects')
+    c.drawCentredString(x0+w_left/2, y_sec2+h2-15, tr('total_accepts_rejects_title', lang))
     
     # Draw pie chart logic (keeping your existing pie chart code)
     pad=10; lh=20
@@ -481,7 +487,8 @@ def draw_global_summary(c, csv_parent_dir, x0, y0, total_w, available_height, is
         percentages = [(val/total)*100 for val in values]
         angles = [45, -50]
         
-        for i, (label, pct, angle) in enumerate(zip(['Accepts','Rejects'], percentages, angles)):
+        labels_tr = [tr('accepts', lang), tr('rejects', lang)]
+        for i, (label, pct, angle) in enumerate(zip(labels_tr, percentages, angles)):
             angle_rad = math.radians(angle)
             radius = psz/2 * 0.9
             cx = px + psz/2 + math.cos(angle_rad) * radius
@@ -513,7 +520,7 @@ def draw_global_summary(c, csv_parent_dir, x0, y0, total_w, available_height, is
     # Section 3: Trend graph
     c.rect(x0+w_left, y_sec2, w_right, h2)
     c.setFont('Helvetica-Bold',12); c.setFillColor(colors.black)
-    c.drawCentredString(x0+w_left+w_right/2, y_sec2+h2-15,'Production Rates')
+    c.drawCentredString(x0+w_left+w_right/2, y_sec2+h2-15, tr('production_rates_title', lang))
     
     # Your existing trend graph code here
     all_t, mx, series = [], 0, []
@@ -578,10 +585,10 @@ def draw_global_summary(c, csv_parent_dir, x0, y0, total_w, available_height, is
                 c.setStrokeColor(cols[idx]); c.setLineWidth(2)
                 yL=ly-idx*15; c.line(lx,yL,lx+10,yL)
                 c.setFont('Helvetica',8); c.setFillColor(colors.black)
-                c.drawString(lx+15,yL-3,f'Machine {m}')
+                c.drawString(lx+15,yL-3,f"{tr('machine_label', lang)} {m}")
     else:
         c.setFont('Helvetica',12); c.setFillColor(colors.gray)
-        c.drawCentredString(x0+w_left+w_right/2, y_sec2+h2/2, 'No Data Available')
+        c.drawCentredString(x0+w_left+w_right/2, y_sec2+h2/2, tr('no_data_available', lang))
 
     # Section 4: Counts
     y_sec4 = y_sec2 - h4 - spacing_gap
@@ -611,8 +618,11 @@ def draw_global_summary(c, csv_parent_dir, x0, y0, total_w, available_height, is
                     total_rem += c_stats['total_objects']
     
     c.setFillColor(colors.white); c.setFont('Helvetica-Bold',10)
-    c.drawString(x0+10,y_sec4+h4-14,'Counts:')
-    labs4=['Total Objects Processed:','Total Impurities Removed:']
+    c.drawString(x0+10, y_sec4+h4-14, tr('counts_title', lang))
+    labs4=[
+        tr('total_objects_processed_label', lang),
+        tr('total_impurities_removed_label', lang),
+    ]
     vals4=[f"{int(total_objs):,}",f"{int(total_rem):,}"]
     half=total_w/2; c.setFont('Helvetica-Bold',12)
     for i,lab in enumerate(labs4):
@@ -706,6 +716,7 @@ def build_report(
     machines: list | None = None,
     include_global: bool = True,
     is_lab_mode: bool = False,
+    lang: str = "en",
 ) -> None:
     """Generate a PDF report and write it to ``pdf_path``.
 
@@ -715,14 +726,34 @@ def build_report(
 
     if use_optimized:
         draw_layout_optimized(
-            pdf_path, export_dir, machines=machines, include_global=include_global
+            pdf_path,
+            export_dir,
+            machines=machines,
+            include_global=include_global,
+            lang=lang,
         )
     else:
         draw_layout_standard(
-            pdf_path, export_dir, machines=machines, include_global=include_global
+            pdf_path,
+            export_dir,
+            machines=machines,
+            include_global=include_global,
+            lang=lang,
         )
 
-def draw_machine_sections(c, csv_parent_dir, machine, x0, y_start, total_w, available_height, global_max_firing=None, is_lab_mode=False):
+def draw_machine_sections(
+    c,
+    csv_parent_dir,
+    machine,
+    x0,
+    y_start,
+    total_w,
+    available_height,
+    global_max_firing=None,
+    *,
+    is_lab_mode=False,
+    lang="en",
+):
     """Draw the three sections for a single machine - OPTIMIZED FOR 2 MACHINES PER PAGE"""
     fp = os.path.join(csv_parent_dir, machine, 'last_24h_metrics.csv')
     if not os.path.isfile(fp):
@@ -762,7 +793,7 @@ def draw_machine_sections(c, csv_parent_dir, machine, x0, y_start, total_w, avai
     c.rect(x0, y_pie, w_left, pie_height)
     
     # Pie chart title
-    title_pie = f"Machine {machine}"
+    title_pie = f"{tr('machine_label', lang)} {machine}"
     c.setFont('Helvetica-Bold', 10)  # Smaller font
     c.setFillColor(colors.black)
     c.drawCentredString(x0 + w_left/2, y_pie + pie_height - 12, title_pie)
@@ -798,7 +829,7 @@ def draw_machine_sections(c, csv_parent_dir, machine, x0, y_start, total_w, avai
         if total_pie > 0:
             percentages = [(a_val/total_pie)*100, (r_val/total_pie)*100]
             angles = [45, -52]
-            labels = ['Accepts', 'Rejects']
+            labels = [tr('accepts', lang), tr('rejects', lang)]
             
             for i, (label, pct, angle) in enumerate(zip(labels, percentages, angles)):
                 angle_rad = math.radians(angle)
@@ -830,10 +861,13 @@ def draw_machine_sections(c, csv_parent_dir, machine, x0, y_start, total_w, avai
     else:
         c.setFont('Helvetica', 8)
         c.setFillColor(colors.gray)
-        c.drawCentredString(x0 + w_left/2, y_pie + pie_height/2, 'No Data Available')
+        c.drawCentredString(x0 + w_left/2, y_pie + pie_height/2, tr('no_data_available', lang))
 
     # Display runtime and stop time below the pie chart
-    runtime_text = f"Run Time: {_minutes_to_hm(run_total)}  Stop Time: {_minutes_to_hm(stop_total)}"
+    runtime_text = (
+        f"{tr('run_time_label', lang)} {_minutes_to_hm(run_total)}  "
+        f"{tr('stop_time_label', lang)} {_minutes_to_hm(stop_total)}"
+    )
     c.setFont('Helvetica', 8)
     c.setFillColor(colors.black)
     c.drawCentredString(x0 + w_left/2, y_pie + 4, runtime_text)
@@ -842,7 +876,7 @@ def draw_machine_sections(c, csv_parent_dir, machine, x0, y_start, total_w, avai
     c.setStrokeColor(colors.black)
     c.rect(x0 + w_left, y_pie, w_right, bar_height)
     
-    title_bar = f"Machine {machine} - Sensitivity Firing Averages"
+    title_bar = f"{tr('machine_label', lang)} {machine} - {tr('sensitivity_firing_avg_title', lang)}"
     c.setFont('Helvetica-Bold', 12)  # Increased from 9 to 12
     c.setFillColor(colors.black)
     c.drawCentredString(x0 + w_left + w_right/2, y_pie + bar_height - 10, title_bar)
@@ -914,7 +948,7 @@ def draw_machine_sections(c, csv_parent_dir, machine, x0, y_start, total_w, avai
     else:
         c.setFont('Helvetica', 8)
         c.setFillColor(colors.gray)
-        c.drawCentredString(x0 + w_left + w_right/2, y_pie + bar_height/2, 'No Counter Data')
+        c.drawCentredString(x0 + w_left + w_right/2, y_pie + bar_height/2, tr('no_counter_data', lang))
     
     # Section 3: Machine counts (full width) - SIGNIFICANTLY REDUCED HEIGHT
     y_counts = y_pie - counts_height - spacing
@@ -967,13 +1001,22 @@ def draw_machine_sections(c, csv_parent_dir, machine, x0, y_start, total_w, avai
     # Draw section title
     c.setFillColor(colors.white)
     c.setFont('Helvetica-Bold', 8)  # Smaller font
-    c.drawString(x0 + 8, y_counts + counts_height - 10, f'Machine {machine} Counts:')
+    c.drawString(
+        x0 + 8,
+        y_counts + counts_height - 10,
+        tr('machine_counts_title', lang).format(
+            machine=machine, machine_label=tr('machine_label', lang)
+        ),
+    )
     
     # Two columns layout with smaller fonts
     half_counts = total_w / 2
     
     # TOP ROW: Objects and Impurities
-    labs_top = [f'Objects Processed:', f'Impurities Removed:']  # Shortened labels
+    labs_top = [
+        tr('objects_processed_label', lang),
+        tr('impurities_removed_label', lang),
+    ]
     vals_top = [f"{int(machine_objs):,}", f"{int(machine_rem):,}"]
     
     # Center the labels over their data
@@ -992,7 +1035,7 @@ def draw_machine_sections(c, csv_parent_dir, machine, x0, y_start, total_w, avai
     
 
     # BOTTOM ROW: Accepts and Rejects
-    labs_bottom = ['Accepts:', 'Rejects:']  # Shortened labels
+    labs_bottom = [tr('accepts_label', lang), tr('rejects_label', lang)]
     vals_bottom = [
         f"{int(machine_accepts):,} lbs",
         f"{int(machine_rejects):,} lbs",
@@ -1022,7 +1065,12 @@ def draw_machine_sections(c, csv_parent_dir, machine, x0, y_start, total_w, avai
 
 
 def draw_layout_optimized(
-    pdf_path, csv_parent_dir, *, machines=None, include_global=True
+    pdf_path,
+    csv_parent_dir,
+    *,
+    machines=None,
+    include_global=True,
+    lang="en",
 ):
     """Optimized version - CONSISTENT SIZING, 2 machines per page"""
     logger.debug("=== DEBUGGING MACHINE DATA ===")
@@ -1050,11 +1098,20 @@ def draw_layout_optimized(
     if include_global:
         page_number += 1
         logger.debug("Creating Page 1: Global Summary Only")
-        content_start_y = draw_header(c, width, height, page_number)
+        content_start_y = draw_header(c, width, height, page_number, lang=lang)
         available_height = content_start_y - margin - 50
 
         # Draw global summary (takes full page)
-        draw_global_summary(c, csv_parent_dir, x0, margin, total_w, available_height, is_lab_mode=False)
+        draw_global_summary(
+            c,
+            csv_parent_dir,
+            x0,
+            margin,
+            total_w,
+            available_height,
+            is_lab_mode=False,
+            lang=lang,
+        )
     
     # Process machines in groups of 2 (HARD LIMIT)
     machines_per_page = 2
@@ -1069,7 +1126,7 @@ def draw_layout_optimized(
         logger.debug(f"Creating Page {page_number}: Machines {machine_batch}")
         
         # Draw header with page number
-        content_start_y = draw_header(c, width, height, page_number)
+        content_start_y = draw_header(c, width, height, page_number, lang=lang)
         available_height = content_start_y - margin - 50
         
         # INCREASED height per machine to accommodate larger sections
@@ -1081,8 +1138,17 @@ def draw_layout_optimized(
             logger.debug(
                 f"  Drawing Machine {machine} ({machine_idx + 1}/{len(machine_batch)}) - FIXED SIZE"
             )
-            current_y = draw_machine_sections(c, csv_parent_dir, machine, x0, 
-                                            current_y, total_w, fixed_height_per_machine, global_max_firing)
+            current_y = draw_machine_sections(
+                c,
+                csv_parent_dir,
+                machine,
+                x0,
+                current_y,
+                total_w,
+                fixed_height_per_machine,
+                global_max_firing,
+                lang=lang,
+            )
             # FIXED spacing between machines
             current_y -= 20
     
@@ -1101,7 +1167,12 @@ def draw_layout_optimized(
 
 
 def draw_layout_standard(
-    pdf_path, csv_parent_dir, *, machines=None, include_global=True
+    pdf_path,
+    csv_parent_dir,
+    *,
+    machines=None,
+    include_global=True,
+    lang="en",
 ):
     """Standard layout - CONSISTENT SIZING with dynamic page breaks"""
     logger.debug("=== DEBUGGING MACHINE DATA ===")
@@ -1130,11 +1201,20 @@ def draw_layout_standard(
     if include_global:
         page_number += 1
         logger.debug("Creating Page 1: Global Summary Only")
-        content_start_y = draw_header(c, width, height, page_number)
+        content_start_y = draw_header(c, width, height, page_number, lang=lang)
         available_height = content_start_y - margin - 50
 
         # Draw global summary (takes full page)
-        draw_global_summary(c, csv_parent_dir, x0, margin, total_w, available_height, is_lab_mode=False)
+        draw_global_summary(
+            c,
+            csv_parent_dir,
+            x0,
+            margin,
+            total_w,
+            available_height,
+            is_lab_mode=False,
+            lang=lang,
+        )
     
     # Process machines starting on page 2
     machines_processed = 0
@@ -1153,13 +1233,23 @@ def draw_layout_standard(
             logger.debug(f"Creating Page {page_number}: Machine {machine}")
             
             # Draw header on new page with page number
-            content_start_y = draw_header(c, width, height, page_number)
+            content_start_y = draw_header(c, width, height, page_number, lang=lang)
             next_y = content_start_y
         
         # Draw machine sections with FIXED height and global max
         logger.debug(f"  Drawing Machine {machine} - FIXED SIZE ({fixed_machine_height}px)")
-        next_y = draw_machine_sections(c, csv_parent_dir, machine, x0, next_y, 
-                                     total_w, fixed_machine_height, global_max_firing, is_lab_mode=False)
+        next_y = draw_machine_sections(
+            c,
+            csv_parent_dir,
+            machine,
+            x0,
+            next_y,
+            total_w,
+            fixed_machine_height,
+            global_max_firing,
+            is_lab_mode=False,
+            lang=lang,
+        )
         
         machines_processed += 1
         
@@ -1188,7 +1278,7 @@ if __name__=='__main__':
     
     if use_optimized:
         logger.info("Using optimized layout (2 machines per page)...")
-        draw_layout_optimized(pdf_path, exp_arg)
+        draw_layout_optimized(pdf_path, exp_arg, lang="en")
     else:
         logger.info("Using standard layout (dynamic page breaks)...")
-        draw_layout_standard(pdf_path, exp_arg)
+        draw_layout_standard(pdf_path, exp_arg, lang="en")

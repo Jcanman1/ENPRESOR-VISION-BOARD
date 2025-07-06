@@ -285,19 +285,19 @@ def test_draw_header_uses_internal_assets_font(tmp_path, monkeypatch):
 def test_build_report_passes_options(monkeypatch):
     captured = {}
 
-    def fake_draw(pdf_path, export_dir, machines=None, include_global=True):
-        captured["args"] = (pdf_path, export_dir, machines, include_global)
+    def fake_draw(pdf_path, export_dir, machines=None, include_global=True, lang="en"):
+        captured["args"] = (pdf_path, export_dir, machines, include_global, lang)
 
     monkeypatch.setattr(generate_report, "draw_layout_standard", fake_draw)
     generate_report.build_report({}, "out.pdf", export_dir="exp", machines=["1"], include_global=False)
 
-    assert captured["args"] == ("out.pdf", "exp", ["1"], False)
+    assert captured["args"] == ("out.pdf", "exp", ["1"], False, "en")
 
 
 def test_build_report_uses_optimized(monkeypatch):
     called = {}
 
-    def fake_draw(pdf_path, export_dir, machines=None, include_global=True):
+    def fake_draw(pdf_path, export_dir, machines=None, include_global=True, lang="en"):
         called["optimized"] = True
 
     monkeypatch.setattr(generate_report, "draw_layout_optimized", fake_draw)
@@ -382,3 +382,27 @@ def test_objects_per_min_totals_match(tmp_path, monkeypatch):
 
     assert total1 == stats1["total_objects"]
     assert total2 == stats2["total_objects"]
+
+
+def test_draw_global_summary_spanish_labels(tmp_path, monkeypatch):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    machine_dir = tmp_path / "1"
+    machine_dir.mkdir()
+
+    csv = machine_dir / "last_24h_metrics.csv"
+    csv.write_text(
+        "timestamp,capacity,accepts,rejects\n"
+        "2020-01-01 00:00:00,60,30,10\n"
+    )
+
+    layout = {"machines": {"machines": [{"id": 1}], "next_machine_id": 2}}
+    (data_dir / "floor_machine_layout.json").write_text(json.dumps(layout))
+
+    monkeypatch.setattr(generate_report, "__file__", str(tmp_path / "dummy.py"))
+    monkeypatch.setattr(generate_report.renderPDF, "draw", lambda *a, **k: None)
+
+    canvas = DummyCanvas()
+    generate_report.draw_global_summary(canvas, str(tmp_path), 0, 0, 100, 100, lang="es")
+
+    assert any("Aceptados" in s for s in canvas.strings)
