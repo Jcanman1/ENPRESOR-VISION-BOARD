@@ -7,7 +7,12 @@ import glob
 import shutil
 import tempfile
 import autoconnect
-import resource
+try:
+    import resource
+except ImportError:  # pragma: no cover - resource not available on Windows
+    resource = None
+
+import memory_monitor as mem_utils
 
 
 
@@ -932,7 +937,9 @@ def _register_callbacks_impl(app):
         else:
             lengths = {}
 
-        rss_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
+        rss_mb = mem_utils._get_process_memory_mb()
+        if rss_mb == 0.0:
+            rss_mb = 0.0
         return {"rss_mb": rss_mb, "max_points": max_points, "history_lengths": lengths}
 
     @app.callback(
