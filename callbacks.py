@@ -60,6 +60,9 @@ PRESET_NAME_TAG = "Status.Info.PresetName"
 # Track last logged capacity per machine and filename
 last_logged_capacity = defaultdict(lambda: None)
 
+# Filename used for the active lab test session
+current_lab_filename = None
+
 # Flag to prevent re-entrancy when the legacy module imports this module and
 # executes ``register_callbacks`` during import.
 _REGISTERING = False
@@ -1564,7 +1567,7 @@ def _register_callbacks_impl(app):
     )
     def execute_confirmed_deletion(confirm_clicks, pending_delete, floors_data, machines_data):
         """Execute the deletion after user confirms"""
-        global machine_connections
+        global machine_connections, current_lab_filename
         
         if not confirm_clicks or not pending_delete or pending_delete.get("type") is None:
             return dash.no_update, dash.no_update, dash.no_update
@@ -4800,12 +4803,15 @@ def _register_callbacks_impl(app):
         if not ctx.triggered:
             raise PreventUpdate
         trigger = ctx.triggered[0]["prop_id"].split(".")[0]
+        global current_lab_filename
         if trigger == "start-test-btn":
             test_name = name or "Test"
             filename = (
                 f"Lab_Test_{test_name}_{datetime.now().strftime('%m_%d_%Y')}.csv"
             )
+            current_lab_filename = filename
             return {"filename": filename}
+        current_lab_filename = None
         return {}
 
     @app.callback(
@@ -5186,7 +5192,10 @@ def _register_callbacks_impl(app):
             if isinstance(lab_test_info, dict):
                 lab_filename = lab_test_info.get("filename")
             if not lab_filename:
+                lab_filename = current_lab_filename
+            if not lab_filename:
                 lab_filename = f"Lab_Test_{datetime.now().strftime('%m_%d_%Y')}.csv"
+                current_lab_filename = lab_filename
         else:
             machines_iter = machine_connections.items()
 
