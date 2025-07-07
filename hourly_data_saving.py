@@ -92,7 +92,9 @@ def append_metrics(metrics: dict, machine_id: str,
     os.makedirs(machine_dir, exist_ok=True)
     file_path = os.path.join(machine_dir, filename)
 
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    # Use microsecond precision for timestamps so entries can be ordered
+    # correctly even when multiple samples occur within the same second.
+    timestamp = datetime.now().isoformat(timespec="microseconds")
     row = {"timestamp": timestamp}
     row.update(metrics)
     if mode:
@@ -190,7 +192,7 @@ def purge_old_entries(export_dir: str = EXPORT_DIR, machine_id: Optional[str] = 
             row.setdefault(fn, "")
 
         try:
-            ts = datetime.strptime(row["timestamp"], "%Y-%m-%d %H:%M:%S")
+            ts = datetime.fromisoformat(row["timestamp"])
             if ts >= cutoff:
                 filtered.append(row)
         except Exception:
@@ -226,7 +228,7 @@ def load_recent_metrics(export_dir: str = EXPORT_DIR, machine_id: Optional[str] 
         reader = csv.DictReader(f)
         for row in reader:
             try:
-                ts = datetime.strptime(row["timestamp"], "%Y-%m-%d %H:%M:%S")
+                ts = datetime.fromisoformat(row["timestamp"])
             except Exception:
                 continue
 
@@ -286,7 +288,9 @@ def append_control_log(entry: dict, machine_id: str,
     os.makedirs(machine_dir, exist_ok=True)
     file_path = os.path.join(machine_dir, filename)
 
-    timestamp = entry["time"].strftime("%Y-%m-%d %H:%M:%S")
+    # Store timestamps with microsecond precision for consistency with
+    # ``append_metrics``.
+    timestamp = entry["time"].isoformat(timespec="microseconds")
     row = {"timestamp": timestamp}
     for key, value in entry.items():
         if key not in ("time", "display_timestamp"):
@@ -331,7 +335,7 @@ def load_recent_control_log(export_dir: str = EXPORT_DIR, machine_id: Optional[s
         reader = csv.DictReader(f)
         for row in reader:
             try:
-                ts = datetime.strptime(row["timestamp"], "%Y-%m-%d %H:%M:%S")
+                ts = datetime.fromisoformat(row["timestamp"])
             except Exception:
                 continue
             row["timestamp"] = ts

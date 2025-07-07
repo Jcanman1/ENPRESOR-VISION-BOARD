@@ -20,7 +20,7 @@ def test_header_rebuild_with_extra_columns(tmp_path):
         writer = csv.DictWriter(f, fieldnames=header)
         writer.writeheader()
         writer.writerow({
-            "timestamp": "2025-06-28 00:00:00",
+            "timestamp": "2025-06-28T00:00:00.000000",
             "capacity": "1",
             "accepts": "0",
             "rejects": "0",
