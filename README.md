@@ -108,6 +108,7 @@ directory next to the executable.
 `generate_report.py` builds PDF summaries from the CSV exports. When working
 with lab data pass the `--lab` option so irregular timestamps are used when
 calculating capacities and object totals:
+When lab mode is enabled, object totals are multiplied by `1.042` to account for lab-specific adjustments.
 
 ```bash
 python3 generate_report.py <export directory> --lab
