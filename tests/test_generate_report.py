@@ -285,25 +285,36 @@ def test_draw_header_uses_internal_assets_font(tmp_path, monkeypatch):
 def test_build_report_passes_options(monkeypatch):
     captured = {}
 
-    def fake_draw(pdf_path, export_dir, machines=None, include_global=True, lang="en"):
-        captured["args"] = (pdf_path, export_dir, machines, include_global, lang)
+    def fake_draw(pdf_path, export_dir, machines=None, include_global=True, lang="en", is_lab_mode=False):
+        captured["args"] = (pdf_path, export_dir, machines, include_global, lang, is_lab_mode)
 
     monkeypatch.setattr(generate_report, "draw_layout_standard", fake_draw)
     generate_report.build_report({}, "out.pdf", export_dir="exp", machines=["1"], include_global=False)
 
-    assert captured["args"] == ("out.pdf", "exp", ["1"], False, "en")
+    assert captured["args"] == ("out.pdf", "exp", ["1"], False, "en", False)
 
 
 def test_build_report_uses_optimized(monkeypatch):
     called = {}
 
-    def fake_draw(pdf_path, export_dir, machines=None, include_global=True, lang="en"):
-        called["optimized"] = True
+    def fake_draw(pdf_path, export_dir, machines=None, include_global=True, lang="en", is_lab_mode=False):
+        called["optimized"] = is_lab_mode
 
     monkeypatch.setattr(generate_report, "draw_layout_optimized", fake_draw)
-    generate_report.build_report({}, "out.pdf", use_optimized=True, export_dir="exp")
+    generate_report.build_report({}, "out.pdf", use_optimized=True, export_dir="exp", is_lab_mode=True)
 
-    assert called.get("optimized")
+    assert called.get("optimized") == True
+
+def test_build_report_passes_lab_mode(monkeypatch):
+    captured = {}
+
+    def fake_draw(pdf_path, export_dir, machines=None, include_global=True, lang="en", is_lab_mode=False):
+        captured["lab"] = is_lab_mode
+
+    monkeypatch.setattr(generate_report, "draw_layout_standard", fake_draw)
+    generate_report.build_report({}, "out.pdf", export_dir="exp", is_lab_mode=True)
+
+    assert captured["lab"] is True
 
 
 def _extract_total(strings, label):
