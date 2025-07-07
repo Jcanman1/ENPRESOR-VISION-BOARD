@@ -181,3 +181,21 @@ def test_memory_management_callback(monkeypatch):
     max_points = result["max_points"]
     assert all(len(callbacks.app_state.counter_history[i]["times"]) <= max_points for i in range(1, 13))
     assert "rss_mb" in result
+
+
+def test_generate_report_disable_callback(monkeypatch):
+    monkeypatch.setattr(autoconnect, "initialize_autoconnect", lambda: None)
+    app = dash.Dash(__name__)
+    callbacks.register_callbacks(app)
+
+    key = next(k for k in app.callback_map if "generate-report-btn.disabled" in k)
+    func = app.callback_map[key]["callback"]
+
+    monkeypatch.setattr(callbacks.time, "time", lambda: 100.0)
+    assert func.__wrapped__(0, True, 90) is True
+
+    monkeypatch.setattr(callbacks.time, "time", lambda: 100.0)
+    assert func.__wrapped__(0, False, 95) is True
+
+    monkeypatch.setattr(callbacks.time, "time", lambda: 100.0)
+    assert func.__wrapped__(0, False, 50) is False

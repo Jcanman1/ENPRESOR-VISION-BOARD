@@ -14,6 +14,7 @@ import os
 import glob
 import shutil
 import tempfile
+import time
 import autoconnect
 import image_manager as img_utils
 try:
@@ -374,6 +375,18 @@ def _register_callbacks_impl(app):
             "type": "application/pdf",
             "base64": True,
         }
+
+    @app.callback(
+        Output("generate-report-btn", "disabled"),
+        [Input("status-update-interval", "n_intervals"), Input("lab-test-running", "data")],
+        [State("lab-test-stop-time", "data")]
+    )
+    def disable_report_button(n_intervals, running, stop_time):
+        if running:
+            return True
+        if stop_time is None:
+            return False
+        return (time.time() - stop_time) < 20
 
     @app.callback(
         [Output("delete-confirmation-modal", "is_open"),
@@ -4782,6 +4795,20 @@ def _register_callbacks_impl(app):
         if mode == "lab":
             return 1000, not running
         return 60000, False
+
+    @app.callback(
+        Output("lab-test-stop-time", "data"),
+        [Input("start-test-btn", "n_clicks"), Input("stop-test-btn", "n_clicks")],
+        prevent_initial_call=True,
+    )
+    def update_lab_test_stop_time(start_click, stop_click):
+        ctx = callback_context
+        if not ctx.triggered:
+            raise PreventUpdate
+        trigger = ctx.triggered[0]["prop_id"].split(".")[0]
+        if trigger == "stop-test-btn":
+            return time.time()
+        return None
 
     @app.callback(
         Output("clear-data-btn", "n_clicks"),
