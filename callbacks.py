@@ -386,7 +386,7 @@ def _register_callbacks_impl(app):
             return True
         if stop_time is None:
             return False
-        return (time.time() - stop_time) < 20
+        return (time.time() - stop_time) < 30
 
     @app.callback(
         [Output("delete-confirmation-modal", "is_open"),
