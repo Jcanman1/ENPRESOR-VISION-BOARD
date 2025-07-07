@@ -692,10 +692,12 @@ def draw_global_summary(c, csv_parent_dir, x0, y0, total_w, available_height, *,
     # Return the Y position where the next content should start
     return y_sec4 - spacing_gap
 
-def calculate_global_max_firing_average(csv_parent_dir, machines=None):
-    """Calculate the global maximum firing average.
+def calculate_global_max_firing_average(csv_parent_dir, machines=None, *, is_lab_mode: bool = False):
+    """Calculate the global maximum firing value.
 
-    When ``machines`` is provided, only those machine IDs are considered."""
+    When ``machines`` is provided, only those machine IDs are considered.
+    In lab mode the maximum is based on total counts rather than averages.
+    """
     if machines is None:
         machines = sorted(
             d
@@ -704,19 +706,28 @@ def calculate_global_max_firing_average(csv_parent_dir, machines=None):
         )
 
     global_max = 0
-    
+
     for machine in machines:
         fp = os.path.join(csv_parent_dir, machine, 'last_24h_metrics.csv')
         if os.path.isfile(fp):
             try:
                 df = df_processor.safe_read_csv(fp)
-                # Find counter averages for this machine
+                ts = df.get('timestamp') if is_lab_mode else None
+                # Find counter values for this machine
                 for i in range(1, 13):
                     col_name = next((c for c in df.columns if c.lower() == f'counter_{i}'), None)
                     if col_name and col_name in df.columns:
-                        avg_val = df[col_name].mean()
-                        if not pd.isna(avg_val):
-                            global_max = max(global_max, avg_val)
+                        if is_lab_mode:
+                            stats = calculate_total_objects_from_csv_rates(
+                                df[col_name],
+                                timestamps=ts,
+                                is_lab_mode=True,
+                            )
+                            val = stats['total_objects']
+                        else:
+                            val = df[col_name].mean()
+                        if not pd.isna(val):
+                            global_max = max(global_max, val)
             except Exception as e:
                 logger.error(f"Error calculating max for machine {machine}: {e}")
     
@@ -1009,21 +1020,30 @@ def draw_machine_sections(
     c.setStrokeColor(colors.black)
     c.rect(x0 + w_left, y_pie, w_right, bar_height)
     
-    title_bar = f"{tr('machine_label', lang)} {machine} - {tr('sensitivity_firing_avg_title', lang)}"
+    title_key = 'sensitivity_firing_total_title' if is_lab_mode else 'sensitivity_firing_avg_title'
+    title_bar = f"{tr('machine_label', lang)} {machine} - {tr(title_key, lang)}"
     c.setFont(FONT_BOLD, 12)  # Increased from 9 to 12
     c.setFillColor(colors.black)
     c.drawCentredString(x0 + w_left + w_right/2, y_pie + bar_height - 10, title_bar)
     
-    # Draw bar chart with counter averages
-    count_averages = []
+    # Draw bar chart with counter values
+    counter_values = []
     for i in range(1, 13):
         col_name = next((c for c in df.columns if c.lower() == f'counter_{i}'), None)
         if col_name and col_name in df.columns:
-            avg_val = df[col_name].mean()
-            if not pd.isna(avg_val):
-                count_averages.append((f"S{i}", avg_val))
-    
-    if count_averages:
+            if is_lab_mode:
+                stats = calculate_total_objects_from_csv_rates(
+                    df[col_name],
+                    timestamps=df['timestamp'] if 'timestamp' in df.columns else None,
+                    is_lab_mode=True,
+                )
+                val = stats['total_objects']
+            else:
+                val = df[col_name].mean()
+            if not pd.isna(val):
+                counter_values.append((f"S{i}", val))
+
+    if counter_values:
         # UPDATED: Reduced width by 5%, increased height by 5%
         tp_bar = 6
         bw_bar, bh_bar = w_right - 2*tp_bar, bar_height - 2*tp_bar - 12
@@ -1034,20 +1054,20 @@ def draw_machine_sections(
         chart_x = x0 + w_left + tp_bar + (bw_bar - chart_w)/2
         chart_y = y_pie + tp_bar + 12 + (bh_bar - 12 - chart_h)/2  # Better vertical centering
         
-        num_bars = len(count_averages)
+        num_bars = len(counter_values)
         bar_width = chart_w / (num_bars * 1.5)
         bar_spacing = chart_w / num_bars
         
         # Use global max if provided, otherwise use local max
-        max_avg = global_max_firing if global_max_firing and global_max_firing > 0 else max(avg for _, avg in count_averages)
+        max_val = global_max_firing if global_max_firing and global_max_firing > 0 else max(val for _, val in counter_values)
         
         bar_colors = [colors.red, colors.blue, colors.green, colors.orange, 
                     colors.purple, colors.brown, colors.pink, colors.gray,
                     colors.cyan, colors.magenta, colors.yellow, colors.black]
         
-        for i, (counter_name, avg_val) in enumerate(count_averages):
+        for i, (counter_name, val) in enumerate(counter_values):
             bar_x = chart_x + i * bar_spacing + (bar_spacing - bar_width)/2
-            bar_height_val = (avg_val / max_avg) * chart_h if max_avg > 0 else 0
+            bar_height_val = (val / max_val) * chart_h if max_val > 0 else 0
             bar_y = chart_y
             
             c.setFillColor(bar_colors[i % len(bar_colors)])
@@ -1058,9 +1078,9 @@ def draw_machine_sections(
             c.setFillColor(colors.black)
             label_x = bar_x + bar_width/2
             c.drawCentredString(label_x, bar_y - 8, counter_name)
-            
+
             c.setFont(FONT_DEFAULT, 5)  # Smaller font
-            c.drawCentredString(label_x, bar_y + bar_height_val + 2, f"{avg_val:.1f}")
+            c.drawCentredString(label_x, bar_y + bar_height_val + 2, f"{val:.1f}")
         
         # Draw axes with LARGER fonts
         c.setStrokeColor(colors.black)
@@ -1072,7 +1092,7 @@ def draw_machine_sections(
         c.setFont(FONT_DEFAULT, 7)  # Increased Y-axis label size from 5 to 7
         c.setFillColor(colors.black)
         for i in range(4):  # Reduced tick marks
-            y_val = (max_avg * i / 3) if max_avg > 0 else 0
+            y_val = (max_val * i / 3) if max_val > 0 else 0
             y_pos = chart_y + (chart_h * i / 3)
             c.line(chart_x - 5, y_pos, chart_x - 2, y_pos)
             c.drawRightString(chart_x - 6, y_pos - 1, f"{y_val:.0f}")
@@ -1212,7 +1232,7 @@ def draw_layout_optimized(
     
     # Calculate global maximum firing average first
     logger.debug("Calculating global maximum firing average...")
-    global_max_firing = calculate_global_max_firing_average(csv_parent_dir, machines)
+    global_max_firing = calculate_global_max_firing_average(csv_parent_dir, machines, is_lab_mode=is_lab_mode)
     logger.debug(f"Global maximum firing average: {global_max_firing:.2f}")
     
     c = canvas.Canvas(pdf_path, pagesize=letter)
@@ -1316,7 +1336,7 @@ def draw_layout_standard(
     
     # Calculate global maximum firing average first
     logger.debug("Calculating global maximum firing average...")
-    global_max_firing = calculate_global_max_firing_average(csv_parent_dir, machines)
+    global_max_firing = calculate_global_max_firing_average(csv_parent_dir, machines, is_lab_mode=is_lab_mode)
     logger.debug(f"Global maximum firing average: {global_max_firing:.2f}")
     
     c = canvas.Canvas(pdf_path, pagesize=letter)
