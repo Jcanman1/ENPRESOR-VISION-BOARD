@@ -53,8 +53,8 @@ def test_calculate_total_objects_from_csv_rates():
 def test_calculate_objects_lab_mode_series():
     rates = generate_report.pd.Series([10, 10])
     timestamps = generate_report.pd.Series([
-        "2020-01-01 00:00:00",
-        "2020-01-01 00:01:30",
+        "2020-01-01T00:00:00.000000",
+        "2020-01-01T00:01:30.000000",
     ])
     stats = generate_report.calculate_total_objects_from_csv_rates(
         rates,
@@ -74,8 +74,8 @@ def test_draw_global_summary_totals(tmp_path, monkeypatch):
     csv = machine_dir / "last_24h_metrics.csv"
     csv.write_text(
         "timestamp,capacity,accepts,rejects,objects_per_min,counter_1\n"
-        "2020-01-01 00:00:00,60,30,30,10,1\n"
-        "2020-01-01 00:01:00,60,30,30,10,1\n"
+        "2020-01-01T00:00:00.000000,60,30,30,10,1\n"
+        "2020-01-01T00:01:00.000000,60,30,30,10,1\n"
     )
 
     layout = {"machines": {"machines": [{"id": 1, "name": "M1"}], "next_machine_id": 2}}
@@ -118,7 +118,7 @@ def test_draw_machine_sections_runtime_line(tmp_path, monkeypatch):
     csv_file = machine_dir / "last_24h_metrics.csv"
     csv_file.write_text(
         "timestamp,accepts,rejects,running,stopped\n"
-        "2020-01-01 00:00:00,1,0,65,5\n"
+        "2020-01-01T00:00:00.000000,1,0,65,5\n"
     )
 
     monkeypatch.setattr(generate_report.renderPDF, "draw", lambda *a, **k: None)
@@ -139,8 +139,8 @@ def test_draw_machine_sections_totals_match_calculation(tmp_path, monkeypatch):
     csv_file.write_text(
 
         "timestamp,accepts,rejects,running,stopped\n"
-        "2020-01-01 00:00:00,30,10,50,10\n"
-        "2020-01-01 00:01:00,30,10,50,10\n"
+        "2020-01-01T00:00:00.000000,30,10,50,10\n"
+        "2020-01-01T00:01:00.000000,30,10,50,10\n"
 
     )
 
@@ -178,8 +178,8 @@ def test_global_summary_totals_sum_machines(tmp_path, monkeypatch):
         csv = mdir / "last_24h_metrics.csv"
         csv.write_text(
             "timestamp,capacity,accepts,rejects\n"
-            "2020-01-01 00:00:00,60,30,10\n"
-            "2020-01-01 00:01:00,60,30,10\n"
+            "2020-01-01T00:00:00.000000,60,30,10\n"
+            "2020-01-01T00:01:00.000000,60,30,10\n"
         )
 
     monkeypatch.setattr(generate_report, "__file__", str(tmp_path / "dummy.py"))
@@ -354,16 +354,16 @@ def test_objects_per_min_totals_match(tmp_path, monkeypatch):
     m1.mkdir()
     (m1 / "last_24h_metrics.csv").write_text(
         "timestamp,objects_per_min\n"
-        "2020-01-01 00:00:00,5\n"
-        "2020-01-01 00:01:00,10\n"
+        "2020-01-01T00:00:00.000000,5\n"
+        "2020-01-01T00:01:00.000000,10\n"
     )
 
     m2 = data_dir / "2"
     m2.mkdir()
     (m2 / "last_24h_metrics.csv").write_text(
         "timestamp,objects_per_min\n"
-        "2020-01-01 00:00:00,2\n"
-        "2020-01-01 00:01:00,3\n"
+        "2020-01-01T00:00:00.000000,2\n"
+        "2020-01-01T00:01:00.000000,3\n"
     )
 
     layout = {
@@ -419,7 +419,7 @@ def test_draw_global_summary_spanish_labels(tmp_path, monkeypatch):
     csv = machine_dir / "last_24h_metrics.csv"
     csv.write_text(
         "timestamp,capacity,accepts,rejects\n"
-        "2020-01-01 00:00:00,60,30,10\n"
+        "2020-01-01T00:00:00.000000,60,30,10\n"
     )
 
     layout = {"machines": {"machines": [{"id": 1}], "next_machine_id": 2}}
