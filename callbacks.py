@@ -4751,21 +4751,33 @@ def _register_callbacks_impl(app):
 
     @app.callback(
         Output("lab-test-running", "data"),
-        [Input("start-test-btn", "n_clicks"), Input("stop-test-btn", "n_clicks"), Input("mode-selector", "value")],
-        [State("lab-test-running", "data")],
+        [Input("start-test-btn", "n_clicks"),
+         Input("stop-test-btn", "n_clicks"),
+         Input("mode-selector", "value"),
+         Input("status-update-interval", "n_intervals")],
+        [State("lab-test-running", "data"), State("lab-test-stop-time", "data")],
         prevent_initial_call=True,
     )
-    def update_lab_running(start_click, stop_click, mode, running):
+    def update_lab_running(start_click, stop_click, mode, n_intervals, running, stop_time):
+        """Maintain lab running state for 30 seconds after stopping."""
         ctx = callback_context
+
         if mode != "lab":
             return False
-        if not ctx.triggered:
-            return running
-        trigger = ctx.triggered[0]["prop_id"].split(".")[0]
-        if trigger == "start-test-btn":
-            return True
-        if trigger == "stop-test-btn":
+
+        if ctx.triggered:
+            trigger = ctx.triggered[0]["prop_id"].split(".")[0]
+            if trigger == "start-test-btn":
+                return True
+            elif trigger == "stop-test-btn":
+                # stop_time is recorded in a separate callback. Continue
+                # reporting as running until 30 seconds elapse.
+                return running
+
+        # Check if we should end the test based on the stop time
+        if running and stop_time and (time.time() - stop_time >= 30):
             return False
+
         return running
 
     @app.callback(
