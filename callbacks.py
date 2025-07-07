@@ -4739,14 +4739,23 @@ def _register_callbacks_impl(app):
          Output("start-test-btn", "color"),
          Output("stop-test-btn", "disabled"),
          Output("stop-test-btn", "color")],
-        [Input("lab-test-running", "data"), Input("mode-selector", "value")],
+        [Input("lab-test-running", "data"),
+         Input("mode-selector", "value"),
+         Input("status-update-interval", "n_intervals")],
+        [State("lab-test-stop-time", "data")],
     )
-    def toggle_lab_test_buttons(running, mode):
+    def toggle_lab_test_buttons(running, mode, n_intervals, stop_time):
         """Enable/disable lab start/stop buttons based on test state."""
         if mode != "lab":
             return True, "secondary", True, "secondary"
+
+        # Disable both buttons during the 30s grace period after stopping
+        if running and stop_time and (time.time() - stop_time < 30):
+            return True, "secondary", True, "secondary"
+
         if running:
             return True, "secondary", False, "danger"
+
         return False, "success", True, "secondary"
 
     @app.callback(
