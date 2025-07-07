@@ -137,15 +137,20 @@ def test_lab_buttons_callback(monkeypatch):
     func = app.callback_map[key]["callback"]
 
     # Not running yet
-    res = func.__wrapped__(False, "lab")
+    res = func.__wrapped__(False, "lab", 0, None)
     assert res == (False, "success", True, "secondary")
 
     # Running
-    res = func.__wrapped__(True, "lab")
+    res = func.__wrapped__(True, "lab", 0, None)
     assert res == (True, "secondary", False, "danger")
 
+    # Grace period after stopping
+    monkeypatch.setattr(callbacks.time, "time", lambda: 100.0)
+    res = func.__wrapped__(True, "lab", 0, 90.0)
+    assert res == (True, "secondary", True, "secondary")
+
     # Other mode
-    res = func.__wrapped__(False, "live")
+    res = func.__wrapped__(False, "live", 0, None)
     assert res == (True, "secondary", True, "secondary")
 
 
