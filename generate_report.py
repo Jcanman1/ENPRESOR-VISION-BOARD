@@ -22,6 +22,7 @@ import math  # for label angle calculations
 # Default fonts used throughout the report
 FONT_DEFAULT = "Helvetica"
 FONT_BOLD = "Helvetica-Bold"
+LAB_OBJECT_SCALE_FACTOR = 1.042
 
 from i18n import tr
 
@@ -175,9 +176,11 @@ def _calculate_objects_lab_mode(timestamps, rates):
             
             # Calculate actual time interval in minutes
             time_diff_minutes = (next_time - current_time).total_seconds() / 60
-            
-            # Add production for this interval
-            total_objects += current_rate * time_diff_minutes
+
+            # Add production for this interval with scaling factor
+            total_objects += (
+                current_rate * time_diff_minutes * LAB_OBJECT_SCALE_FACTOR
+            )
             valid_rates.append(current_rate)
             
         except (ValueError, TypeError):
