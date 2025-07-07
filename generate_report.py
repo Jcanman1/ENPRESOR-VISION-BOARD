@@ -88,6 +88,10 @@ def calculate_total_capacity_from_csv_rates(csv_rate_entries, log_interval_minut
 
 def _calculate_capacity_lab_mode(timestamps, rates):
     """Calculate capacity totals using actual time intervals for lab mode data."""
+    # Convert to list to avoid pandas negative index issues
+    timestamps = list(timestamps)
+    rates = list(rates)
+
     if len(timestamps) < 2 or len(rates) < 2:
         return {
             "total_capacity_lbs": 0,
@@ -124,7 +128,7 @@ def _calculate_capacity_lab_mode(timestamps, rates):
         last_rate = float(rates[-1])
         if not pd.isna(last_rate):
             valid_rates.append(last_rate)
-    except (ValueError, TypeError):
+    except (ValueError, TypeError, IndexError):
         pass
     
     if not valid_rates:
@@ -144,6 +148,10 @@ def _calculate_capacity_lab_mode(timestamps, rates):
 
 def _calculate_objects_lab_mode(timestamps, rates):
     """Calculate object totals using actual time intervals for lab mode data."""
+    # Convert to list to avoid pandas negative index issues
+    timestamps = list(timestamps)
+    rates = list(rates)
+
     if len(timestamps) < 2 or len(rates) < 2:
         return {
             "total_objects": 0,
@@ -180,7 +188,7 @@ def _calculate_objects_lab_mode(timestamps, rates):
         last_rate = float(rates[-1])
         if not pd.isna(last_rate):
             valid_rates.append(last_rate)
-    except (ValueError, TypeError):
+    except (ValueError, TypeError, IndexError):
         pass
     
     if not valid_rates:
