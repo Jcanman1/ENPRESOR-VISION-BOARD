@@ -160,6 +160,41 @@ def test_draw_machine_sections_totals_match_calculation(tmp_path, monkeypatch):
     assert f"{int(r_stats['total_capacity_lbs']):,} lbs" in canvas.strings
 
 
+def test_draw_machine_sections_lab_mode_decimals(tmp_path, monkeypatch):
+    machine_dir = tmp_path / "1"
+    machine_dir.mkdir()
+    csv_file = machine_dir / "last_24h_metrics.csv"
+    csv_file.write_text(
+        "timestamp,accepts,rejects,running,stopped\n"
+        "2020-01-01T00:00:00.000000,45,15,50,10\n"
+        "2020-01-01T00:01:00.000000,45,15,50,10\n"
+    )
+
+    monkeypatch.setattr(generate_report.renderPDF, "draw", lambda *a, **k: None)
+    canvas = DummyCanvas()
+    generate_report.draw_machine_sections(
+        canvas,
+        str(tmp_path),
+        "1",
+        0,
+        200,
+        100,
+        200,
+        is_lab_mode=True,
+    )
+
+    df = generate_report.pd.read_csv(csv_file)
+    a_stats = generate_report.calculate_total_capacity_from_csv_rates(
+        df["accepts"], timestamps=df["timestamp"], is_lab_mode=True
+    )
+    r_stats = generate_report.calculate_total_capacity_from_csv_rates(
+        df["rejects"], timestamps=df["timestamp"], is_lab_mode=True
+    )
+
+    assert f"{a_stats['total_capacity_lbs']:.2f} lbs" in canvas.strings
+    assert f"{r_stats['total_capacity_lbs']:.2f} lbs" in canvas.strings
+
+
 def test_global_summary_totals_sum_machines(tmp_path, monkeypatch):
     data_dir = tmp_path / "data"
     data_dir.mkdir()

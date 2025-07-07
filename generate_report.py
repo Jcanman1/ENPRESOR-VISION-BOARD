@@ -490,11 +490,18 @@ def draw_global_summary(c, csv_parent_dir, x0, y0, total_w, available_height, *,
         tr('accepted_label', lang),
         tr('rejected_label', lang),
     ]
+    if is_lab_mode:
+        accepts_fmt = f"{total_accepts:,.2f} lbs"
+        rejects_fmt = f"{total_rejects:,.2f} lbs"
+    else:
+        accepts_fmt = f"{int(total_accepts):,} lbs"
+        rejects_fmt = f"{int(total_rejects):,} lbs"
+
     values = [
         f"{machine_count}",
         f"{int(total_capacity):,} lbs",
-        f"{int(total_accepts):,} lbs",
-        f"{int(total_rejects):,} lbs",
+        accepts_fmt,
+        rejects_fmt,
     ]
     c.setFont(FONT_BOLD, 12)
     for i,label in enumerate(labels):
@@ -1192,10 +1199,16 @@ def draw_machine_sections(
 
     # BOTTOM ROW: Accepts and Rejects
     labs_bottom = [tr('accepts_label', lang), tr('rejects_label', lang)]
-    vals_bottom = [
-        f"{int(machine_accepts):,} lbs",
-        f"{int(machine_rejects):,} lbs",
-    ]
+    if is_lab_mode:
+        vals_bottom = [
+            f"{machine_accepts:,.2f} lbs",
+            f"{machine_rejects:,.2f} lbs",
+        ]
+    else:
+        vals_bottom = [
+            f"{int(machine_accepts):,} lbs",
+            f"{int(machine_rejects):,} lbs",
+        ]
     
 
     # Center the labels over their data
