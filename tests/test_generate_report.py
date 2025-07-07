@@ -50,6 +50,21 @@ def test_calculate_total_objects_from_csv_rates():
     assert stats["average_rate_obj_per_min"] == 15
 
 
+def test_calculate_objects_lab_mode_series():
+    rates = generate_report.pd.Series([10, 10])
+    timestamps = generate_report.pd.Series([
+        "2020-01-01 00:00:00",
+        "2020-01-01 00:01:30",
+    ])
+    stats = generate_report.calculate_total_objects_from_csv_rates(
+        rates,
+        timestamps=timestamps,
+        is_lab_mode=True,
+    )
+    assert stats["total_objects"] == pytest.approx(15.0)
+    assert stats["max_rate_obj_per_min"] == 10
+
+
 def test_draw_global_summary_totals(tmp_path, monkeypatch):
     data_dir = tmp_path / "data"
     data_dir.mkdir()
