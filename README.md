@@ -3,6 +3,39 @@
 
 This project aims to replicate the full functionality of `EnpresorOPCDataViewBeforeRestructureLegacy.py` while gradually breaking the monolithic code into smaller, maintainable modules. Every feature and UI button from the legacy dashboard is preserved so that the modernized version behaves identically to the original application.
 
+## Repository Structure
+
+The project is intentionally split into small modules that mirror sections of the
+legacy script. Below is a short overview of the key files and how they fit into
+the application:
+
+- **`EnpresorOPCDataViewBeforeRestructureLegacy.py`** – main Dash application
+  that wires together the layout, OPC connection logic and callbacks.
+- **`EnpresorOPCDataViewBeforeRestructureORIGINAL.py`** – the original
+  monolithic script kept for reference during the refactor.
+- **`autoconnect.py`** – starts background threads to automatically reconnect to
+  saved machines when the app launches.
+- **`callbacks.py`** – registers all Dash callbacks used by the dashboard.
+- **`counter_manager.py`** – utilities for tracking counter histories with a
+  fixed maximum length.
+- **`df_processor.py`** – helpers for safely reading and pruning large CSV
+  files.
+- **`generate_report.py`** – creates PDF production reports from the exported
+  metrics.
+- **`hourly_data_saving.py`** – periodically writes machine metrics and control
+  logs to CSV and exposes functions for querying historical data.
+- **`i18n.py`** – provides language translations via the `tr()` helper.
+- **`image_manager.py`** – validates uploaded images and caches them on disk.
+- **`memory_leak_fixes.py`** and **`memory_monitor.py`** – small utilities used
+  to track memory usage and clean up cached data.
+- **`wsgi.py`** – minimal entry point used by Gunicorn (`application = app.server`).
+- **`assets/`** – fonts, CSS and images loaded by Dash and the reporting code.
+- **`tests/`** – pytest suite covering report generation and callback logic.
+- **`EnpresorDataIcon.ico`** and **`EnpresorOPCViewerInstaller.iss`** – resources
+  used when packaging the application for Windows.
+- **`requirements.txt`** and **`test-requirements.txt`** – runtime and testing
+  dependencies.
+
 ## Setup
 1. Ensure you have Python 3 installed.
 2. Install required dependencies:
