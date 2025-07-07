@@ -1,3 +1,11 @@
+"""Dash callback definitions for the modernized OPC dashboard.
+
+This module mirrors much of the behavior from the original monolithic
+``EnpresorOPCDataViewBeforeRestructureLegacy`` script.  The callbacks
+are registered at runtime via :func:`register_callbacks` so that they
+can be imported by both the legacy script and the refactored app.
+"""
+
 import importlib
 import sys
 from datetime import datetime

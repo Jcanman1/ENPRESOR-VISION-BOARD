@@ -1,3 +1,5 @@
+"""Functions for building PDF production reports from CSV metrics."""
+
 import os
 import sys
 import json
