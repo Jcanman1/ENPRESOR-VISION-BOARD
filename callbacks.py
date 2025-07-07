@@ -56,7 +56,7 @@ SENSITIVITY_ACTIVE_TAGS = {
 # OPC tag for the preset name
 PRESET_NAME_TAG = "Status.Info.PresetName"
 
-# Track last logged capacity per machine and filename to avoid duplicate rows
+# Track last logged capacity per machine and filename
 last_logged_capacity = defaultdict(lambda: None)
 
 # Flag to prevent re-entrancy when the legacy module imports this module and
@@ -5084,8 +5084,7 @@ def _register_callbacks_impl(app):
 
         """Collect metrics for each connected machine and append to its file.
 
-        In lab mode, metrics are logged only when the capacity value changes to
-        avoid duplicate rows.
+        In lab mode, metrics are logged at every interval.
         """
         global machine_connections
     
@@ -5191,11 +5190,6 @@ def _register_callbacks_impl(app):
     
             log_mode = "Lab" if mode == "lab" else "Live"
             if mode == "lab":
-                key = (str(machine_id), lab_filename)
-                prev_cap = last_logged_capacity.get(key)
-                if prev_cap is not None and metrics["capacity"] == prev_cap:
-                    continue
-                last_logged_capacity[key] = metrics["capacity"]
                 append_metrics(
                     metrics,
                     machine_id=str(machine_id),
