@@ -332,6 +332,29 @@ def test_build_report_passes_lab_mode(monkeypatch):
     assert captured["lab"] is True
 
 
+def test_global_max_firing_totals_lab_mode(tmp_path):
+    m1 = tmp_path / "1"
+    m1.mkdir()
+    (m1 / "last_24h_metrics.csv").write_text(
+        "timestamp,counter_1\n"
+        "2020-01-01T00:00:00.000000,5\n"
+        "2020-01-01T00:02:00.000000,10\n"
+    )
+
+    m2 = tmp_path / "2"
+    m2.mkdir()
+    (m2 / "last_24h_metrics.csv").write_text(
+        "timestamp,counter_1\n"
+        "2020-01-01T00:00:00.000000,8\n"
+        "2020-01-01T00:01:00.000000,8\n"
+    )
+
+    max_val = generate_report.calculate_global_max_firing_average(
+        str(tmp_path), ["1", "2"], is_lab_mode=True
+    )
+    assert max_val == pytest.approx(10.0)
+
+
 def _extract_total(strings, label):
     """Return the first integer value found after a given label."""
     found = False
