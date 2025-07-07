@@ -103,6 +103,16 @@ the `--add-data` option. The separator differs by platform:
 With PyInstaller 6 the bundled files are extracted into an `_internal`
 directory next to the executable.
 
+## Generating Reports in Lab Mode
+
+`generate_report.py` builds PDF summaries from the CSV exports. When working
+with lab data pass the `--lab` option so irregular timestamps are used when
+calculating capacities and object totals:
+
+```bash
+python3 generate_report.py <export directory> --lab
+```
+
 ## Running Tests
 
 Install `pytest` along with any runtime dependencies, for example:
