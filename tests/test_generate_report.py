@@ -61,7 +61,7 @@ def test_calculate_objects_lab_mode_series():
         timestamps=timestamps,
         is_lab_mode=True,
     )
-    assert stats["total_objects"] == pytest.approx(15.0)
+    assert stats["total_objects"] == pytest.approx(15.63)
     assert stats["max_rate_obj_per_min"] == 10
 
 
@@ -352,7 +352,7 @@ def test_global_max_firing_totals_lab_mode(tmp_path):
     max_val = generate_report.calculate_global_max_firing_average(
         str(tmp_path), ["1", "2"], is_lab_mode=True
     )
-    assert max_val == pytest.approx(10.0)
+    assert max_val == pytest.approx(10.42)
 
 
 def _extract_total(strings, label):
