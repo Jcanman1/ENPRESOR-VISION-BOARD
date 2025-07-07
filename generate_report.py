@@ -7,6 +7,7 @@ import datetime
 import pandas as pd
 import df_processor
 import logging
+import argparse
 from datetime import timedelta
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
@@ -853,6 +854,7 @@ def build_report(
             machines=machines,
             include_global=include_global,
             lang=lang,
+            is_lab_mode=is_lab_mode,
         )
     else:
         draw_layout_standard(
@@ -861,6 +863,7 @@ def build_report(
             machines=machines,
             include_global=include_global,
             lang=lang,
+            is_lab_mode=is_lab_mode,
         )
 
 def draw_machine_sections(
@@ -1193,6 +1196,7 @@ def draw_layout_optimized(
     machines=None,
     include_global=True,
     lang="en",
+    is_lab_mode: bool = False,
 ):
     """Optimized version - CONSISTENT SIZING, 2 machines per page"""
     logger.debug("=== DEBUGGING MACHINE DATA ===")
@@ -1231,7 +1235,7 @@ def draw_layout_optimized(
             margin,
             total_w,
             available_height,
-            is_lab_mode=False,
+            is_lab_mode=is_lab_mode,
             lang=lang,
         )
     
@@ -1269,6 +1273,7 @@ def draw_layout_optimized(
                 total_w,
                 fixed_height_per_machine,
                 global_max_firing,
+                is_lab_mode=is_lab_mode,
                 lang=lang,
             )
             # FIXED spacing between machines
@@ -1295,6 +1300,7 @@ def draw_layout_standard(
     machines=None,
     include_global=True,
     lang="en",
+    is_lab_mode: bool = False,
 ):
     """Standard layout - CONSISTENT SIZING with dynamic page breaks"""
     logger.debug("=== DEBUGGING MACHINE DATA ===")
@@ -1334,7 +1340,7 @@ def draw_layout_standard(
             margin,
             total_w,
             available_height,
-            is_lab_mode=False,
+            is_lab_mode=is_lab_mode,
             lang=lang,
         )
     
@@ -1369,7 +1375,7 @@ def draw_layout_standard(
             total_w,
             fixed_machine_height,
             global_max_firing,
-            is_lab_mode=False,
+            is_lab_mode=is_lab_mode,
             lang=lang,
         )
         
@@ -1390,17 +1396,17 @@ def draw_layout_standard(
 
 if __name__=='__main__':
     sd = os.path.dirname(os.path.abspath(__file__))
-    exp_arg = sys.argv[1] if len(sys.argv) > 1 else os.path.join(sd, 'exports')
-    
-    # Generate date-stamped filename automatically
+    parser = argparse.ArgumentParser(description="Generate production report")
+    parser.add_argument("export_dir", nargs="?", default=os.path.join(sd, 'exports'))
+    parser.add_argument("--optimized", action="store_true", help="use optimized layout")
+    parser.add_argument("--lab", action="store_true", help="enable lab mode calculations")
+    args = parser.parse_args()
+
     pdf_path = generate_report_filename(sd)
-    
-    # Check if user wants optimized layout
-    use_optimized = len(sys.argv) > 2 and sys.argv[2] == '--optimized'
-    
-    if use_optimized:
+
+    if args.optimized:
         logger.info("Using optimized layout (2 machines per page)...")
-        draw_layout_optimized(pdf_path, exp_arg, lang="en")
+        draw_layout_optimized(pdf_path, args.export_dir, lang="en", is_lab_mode=args.lab)
     else:
         logger.info("Using standard layout (dynamic page breaks)...")
-        draw_layout_standard(pdf_path, exp_arg, lang="en")
+        draw_layout_standard(pdf_path, args.export_dir, lang="en", is_lab_mode=args.lab)
