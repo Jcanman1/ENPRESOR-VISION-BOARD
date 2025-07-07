@@ -1,4 +1,4 @@
-"""Simple memory usage utilities."""
+"""Simple helpers for monitoring process memory consumption."""
 
 import logging
 import os

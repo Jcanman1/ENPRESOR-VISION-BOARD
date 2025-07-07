@@ -1,4 +1,8 @@
-"""Minimal utilities for periodic data exports."""
+"""Helper routines for saving hourly metrics and control logs.
+
+These functions create per-machine CSV files and keep only the most
+recent 24 hours of data so that historical charts remain manageable.
+"""
 
 import os
 import csv

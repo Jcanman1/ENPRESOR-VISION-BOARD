@@ -1,13 +1,17 @@
+"""Background tasks for automatically connecting to OPC machines."""
+
 import logging
 from threading import Thread
 import asyncio
 
 logger = logging.getLogger(__name__)
 
-# Functions copied from the original dashboard script
+# Functions copied from the original dashboard script.
+# These helpers are intentionally separate to keep the main dashboard
+# file focused on UI logic.
 
 def start_auto_reconnection():
-    """Start the auto-reconnection thread"""
+    """Start the background thread that retries lost connections."""
     if not hasattr(app_state, 'reconnection_thread') or not app_state.reconnection_thread.is_alive():
         app_state.reconnection_thread = Thread(target=auto_reconnection_thread)
         app_state.reconnection_thread.daemon = True
@@ -16,7 +20,12 @@ def start_auto_reconnection():
 
 
 def startup_auto_connect_machines():
-    """Automatically connect to all machines on startup"""
+    """Connect to every saved machine once the application launches.
+
+    The function reads persisted machine information, attempts to
+    establish OPC connections for each entry and caches the data for
+    later reconnection attempts.
+    """
     try:
         # Load saved machines data
         floors_data, machines_data = load_floor_machine_data()
@@ -100,7 +109,11 @@ def startup_auto_connect_machines():
 
 
 def delayed_startup_connect():
-    """Run startup auto-connection after a delay to avoid blocking app startup"""
+    """Run ``startup_auto_connect_machines`` after a short delay.
+
+    Sleeping briefly allows the Dash application to finish loading
+    before network activity begins.
+    """
     import time
 
     time.sleep(3)  # Wait 3 seconds for app to fully start
@@ -108,7 +121,7 @@ def delayed_startup_connect():
 
 
 def initialize_autoconnect():
-    """Launch the reconnection thread and schedule delayed startup connections."""
+    """Entry point used by the Dash app to start background threads."""
     start_auto_reconnection()
     startup_thread = Thread(target=delayed_startup_connect)
     startup_thread.daemon = True
