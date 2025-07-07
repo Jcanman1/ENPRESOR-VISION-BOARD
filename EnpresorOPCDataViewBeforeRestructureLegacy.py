@@ -94,6 +94,8 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+# Older versions cleared the handlers created by ``basicConfig``. Ensure a
+# console handler is present so logs appear when running from the command line.
 if not logging.getLogger().handlers:
     logging.getLogger().addHandler(logging.StreamHandler())
 logging.getLogger("werkzeug").setLevel(logging.ERROR)
@@ -114,7 +116,9 @@ reconnection_state = {
     
 }
 
-# Define known tags instead of discovering them
+# Define known tags instead of discovering them. Keys are human friendly names
+# and values are full OPC UA node ids. Dictionary comprehensions below expand
+# repetitive patterns.
 KNOWN_TAGS = {
     # Status Information
     "Status.Info.Serial": "ns=2;s=Status.Info.Serial",
@@ -163,8 +167,8 @@ KNOWN_TAGS = {
     "Status.ColorSort.Primary.ObjectPerMin": "ns=2;s=Status.ColorSort.Primary.ObjectPerMin",
 }
 
-# Tags that are updated on every cycle in live mode.  These are the tags used
-# throughout the dashboard callbacks for real time display.
+# Tags that are updated on every cycle in live mode. These names come from
+# ``KNOWN_TAGS`` and drive the real-time dashboard callbacks.
 FAST_UPDATE_TAGS = {
     "Status.Info.Serial",
     "Status.Info.Type",
@@ -262,7 +266,8 @@ threshold_violation_state = {
 def save_uploaded_image(image_data):
     """Save the uploaded image data to a file - simplified version"""
     try:
-        # Create a data directory if it doesn't exist
+        # Create a data directory if it doesn't exist. Uploaded images and
+        # layout files live here so they persist between application runs.
         if not os.path.exists('data'):
             os.makedirs('data')
         
@@ -294,6 +299,8 @@ def load_saved_image():
         return {}
 
 
+# Default SMTP settings used when ``email_settings.json`` is missing. These
+# allow optional alarm emails without storing credentials in version control.
 DEFAULT_EMAIL_SETTINGS = {
     "smtp_server": "smtp.postmarkapp.com",
     "smtp_port": 587,
@@ -333,6 +340,8 @@ def save_email_settings(settings):
         return False
 
 
+# Load user specific SMTP settings (if any). These values are kept outside
+# of version control so credentials remain private.
 email_settings = load_email_settings()
 
 import smtplib
@@ -2576,7 +2585,8 @@ def save_floor_machine_data(floors_data, machines_data):
             "saved_timestamp": datetime.now().isoformat()
         }
         
-        # Create data directory if it doesn't exist
+        # Create data directory if it doesn't exist. Saving floor/machine
+        # layouts here allows them to be restored on the next startup.
         if not os.path.exists('data'):
             os.makedirs('data')
         
