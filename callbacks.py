@@ -4788,6 +4788,8 @@ def _register_callbacks_impl(app):
 
         # Check if we should end the test based on the stop time
         if running and stop_time and (time.time() - stop_time >= 30):
+            global current_lab_filename
+            current_lab_filename = None
             return False
 
         return running
@@ -4811,7 +4813,6 @@ def _register_callbacks_impl(app):
             )
             current_lab_filename = filename
             return {"filename": filename}
-        current_lab_filename = None
         return {}
 
     @app.callback(
