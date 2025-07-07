@@ -1,7 +1,13 @@
 import os
 import base64
-import imghdr
 from typing import Tuple, Optional
+
+try:
+    import imghdr
+except ModuleNotFoundError:  # pragma: no cover - fallback for stripped stdlib
+    imghdr = None
+    from PIL import Image
+    import io
 
 
 def validate_and_process_image(contents: str) -> Tuple[Optional[str], Optional[str]]:
@@ -15,7 +21,14 @@ def validate_and_process_image(contents: str) -> Tuple[Optional[str], Optional[s
         data = base64.b64decode(encoded)
     except Exception:
         return None, "Invalid base64 encoding"
-    img_type = imghdr.what(None, h=data)
+    if imghdr is not None:
+        img_type = imghdr.what(None, h=data)
+    else:
+        try:
+            img = Image.open(io.BytesIO(data))
+            img_type = img.format.lower() if img.format else None
+        except Exception:
+            img_type = None
     if not img_type:
         return None, "Unsupported image type"
     processed = f"data:image/{img_type};base64,{base64.b64encode(data).decode()}"
