@@ -5141,7 +5141,7 @@ def _register_callbacks_impl(app):
 
         In lab mode, metrics are logged at every interval.
         """
-        global machine_connections
+        global machine_connections, current_lab_filename
     
         CAPACITY_TAG = "Status.ColorSort.Sort1.Throughput.KgPerHour.Current"
         REJECTS_TAG = "Status.ColorSort.Sort1.Total.Percentage.Current"
