@@ -132,6 +132,7 @@ def load_lab_totals(machine_id, filename=None):
             return [0] * 12, [], []
         path = max(files, key=os.path.getmtime)
 
+
     if not os.path.exists(path):
         return [0] * 12, [], []
 
@@ -166,6 +167,7 @@ def load_lab_totals(machine_id, filename=None):
         last_index = cache.get("last_index", -1)
         cache["last_access"] = time.time()
 
+
     with open(path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for idx, row in enumerate(reader):
@@ -180,6 +182,7 @@ def load_lab_totals(machine_id, filename=None):
                 except Exception:
                     ts_val = ts
             timestamps.append(ts_val)
+
 
             counter_rates = []
             for i in range(1, 13):
@@ -203,6 +206,7 @@ def load_lab_totals(machine_id, filename=None):
                     counter_totals[i - 1] += c_stats.get("total_objects", 0)
 
                 counter_rates.append(rate)
+
 
             opm = row.get("objects_per_min")
             try:
@@ -241,6 +245,17 @@ def load_lab_totals(machine_id, filename=None):
         "size": size,
         "last_access": time.time(),
     }
+
+    # After collecting all data, convert counter rate series into totals using
+    # the helper from ``generate_report`` which handles lab mode timestamps.
+    counter_totals = []
+    for series in counter_series:
+        stats = generate_report.calculate_total_objects_from_csv_rates(
+            series,
+            timestamps=timestamps,
+            is_lab_mode=True,
+        )
+        counter_totals.append(stats.get("total_objects", 0))
 
     return counter_totals, timestamps, object_totals
 
