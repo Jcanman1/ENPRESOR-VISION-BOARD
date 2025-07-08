@@ -77,6 +77,7 @@ _REGISTERING = False
 _lab_totals_cache = {}
 
 
+
 def load_lab_totals(machine_id, filename=None):
     """Return cumulative counter totals and object totals from a lab log.
 
@@ -322,7 +323,6 @@ def load_lab_totals_metrics(machine_id):
             elapsed_seconds = 0
 
     return total_capacity, accepts_total, rejects_total, elapsed_seconds
-
 
 def register_callbacks(app):
     """Public entry point that guards against re-entrant registration."""
