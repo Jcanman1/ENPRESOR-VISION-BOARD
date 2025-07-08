@@ -2336,10 +2336,18 @@ def _register_callbacks_impl(app):
                     "rejects": rejects,
                 }
             else:
-                total_capacity = production_data.get("capacity", 50000)
-                accepts = production_data.get("accepts", 47500)
-                rejects = production_data.get("rejects", 2500)
+                # No existing lab log yet. Use zeroed placeholders for
+                # all metrics so the dashboard doesn't display stale live
+                # production values when switching to lab mode.
+                total_capacity = 0
+                accepts = 0
+                rejects = 0
                 capacity_count = accepts_count = reject_count = 0
+                production_data = {
+                    "capacity": 0,
+                    "accepts": 0,
+                    "rejects": 0,
+                }
 
         elif mode == "demo":
     
