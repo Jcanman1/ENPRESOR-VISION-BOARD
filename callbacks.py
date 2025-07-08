@@ -118,6 +118,39 @@ def load_lab_totals(machine_id, filename=None):
     return counter_totals, timestamps, object_totals
 
 
+def load_last_lab_metrics(machine_id):
+    """Return the last capacity/accepts/rejects values from a lab log."""
+    machine_dir = os.path.join(hourly_data_saving.EXPORT_DIR, str(machine_id))
+    files = glob.glob(os.path.join(machine_dir, "Lab_Test_*.csv"))
+    if not files:
+        return None
+
+    path = max(files, key=os.path.getmtime)
+    if not os.path.exists(path):
+        return None
+
+    last_row = None
+    with open(path, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            last_row = row
+
+    if not last_row:
+        return None
+
+    def _get_float(key):
+        try:
+            return float(last_row.get(key, 0)) if last_row.get(key) else 0.0
+        except ValueError:
+            return 0.0
+
+    capacity = _get_float("capacity")
+    accepts = _get_float("accepts")
+    rejects = _get_float("rejects")
+
+    return capacity, accepts, rejects
+
+
 def register_callbacks(app):
     """Public entry point that guards against re-entrant registration."""
     global _REGISTERING
@@ -2151,7 +2184,25 @@ def _register_callbacks_impl(app):
                 "accepts": accepts,
                 "rejects": rejects,
             }
-    
+
+        elif mode == "lab":
+            mid = active_machine_id
+            metrics = load_last_lab_metrics(mid) if mid is not None else None
+            if metrics:
+                cap_lbs, acc_lbs, rej_lbs = metrics
+                total_capacity = convert_capacity_from_lbs(cap_lbs, weight_pref)
+                accepts = convert_capacity_from_lbs(acc_lbs, weight_pref)
+                rejects = convert_capacity_from_lbs(rej_lbs, weight_pref)
+                production_data = {
+                    "capacity": total_capacity,
+                    "accepts": accepts,
+                    "rejects": rejects,
+                }
+            else:
+                total_capacity = production_data.get("capacity", 50000)
+                accepts = production_data.get("accepts", 47500)
+                rejects = production_data.get("rejects", 2500)
+
         elif mode == "demo":
     
             # Demo mode: generate realistic random capacity value
