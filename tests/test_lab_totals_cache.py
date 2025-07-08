@@ -70,3 +70,4 @@ def test_truncate_resets_cache(monkeypatch, tmp_path):
 
     assert id(ct2) != id_ct1
     assert ct2[0] == 0
+
