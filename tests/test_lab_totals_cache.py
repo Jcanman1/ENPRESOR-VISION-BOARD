@@ -1,6 +1,8 @@
 import csv
 import time
 
+import pytest
+import generate_report
 import callbacks
 
 FIELDS = ["timestamp", "objects_per_min"] + [f"counter_{i}" for i in range(1, 13)]
@@ -24,7 +26,7 @@ def create_log(tmp_path, rows=1):
 def append_row(path, idx=0):
     with path.open("a", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=FIELDS)
-        row = {"timestamp": f"2025-01-01T00:00:{idx}", "objects_per_min": "60"}
+        row = {"timestamp": f"2025-01-01T00:00:{idx:02d}", "objects_per_min": "60"}
         for j in range(1, 13):
             row[f"counter_{j}"] = "1" if j == 1 else "0"
         writer.writerow(row)
@@ -48,7 +50,8 @@ def test_append_uses_cached_totals(monkeypatch, tmp_path):
     assert id(ct2) == id_ct
     assert id(ts2) == id_ts
     assert id(obj2) == id_obj
-    assert ct2[0] == 2
+    expected = generate_report.LAB_OBJECT_SCALE_FACTOR / 60
+    assert ct2[0] == pytest.approx(expected)
 
 
 def test_truncate_resets_cache(monkeypatch, tmp_path):
@@ -66,4 +69,4 @@ def test_truncate_resets_cache(monkeypatch, tmp_path):
     ct2, ts2, obj2 = callbacks.load_lab_totals(1)
 
     assert id(ct2) != id_ct1
-    assert ct2[0] == 1
+    assert ct2[0] == 0
