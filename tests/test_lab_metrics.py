@@ -57,9 +57,17 @@ def test_update_section_1_1_lab_reads_log(monkeypatch, tmp_path):
 
     with (tmp_path/"1"/"Lab_Test_sample.csv").open() as f:
         rows = list(csv.DictReader(f))
-    acc_total = sum(float(r["accepts"]) for r in rows)
-    rej_total = sum(float(r["rejects"]) for r in rows)
 
-    assert prod["capacity"] == acc_total + rej_total
+    timestamps = [r["timestamp"] for r in rows]
+    cap_values = [float(r["capacity"]) for r in rows]
+    stats = callbacks.generate_report.calculate_total_capacity_from_csv_rates(
+        cap_values, timestamps=timestamps, is_lab_mode=True
+    )
+    cap_avg = stats["average_rate_lbs_per_hr"]
+    acc_total = sum(float(r["accepts"]) for r in rows)
+    counter_totals, _, _ = callbacks.load_lab_totals(1)
+    rej_weight = callbacks.convert_capacity_from_kg(sum(counter_totals) * 46, {"unit": "lb"})
+
+    assert prod["capacity"] == cap_avg
     assert prod["accepts"] == acc_total
-    assert prod["rejects"] == rej_total
+    assert prod["rejects"] == rej_weight
