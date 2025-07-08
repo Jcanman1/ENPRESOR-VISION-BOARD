@@ -76,6 +76,41 @@ _REGISTERING = False
 # log file.
 _lab_totals_cache = {}
 
+# Maximum number of cached lab log entries to retain
+_LAB_TOTALS_CACHE_LIMIT = 32
+
+# Maximum age in seconds before a cache entry is pruned
+_LAB_TOTALS_CACHE_MAX_AGE = 15 * 60  # 15 minutes
+
+
+def prune_lab_totals_cache(
+    max_age: float = _LAB_TOTALS_CACHE_MAX_AGE,
+    max_size: int = _LAB_TOTALS_CACHE_LIMIT,
+) -> None:
+    """Remove stale entries from ``_lab_totals_cache``.
+
+    Entries older than ``max_age`` seconds or beyond ``max_size`` most recently
+    accessed items are removed.
+    """
+    now = time.time()
+    # Remove items exceeding the age limit
+    keys_to_delete = [
+        key
+        for key, data in list(_lab_totals_cache.items())
+        if now - data.get("last_access", now) > max_age
+    ]
+    for key in keys_to_delete:
+        _lab_totals_cache.pop(key, None)
+
+    if len(_lab_totals_cache) > max_size:
+        # Sort by last access time (oldest first)
+        sorted_keys = sorted(
+            _lab_totals_cache, key=lambda k: _lab_totals_cache[k].get("last_access", 0)
+        )
+        for key in sorted_keys[: len(_lab_totals_cache) - max_size]:
+            _lab_totals_cache.pop(key, None)
+
+
 
 def load_lab_totals(machine_id, filename=None):
     """Return cumulative counter totals and object totals from a lab log.
@@ -84,6 +119,7 @@ def load_lab_totals(machine_id, filename=None):
     were appended since the last invocation. This significantly reduces I/O when
     lab logs grow large.
     """
+    prune_lab_totals_cache()
     machine_dir = os.path.join(hourly_data_saving.EXPORT_DIR, str(machine_id))
     if filename:
         path = os.path.join(machine_dir, filename)
@@ -122,6 +158,7 @@ def load_lab_totals(machine_id, filename=None):
         prev_ts = cache.get("prev_ts")
         prev_rate = cache.get("prev_rate")
         last_index = cache.get("last_index", -1)
+        cache["last_access"] = time.time()
 
     with open(path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
@@ -178,6 +215,7 @@ def load_lab_totals(machine_id, filename=None):
         "prev_rate": prev_rate,
         "mtime": mtime,
         "size": size,
+        "last_access": time.time(),
     }
 
     return counter_totals, timestamps, object_totals
