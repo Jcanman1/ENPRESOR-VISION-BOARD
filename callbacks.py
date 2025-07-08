@@ -15,6 +15,8 @@ import glob
 import shutil
 import tempfile
 import time
+import csv
+import hourly_data_saving
 import autoconnect
 import image_manager as img_utils
 try:
@@ -66,6 +68,54 @@ current_lab_filename = None
 # Flag to prevent re-entrancy when the legacy module imports this module and
 # executes ``register_callbacks`` during import.
 _REGISTERING = False
+
+
+def load_lab_totals(machine_id, filename=None):
+    """Return cumulative counter totals and object totals from a lab log."""
+    machine_dir = os.path.join(hourly_data_saving.EXPORT_DIR, str(machine_id))
+    if filename:
+        path = os.path.join(machine_dir, filename)
+    else:
+        files = glob.glob(os.path.join(machine_dir, "Lab_Test_*.csv"))
+        if not files:
+            return [0] * 12, [], []
+        path = max(files, key=os.path.getmtime)
+
+    counter_totals = [0] * 12
+    timestamps = []
+    object_totals = []
+    obj_sum = 0.0
+
+    if not os.path.exists(path):
+        return counter_totals, timestamps, object_totals
+
+    with open(path, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            ts = row.get("timestamp")
+            if ts:
+                try:
+                    ts_val = datetime.fromisoformat(ts)
+                except Exception:
+                    ts_val = ts
+                timestamps.append(ts_val)
+
+            for i in range(1, 13):
+                val = row.get(f"counter_{i}")
+                try:
+                    counter_totals[i - 1] += float(val) if val else 0.0
+                except ValueError:
+                    pass
+
+            opm = row.get("objects_per_min")
+            if opm:
+                try:
+                    obj_sum += float(opm) / 60.0
+                except ValueError:
+                    pass
+            object_totals.append(obj_sum)
+
+    return counter_totals, timestamps, object_totals
 
 
 def register_callbacks(app):
@@ -3564,7 +3614,18 @@ def _register_callbacks_impl(app):
             else:
                 min_val = 0
                 max_val = 10000
-    
+        elif mode == "lab":
+            mid = active_machine_data.get("machine_id") if active_machine_data else None
+            _, times, totals = load_lab_totals(mid)
+            x_data = [t.strftime("%H:%M:%S") if isinstance(t, datetime) else t for t in times]
+            y_data = totals
+            if y_data:
+                min_val = max(0, min(y_data) * 0.9)
+                max_val = max(y_data) * 1.1
+            else:
+                min_val = 0
+                max_val = 10000
+
         elif mode in LIVE_LIKE_MODES and app_state_data.get("connected", False):
             # Live mode and connected - get real data
             tag_found = False
@@ -3875,6 +3936,12 @@ def _register_callbacks_impl(app):
             # Store the new values for the next update
             previous_counter_values = new_counter_values.copy()
             logger.info(f"Section 5-2 values (historical mode): {new_counter_values}")
+        elif mode == "lab":
+            mid = active_machine_data.get("machine_id") if active_machine_data else None
+            totals, _, _ = load_lab_totals(mid)
+            new_counter_values = totals
+            previous_counter_values = new_counter_values.copy()
+            logger.info(f"Section 5-2 values (lab mode): {new_counter_values}")
         elif mode in LIVE_LIKE_MODES and app_state_data.get("connected", False):
             # Live mode: get values from OPC UA
             # Use the tag pattern provided for each counter
