@@ -86,6 +86,8 @@ def load_lab_totals(machine_id, filename=None):
     timestamps = []
     object_totals = []
     obj_sum = 0.0
+    prev_ts = None
+    prev_rate = None
 
     if not os.path.exists(path):
         return counter_totals, timestamps, object_totals
@@ -94,12 +96,13 @@ def load_lab_totals(machine_id, filename=None):
         reader = csv.DictReader(f)
         for row in reader:
             ts = row.get("timestamp")
+            ts_val = None
             if ts:
                 try:
                     ts_val = datetime.fromisoformat(ts)
                 except Exception:
                     ts_val = ts
-                timestamps.append(ts_val)
+            timestamps.append(ts_val)
 
             for i in range(1, 13):
                 val = row.get(f"counter_{i}")
@@ -109,12 +112,27 @@ def load_lab_totals(machine_id, filename=None):
                     pass
 
             opm = row.get("objects_per_min")
-            if opm:
-                try:
-                    obj_sum += float(opm) / 60.0
-                except ValueError:
-                    pass
+            try:
+                rate_val = float(opm) if opm else None
+            except ValueError:
+                rate_val = None
+
+            if (
+                prev_ts is not None
+                and isinstance(prev_ts, datetime)
+                and isinstance(ts_val, datetime)
+                and prev_rate is not None
+            ):
+                delta_minutes = (ts_val - prev_ts).total_seconds() / 60.0
+                obj_sum += (
+                    prev_rate
+                    * delta_minutes
+                    * generate_report.LAB_OBJECT_SCALE_FACTOR
+                )
+
             object_totals.append(obj_sum)
+            prev_ts = ts_val
+            prev_rate = rate_val
 
     return counter_totals, timestamps, object_totals
 
