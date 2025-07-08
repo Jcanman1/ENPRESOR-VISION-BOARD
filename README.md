@@ -51,6 +51,16 @@ python3 EnpresorOPCDataViewBeforeRestructureLegacy.py
 ```
 The script prints the local and network URLs for accessing the interface. Optionally use `--open-browser` to automatically open your web browser and `--debug` for verbose output.
 
+### Simulating Lab Mode
+
+The `scripts/lab_mode_sim.py` helper reads a CSV log and prints the values that
+would appear in sections 1-1 and 5-1 of the dashboard as the log grows. This
+is useful for troubleshooting discrepancies without running the full UI.
+
+```bash
+python3 scripts/lab_mode_sim.py tests/Lab_Test_NEWTEST1_07_07_2025.csv
+```
+
 As the code is refactored into modules, the entry point and command-line options will remain consistent so that users experience no change in behavior.
 
 ## Running with Gunicorn
