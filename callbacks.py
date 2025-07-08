@@ -102,11 +102,12 @@ def load_lab_totals(machine_id, filename=None):
     size = stat.st_size
 
     cache = _lab_totals_cache.get(key)
-    if (
-        cache is None
-        or cache.get("mtime") != mtime
-        or size < cache.get("size", 0)
-    ):
+    if cache is not None:
+        # Reset if file was truncated or replaced with an older version
+        if size < cache.get("size", 0) or mtime < cache.get("mtime", 0):
+            cache = None
+
+    if cache is None:
         counter_totals = [0] * 12
         timestamps = []
         object_totals = []
