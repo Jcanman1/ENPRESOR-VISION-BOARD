@@ -119,39 +119,6 @@ def load_lab_totals(machine_id, filename=None):
     return counter_totals, timestamps, object_totals
 
 
-def load_lab_object_rates(machine_id):
-    """Return timestamped objects-per-minute values from a lab log."""
-    machine_dir = os.path.join(hourly_data_saving.EXPORT_DIR, str(machine_id))
-    files = glob.glob(os.path.join(machine_dir, "Lab_Test_*.csv"))
-    if not files:
-        return [], []
-
-    path = max(files, key=os.path.getmtime)
-    if not os.path.exists(path):
-        return [], []
-
-    times = []
-    opm_values = []
-    with open(path, newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            ts = row.get("timestamp")
-            if ts:
-                try:
-                    ts_val = datetime.fromisoformat(ts)
-                except Exception:
-                    ts_val = ts
-                times.append(ts_val)
-
-            opm = row.get("objects_per_min")
-            try:
-                opm_values.append(float(opm) if opm else 0.0)
-            except ValueError:
-                opm_values.append(0.0)
-
-    return times, opm_values
-
-
 def load_last_lab_metrics(machine_id):
     """Return the last capacity/accepts/rejects values from a lab log."""
     machine_dir = os.path.join(hourly_data_saving.EXPORT_DIR, str(machine_id))
@@ -3848,9 +3815,9 @@ def _register_callbacks_impl(app):
                 max_val = 10000
         elif mode == "lab":
             mid = active_machine_data.get("machine_id") if active_machine_data else None
-            times, opm_values = load_lab_object_rates(mid)
+            _, times, totals = load_lab_totals(mid)
             x_data = [t.strftime("%H:%M:%S") if isinstance(t, datetime) else t for t in times]
-            y_data = opm_values
+            y_data = totals
             if y_data:
                 min_val = max(0, min(y_data) * 0.9)
                 max_val = max(y_data) * 1.1
