@@ -77,6 +77,7 @@ _REGISTERING = False
 # per-counter rates are tracked so object totals can be integrated correctly.
 _lab_totals_cache = {}
 
+
 # Maximum number of cached lab log entries to retain
 _LAB_TOTALS_CACHE_LIMIT = 32
 
@@ -110,6 +111,7 @@ def prune_lab_totals_cache(
         )
         for key in sorted_keys[: len(_lab_totals_cache) - max_size]:
             _lab_totals_cache.pop(key, None)
+
 
 
 
@@ -2422,38 +2424,60 @@ def _register_callbacks_impl(app):
 
         elif mode == "lab":
             mid = active_machine_id
-            metrics = load_lab_totals_metrics(mid) if mid is not None else None
             capacity_count = accepts_count = reject_count = 0
-            if metrics:
-                tot_cap_lbs, acc_lbs, rej_lbs, _ = metrics
-                counter_totals, _, object_totals = load_lab_totals(mid)
 
-                reject_count = sum(counter_totals)
-                capacity_count = object_totals[-1] if object_totals else 0
-                accepts_count = max(0, capacity_count - reject_count)
+            if should_recalculate_lab_totals(mid):
+                metrics = load_lab_totals_metrics(mid) if mid is not None else None
+                if metrics:
+                    tot_cap_lbs, acc_lbs, rej_lbs, _ = metrics
+                    counter_totals, _, object_totals = load_lab_totals(mid)
 
-                total_capacity = convert_capacity_from_lbs(tot_cap_lbs, weight_pref)
-                accepts = convert_capacity_from_lbs(acc_lbs, weight_pref)
-                rejects = convert_capacity_from_lbs(rej_lbs, weight_pref)
+                    reject_count = sum(counter_totals)
+                    capacity_count = object_totals[-1] if object_totals else 0
+                    accepts_count = max(0, capacity_count - reject_count)
 
-                production_data = {
-                    "capacity": total_capacity,
-                    "accepts": accepts,
-                    "rejects": rejects,
-                }
+                    total_capacity = convert_capacity_from_lbs(tot_cap_lbs, weight_pref)
+                    accepts = convert_capacity_from_lbs(acc_lbs, weight_pref)
+                    rejects = convert_capacity_from_lbs(rej_lbs, weight_pref)
+
+                    production_data = {
+                        "capacity": total_capacity,
+                        "accepts": accepts,
+                        "rejects": rejects,
+                    }
+                else:
+                    total_capacity = 0
+                    accepts = 0
+                    rejects = 0
+                    production_data = {
+                        "capacity": 0,
+                        "accepts": 0,
+                        "rejects": 0,
+                    }
+
+                cache_lab_production_data(mid, production_data)
             else:
-                # No existing lab log yet. Use zeroed placeholders for
-                # all metrics so the dashboard doesn't display stale live
-                # production values when switching to lab mode.
-                total_capacity = 0
-                accepts = 0
-                rejects = 0
-                capacity_count = accepts_count = reject_count = 0
-                production_data = {
+                production_data = get_cached_lab_production_data(mid) or {
                     "capacity": 0,
                     "accepts": 0,
                     "rejects": 0,
                 }
+
+                total_capacity = production_data.get("capacity", 0)
+                accepts = production_data.get("accepts", 0)
+                rejects = production_data.get("rejects", 0)
+
+                machine_dir = os.path.join(hourly_data_saving.EXPORT_DIR, str(mid))
+                files = glob.glob(os.path.join(machine_dir, "Lab_Test_*.csv"))
+                if files:
+                    path = max(files, key=os.path.getmtime)
+                    key = (mid, os.path.abspath(path))
+                    cache = _lab_totals_cache.get(key)
+                    if cache:
+                        reject_count = sum(cache["counter_totals"])
+                        obj_tot = cache["object_totals"]
+                        capacity_count = obj_tot[-1] if obj_tot else 0
+                        accepts_count = max(0, capacity_count - reject_count)
 
         elif mode == "demo":
     
