@@ -75,9 +75,10 @@ def test_update_section_5_2_lab_reads_log(monkeypatch, tmp_path):
 
     res = func.__wrapped__(0, "main", {}, {}, "en", {"connected": False}, {"mode": "lab"}, {"machine_id": 1})
 
-    assert callbacks.previous_counter_values[0] == 3
+    expected = generate_report.LAB_OBJECT_SCALE_FACTOR * 2 / 60
+    assert callbacks.previous_counter_values[0] == pytest.approx(expected)
     bar = res.children[1]
-    assert bar.figure.data[0].y[0] == 3
+    assert bar.figure.data[0].y[0] == pytest.approx(expected)
 
 
 def test_update_section_5_1_lab_reads_log(monkeypatch, tmp_path):
