@@ -70,9 +70,20 @@ current_lab_filename = None
 # executes ``register_callbacks`` during import.
 _REGISTERING = False
 
+# Cache of lab log totals keyed by ``(machine_id, file_path)``. Each entry
+# stores cumulative counter totals, timestamps, object totals and bookkeeping
+# information so that subsequent calls only process new rows appended to the
+# log file.
+_lab_totals_cache = {}
+
 
 def load_lab_totals(machine_id, filename=None):
-    """Return cumulative counter totals and object totals from a lab log."""
+    """Return cumulative counter totals and object totals from a lab log.
+
+    The results are cached per file so subsequent calls only process rows that
+    were appended since the last invocation. This significantly reduces I/O when
+    lab logs grow large.
+    """
     machine_dir = os.path.join(hourly_data_saving.EXPORT_DIR, str(machine_id))
     if filename:
         path = os.path.join(machine_dir, filename)
@@ -82,19 +93,42 @@ def load_lab_totals(machine_id, filename=None):
             return [0] * 12, [], []
         path = max(files, key=os.path.getmtime)
 
-    counter_totals = [0] * 12
-    timestamps = []
-    object_totals = []
-    obj_sum = 0.0
-    prev_ts = None
-    prev_rate = None
-
     if not os.path.exists(path):
-        return counter_totals, timestamps, object_totals
+        return [0] * 12, [], []
+
+    key = (machine_id, os.path.abspath(path))
+    stat = os.stat(path)
+    mtime = stat.st_mtime
+    size = stat.st_size
+
+    cache = _lab_totals_cache.get(key)
+    if (
+        cache is None
+        or cache.get("mtime") != mtime
+        or size < cache.get("size", 0)
+    ):
+        counter_totals = [0] * 12
+        timestamps = []
+        object_totals = []
+        obj_sum = 0.0
+        prev_ts = None
+        prev_rate = None
+        last_index = -1
+    else:
+        counter_totals = cache["counter_totals"]
+        timestamps = cache["timestamps"]
+        object_totals = cache["object_totals"]
+        obj_sum = object_totals[-1] if object_totals else 0.0
+        prev_ts = cache.get("prev_ts")
+        prev_rate = cache.get("prev_rate")
+        last_index = cache.get("last_index", -1)
 
     with open(path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
-        for row in reader:
+        for idx, row in enumerate(reader):
+            if idx <= last_index:
+                continue
+
             ts = row.get("timestamp")
             ts_val = None
             if ts:
@@ -123,16 +157,28 @@ def load_lab_totals(machine_id, filename=None):
                 and isinstance(ts_val, datetime)
                 and prev_rate is not None
             ):
-                delta_minutes = (ts_val - prev_ts).total_seconds() / 60.0
-                obj_sum += (
-                    prev_rate
-                    * delta_minutes
-                    * generate_report.LAB_OBJECT_SCALE_FACTOR
+                stats = generate_report.calculate_total_objects_from_csv_rates(
+                    [prev_rate, prev_rate],
+                    timestamps=[prev_ts, ts_val],
+                    is_lab_mode=True,
                 )
+                obj_sum += stats.get("total_objects", 0)
 
             object_totals.append(obj_sum)
             prev_ts = ts_val
             prev_rate = rate_val
+            last_index = idx
+
+    _lab_totals_cache[key] = {
+        "counter_totals": counter_totals,
+        "timestamps": timestamps,
+        "object_totals": object_totals,
+        "last_index": last_index,
+        "prev_ts": prev_ts,
+        "prev_rate": prev_rate,
+        "mtime": mtime,
+        "size": size,
+    }
 
     return counter_totals, timestamps, object_totals
 
