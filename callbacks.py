@@ -73,46 +73,8 @@ _REGISTERING = False
 # Cache of lab log totals keyed by ``(machine_id, file_path)``. Each entry
 # stores cumulative counter totals, timestamps, object totals and bookkeeping
 # information so that subsequent calls only process new rows appended to the
-# log file.  In addition to the overall objects-per-minute rate, the previous
-# per-counter rates are tracked so object totals can be integrated correctly.
+# log file.
 _lab_totals_cache = {}
-
-
-# Maximum number of cached lab log entries to retain
-_LAB_TOTALS_CACHE_LIMIT = 32
-
-# Maximum age in seconds before a cache entry is pruned
-_LAB_TOTALS_CACHE_MAX_AGE = 15 * 60  # 15 minutes
-
-
-def prune_lab_totals_cache(
-    max_age: float = _LAB_TOTALS_CACHE_MAX_AGE,
-    max_size: int = _LAB_TOTALS_CACHE_LIMIT,
-) -> None:
-    """Remove stale entries from ``_lab_totals_cache``.
-
-    Entries older than ``max_age`` seconds or beyond ``max_size`` most recently
-    accessed items are removed.
-    """
-    now = time.time()
-    # Remove items exceeding the age limit
-    keys_to_delete = [
-        key
-        for key, data in list(_lab_totals_cache.items())
-        if now - data.get("last_access", now) > max_age
-    ]
-    for key in keys_to_delete:
-        _lab_totals_cache.pop(key, None)
-
-    if len(_lab_totals_cache) > max_size:
-        # Sort by last access time (oldest first)
-        sorted_keys = sorted(
-            _lab_totals_cache, key=lambda k: _lab_totals_cache[k].get("last_access", 0)
-        )
-        for key in sorted_keys[: len(_lab_totals_cache) - max_size]:
-            _lab_totals_cache.pop(key, None)
-
-
 
 
 def load_lab_totals(machine_id, filename=None):
@@ -122,7 +84,6 @@ def load_lab_totals(machine_id, filename=None):
     were appended since the last invocation. This significantly reduces I/O when
     lab logs grow large.
     """
-    prune_lab_totals_cache()
     machine_dir = os.path.join(hourly_data_saving.EXPORT_DIR, str(machine_id))
     if filename:
         path = os.path.join(machine_dir, filename)
@@ -131,7 +92,6 @@ def load_lab_totals(machine_id, filename=None):
         if not files:
             return [0] * 12, [], []
         path = max(files, key=os.path.getmtime)
-
 
     if not os.path.exists(path):
         return [0] * 12, [], []
@@ -154,7 +114,6 @@ def load_lab_totals(machine_id, filename=None):
         obj_sum = 0.0
         prev_ts = None
         prev_rate = None
-        prev_counter_rates = [None] * 12
         last_index = -1
     else:
         counter_totals = cache["counter_totals"]
@@ -163,10 +122,7 @@ def load_lab_totals(machine_id, filename=None):
         obj_sum = object_totals[-1] if object_totals else 0.0
         prev_ts = cache.get("prev_ts")
         prev_rate = cache.get("prev_rate")
-        prev_counter_rates = cache.get("prev_counter_rates", [None] * 12)
         last_index = cache.get("last_index", -1)
-        cache["last_access"] = time.time()
-
 
     with open(path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
@@ -183,30 +139,12 @@ def load_lab_totals(machine_id, filename=None):
                     ts_val = ts
             timestamps.append(ts_val)
 
-
-            counter_rates = []
             for i in range(1, 13):
                 val = row.get(f"counter_{i}")
                 try:
-                    rate = float(val) if val else None
+                    counter_totals[i - 1] += float(val) if val else 0.0
                 except ValueError:
-                    rate = None
-
-                if (
-                    prev_ts is not None
-                    and isinstance(prev_ts, datetime)
-                    and isinstance(ts_val, datetime)
-                    and prev_counter_rates[i - 1] is not None
-                ):
-                    c_stats = generate_report.calculate_total_objects_from_csv_rates(
-                        [prev_counter_rates[i - 1], prev_counter_rates[i - 1]],
-                        timestamps=[prev_ts, ts_val],
-                        is_lab_mode=True,
-                    )
-                    counter_totals[i - 1] += c_stats.get("total_objects", 0)
-
-                counter_rates.append(rate)
-
+                    pass
 
             opm = row.get("objects_per_min")
             try:
@@ -230,7 +168,6 @@ def load_lab_totals(machine_id, filename=None):
             object_totals.append(obj_sum)
             prev_ts = ts_val
             prev_rate = rate_val
-            prev_counter_rates = counter_rates
             last_index = idx
 
     _lab_totals_cache[key] = {
@@ -240,22 +177,9 @@ def load_lab_totals(machine_id, filename=None):
         "last_index": last_index,
         "prev_ts": prev_ts,
         "prev_rate": prev_rate,
-        "prev_counter_rates": prev_counter_rates,
         "mtime": mtime,
         "size": size,
-        "last_access": time.time(),
     }
-
-    # After collecting all data, convert counter rate series into totals using
-    # the helper from ``generate_report`` which handles lab mode timestamps.
-    counter_totals = []
-    for series in counter_series:
-        stats = generate_report.calculate_total_objects_from_csv_rates(
-            series,
-            timestamps=timestamps,
-            is_lab_mode=True,
-        )
-        counter_totals.append(stats.get("total_objects", 0))
 
     return counter_totals, timestamps, object_totals
 
@@ -2439,60 +2363,38 @@ def _register_callbacks_impl(app):
 
         elif mode == "lab":
             mid = active_machine_id
+            metrics = load_lab_totals_metrics(mid) if mid is not None else None
             capacity_count = accepts_count = reject_count = 0
+            if metrics:
+                tot_cap_lbs, acc_lbs, rej_lbs, _ = metrics
+                counter_totals, _, object_totals = load_lab_totals(mid)
 
-            if should_recalculate_lab_totals(mid):
-                metrics = load_lab_totals_metrics(mid) if mid is not None else None
-                if metrics:
-                    tot_cap_lbs, acc_lbs, rej_lbs, _ = metrics
-                    counter_totals, _, object_totals = load_lab_totals(mid)
+                reject_count = sum(counter_totals)
+                capacity_count = object_totals[-1] if object_totals else 0
+                accepts_count = max(0, capacity_count - reject_count)
 
-                    reject_count = sum(counter_totals)
-                    capacity_count = object_totals[-1] if object_totals else 0
-                    accepts_count = max(0, capacity_count - reject_count)
+                total_capacity = convert_capacity_from_lbs(tot_cap_lbs, weight_pref)
+                accepts = convert_capacity_from_lbs(acc_lbs, weight_pref)
+                rejects = convert_capacity_from_lbs(rej_lbs, weight_pref)
 
-                    total_capacity = convert_capacity_from_lbs(tot_cap_lbs, weight_pref)
-                    accepts = convert_capacity_from_lbs(acc_lbs, weight_pref)
-                    rejects = convert_capacity_from_lbs(rej_lbs, weight_pref)
-
-                    production_data = {
-                        "capacity": total_capacity,
-                        "accepts": accepts,
-                        "rejects": rejects,
-                    }
-                else:
-                    total_capacity = 0
-                    accepts = 0
-                    rejects = 0
-                    production_data = {
-                        "capacity": 0,
-                        "accepts": 0,
-                        "rejects": 0,
-                    }
-
-                cache_lab_production_data(mid, production_data)
+                production_data = {
+                    "capacity": total_capacity,
+                    "accepts": accepts,
+                    "rejects": rejects,
+                }
             else:
-                production_data = get_cached_lab_production_data(mid) or {
+                # No existing lab log yet. Use zeroed placeholders for
+                # all metrics so the dashboard doesn't display stale live
+                # production values when switching to lab mode.
+                total_capacity = 0
+                accepts = 0
+                rejects = 0
+                capacity_count = accepts_count = reject_count = 0
+                production_data = {
                     "capacity": 0,
                     "accepts": 0,
                     "rejects": 0,
                 }
-
-                total_capacity = production_data.get("capacity", 0)
-                accepts = production_data.get("accepts", 0)
-                rejects = production_data.get("rejects", 0)
-
-                machine_dir = os.path.join(hourly_data_saving.EXPORT_DIR, str(mid))
-                files = glob.glob(os.path.join(machine_dir, "Lab_Test_*.csv"))
-                if files:
-                    path = max(files, key=os.path.getmtime)
-                    key = (mid, os.path.abspath(path))
-                    cache = _lab_totals_cache.get(key)
-                    if cache:
-                        reject_count = sum(cache["counter_totals"])
-                        obj_tot = cache["object_totals"]
-                        capacity_count = obj_tot[-1] if obj_tot else 0
-                        accepts_count = max(0, capacity_count - reject_count)
 
         elif mode == "demo":
     
