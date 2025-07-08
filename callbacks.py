@@ -82,7 +82,9 @@ def load_lab_totals(machine_id, filename=None):
             return [0] * 12, [], []
         path = max(files, key=os.path.getmtime)
 
-    counter_totals = [0] * 12
+    # Store raw series for each counter so we can calculate totals using the
+    # same time-weighted logic as the PDF report helpers.
+    counter_series = [[] for _ in range(12)]
     timestamps = []
     object_totals = []
     obj_sum = 0.0
@@ -90,7 +92,7 @@ def load_lab_totals(machine_id, filename=None):
     prev_rate = None
 
     if not os.path.exists(path):
-        return counter_totals, timestamps, object_totals
+        return [0] * 12, timestamps, object_totals
 
     with open(path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
@@ -104,12 +106,10 @@ def load_lab_totals(machine_id, filename=None):
                     ts_val = ts
             timestamps.append(ts_val)
 
+            # Capture raw counter values for later processing
             for i in range(1, 13):
                 val = row.get(f"counter_{i}")
-                try:
-                    counter_totals[i - 1] += float(val) if val else 0.0
-                except ValueError:
-                    pass
+                counter_series[i - 1].append(val)
 
             opm = row.get("objects_per_min")
             try:
@@ -133,6 +133,17 @@ def load_lab_totals(machine_id, filename=None):
             object_totals.append(obj_sum)
             prev_ts = ts_val
             prev_rate = rate_val
+
+    # After collecting all data, convert counter rate series into totals using
+    # the helper from ``generate_report`` which handles lab mode timestamps.
+    counter_totals = []
+    for series in counter_series:
+        stats = generate_report.calculate_total_objects_from_csv_rates(
+            series,
+            timestamps=timestamps,
+            is_lab_mode=True,
+        )
+        counter_totals.append(stats.get("total_objects", 0))
 
     return counter_totals, timestamps, object_totals
 
