@@ -180,3 +180,38 @@ def test_update_section_1_1_lab_no_log_connected(monkeypatch, tmp_path):
     assert cap_text == f"0 pcs / 0 {unit_label}"
     assert acc_text == f"0 pcs / 0.00 {unit_label_plain} "
     assert rej_text == f"0 pcs / 0.00 {unit_label_plain} "
+
+
+def test_update_section_1_1_lab_cache_skips_calculation(monkeypatch, tmp_path):
+    app = setup_app(monkeypatch, tmp_path)
+    create_log(tmp_path)
+    callbacks.active_machine_id = 1
+    key = next(k for k in app.callback_map if k.startswith("..section-1-1.children"))
+    func = app.callback_map[key]["callback"]
+
+    calls = {"metrics": 0, "totals": 0}
+
+    orig_metrics = callbacks.load_lab_totals_metrics
+    orig_totals = callbacks.load_lab_totals
+
+    def wrapped_metrics(mid):
+        calls["metrics"] += 1
+        return orig_metrics(mid)
+
+    def wrapped_totals(mid):
+        calls["totals"] += 1
+        return orig_totals(mid)
+
+    monkeypatch.setattr(callbacks, "load_lab_totals_metrics", wrapped_metrics)
+    monkeypatch.setattr(callbacks, "load_lab_totals", wrapped_totals)
+
+    callbacks._lab_production_cache.clear()
+    callbacks._lab_totals_cache.clear()
+
+    func.__wrapped__(0, "main", {}, {}, "en", {"connected": False}, {"mode": "lab"}, {}, {"unit": "lb"})
+    assert calls["metrics"] == 1
+    assert calls["totals"] == 1
+
+    func.__wrapped__(1, "main", {}, {}, "en", {"connected": False}, {"mode": "lab"}, {}, {"unit": "lb"})
+    assert calls["metrics"] == 1
+    assert calls["totals"] == 1

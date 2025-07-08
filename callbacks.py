@@ -77,6 +77,52 @@ _REGISTERING = False
 # per-counter rates are tracked so object totals can be integrated correctly.
 _lab_totals_cache = {}
 
+# Cache final production data calculations for lab mode
+_lab_production_cache = {}
+
+
+def get_cached_lab_production_data(machine_id):
+    """Return cached production data if available and recent"""
+    cache_key = f"production_{machine_id}"
+    cache_entry = _lab_production_cache.get(cache_key)
+
+    if cache_entry and time.time() - cache_entry["timestamp"] < 5:
+        return cache_entry["data"]
+
+    return None
+
+
+def cache_lab_production_data(machine_id, production_data):
+    """Cache production data with timestamp"""
+    _lab_production_cache[f"production_{machine_id}"] = {
+        "data": production_data,
+        "timestamp": time.time(),
+    }
+
+
+def should_recalculate_lab_totals(machine_id):
+    """Return True if the lab log was modified since the last calculation."""
+    machine_dir = os.path.join(hourly_data_saving.EXPORT_DIR, str(machine_id))
+    files = glob.glob(os.path.join(machine_dir, "Lab_Test_*.csv"))
+    if not files:
+        return False
+
+    path = max(files, key=os.path.getmtime)
+    key = (machine_id, os.path.abspath(path))
+    try:
+        stat = os.stat(path)
+    except OSError:
+        return False
+
+    cache = _lab_totals_cache.get(key)
+    if cache is None:
+        return True
+
+    if stat.st_mtime != cache.get("mtime") or stat.st_size != cache.get("size"):
+        return True
+
+    return False
+
 
 def load_lab_totals(machine_id, filename=None):
     """Return cumulative counter totals and object totals from a lab log.
@@ -2384,38 +2430,60 @@ def _register_callbacks_impl(app):
 
         elif mode == "lab":
             mid = active_machine_id
-            metrics = load_lab_totals_metrics(mid) if mid is not None else None
             capacity_count = accepts_count = reject_count = 0
-            if metrics:
-                tot_cap_lbs, acc_lbs, rej_lbs, _ = metrics
-                counter_totals, _, object_totals = load_lab_totals(mid)
 
-                reject_count = sum(counter_totals)
-                capacity_count = object_totals[-1] if object_totals else 0
-                accepts_count = max(0, capacity_count - reject_count)
+            if should_recalculate_lab_totals(mid):
+                metrics = load_lab_totals_metrics(mid) if mid is not None else None
+                if metrics:
+                    tot_cap_lbs, acc_lbs, rej_lbs, _ = metrics
+                    counter_totals, _, object_totals = load_lab_totals(mid)
 
-                total_capacity = convert_capacity_from_lbs(tot_cap_lbs, weight_pref)
-                accepts = convert_capacity_from_lbs(acc_lbs, weight_pref)
-                rejects = convert_capacity_from_lbs(rej_lbs, weight_pref)
+                    reject_count = sum(counter_totals)
+                    capacity_count = object_totals[-1] if object_totals else 0
+                    accepts_count = max(0, capacity_count - reject_count)
 
-                production_data = {
-                    "capacity": total_capacity,
-                    "accepts": accepts,
-                    "rejects": rejects,
-                }
+                    total_capacity = convert_capacity_from_lbs(tot_cap_lbs, weight_pref)
+                    accepts = convert_capacity_from_lbs(acc_lbs, weight_pref)
+                    rejects = convert_capacity_from_lbs(rej_lbs, weight_pref)
+
+                    production_data = {
+                        "capacity": total_capacity,
+                        "accepts": accepts,
+                        "rejects": rejects,
+                    }
+                else:
+                    total_capacity = 0
+                    accepts = 0
+                    rejects = 0
+                    production_data = {
+                        "capacity": 0,
+                        "accepts": 0,
+                        "rejects": 0,
+                    }
+
+                cache_lab_production_data(mid, production_data)
             else:
-                # No existing lab log yet. Use zeroed placeholders for
-                # all metrics so the dashboard doesn't display stale live
-                # production values when switching to lab mode.
-                total_capacity = 0
-                accepts = 0
-                rejects = 0
-                capacity_count = accepts_count = reject_count = 0
-                production_data = {
+                production_data = get_cached_lab_production_data(mid) or {
                     "capacity": 0,
                     "accepts": 0,
                     "rejects": 0,
                 }
+
+                total_capacity = production_data.get("capacity", 0)
+                accepts = production_data.get("accepts", 0)
+                rejects = production_data.get("rejects", 0)
+
+                machine_dir = os.path.join(hourly_data_saving.EXPORT_DIR, str(mid))
+                files = glob.glob(os.path.join(machine_dir, "Lab_Test_*.csv"))
+                if files:
+                    path = max(files, key=os.path.getmtime)
+                    key = (mid, os.path.abspath(path))
+                    cache = _lab_totals_cache.get(key)
+                    if cache:
+                        reject_count = sum(cache["counter_totals"])
+                        obj_tot = cache["object_totals"]
+                        capacity_count = obj_tot[-1] if obj_tot else 0
+                        accepts_count = max(0, capacity_count - reject_count)
 
         elif mode == "demo":
     
