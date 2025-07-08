@@ -2246,6 +2246,7 @@ def _register_callbacks_impl(app):
         )
 
         total_capacity_formatted = None
+        capacity_count = accepts_count = reject_count = None
         
     
         # Tag definitions - Easy to update when actual tag names are available
@@ -2330,17 +2331,19 @@ def _register_callbacks_impl(app):
 
         elif mode == "lab":
             mid = active_machine_id
-            metrics = (
-                load_lab_average_capacity_and_accepts(mid) if mid is not None else None
-            )
+            metrics = load_lab_totals_metrics(mid) if mid is not None else None
+            capacity_count = accepts_count = reject_count = 0
             if metrics:
-                cap_avg_lbs, acc_total_lbs, elapsed = metrics
-                counter_totals, _, _ = load_lab_totals(mid)
-                reject_count = sum(counter_totals)
+                tot_cap_lbs, acc_lbs, rej_lbs, _ = metrics
+                counter_totals, _, object_totals = load_lab_totals(mid)
 
-                total_capacity = convert_capacity_from_lbs(cap_avg_lbs, weight_pref)
-                accepts = convert_capacity_from_lbs(acc_total_lbs, weight_pref)
-                rejects = convert_capacity_from_kg(reject_count * 46, weight_pref)
+                reject_count = sum(counter_totals)
+                capacity_count = object_totals[-1] if object_totals else 0
+                accepts_count = max(0, capacity_count - reject_count)
+
+                total_capacity = convert_capacity_from_lbs(tot_cap_lbs, weight_pref)
+                accepts = convert_capacity_from_lbs(acc_lbs, weight_pref)
+                rejects = convert_capacity_from_lbs(rej_lbs, weight_pref)
 
                 production_data = {
                     "capacity": total_capacity,
@@ -2351,6 +2354,7 @@ def _register_callbacks_impl(app):
                 total_capacity = production_data.get("capacity", 50000)
                 accepts = production_data.get("accepts", 47500)
                 rejects = production_data.get("rejects", 2500)
+                capacity_count = accepts_count = reject_count = 0
 
         elif mode == "demo":
     
@@ -2389,6 +2393,32 @@ def _register_callbacks_impl(app):
         rejects_formatted = f"{rejects:,.0f}"
         accepts_percent_formatted = f"{accepts_percent:.1f}"
         rejects_percent_formatted = f"{rejects_percent:.1f}"
+
+        capacity_count_fmt = (
+            f"{capacity_count:,.0f}" if capacity_count is not None else None
+        )
+        accepts_count_fmt = (
+            f"{accepts_count:,.0f}" if accepts_count is not None else None
+        )
+        reject_count_fmt = (
+            f"{reject_count:,.0f}" if reject_count is not None else None
+        )
+
+        cap_display = (
+            f"{capacity_count_fmt} pcs / {total_capacity_formatted} {capacity_unit_label(weight_pref)}"
+            if capacity_count_fmt is not None
+            else f"{total_capacity_formatted} {capacity_unit_label(weight_pref)}"
+        )
+        acc_display = (
+            f"{accepts_count_fmt} pcs / {accepts_formatted} {capacity_unit_label(weight_pref, False)} "
+            if accepts_count_fmt is not None
+            else f"{accepts_formatted} {capacity_unit_label(weight_pref, False)} "
+        )
+        rej_display = (
+            f"{reject_count_fmt} pcs / {rejects_formatted} {capacity_unit_label(weight_pref, False)} "
+            if reject_count_fmt is not None
+            else f"{rejects_formatted} {capacity_unit_label(weight_pref, False)} "
+        )
         
         # Define styles for text
     
@@ -2421,7 +2451,7 @@ def _register_callbacks_impl(app):
                 html.Span(tr("capacity", lang) + ": ", style=label_style),
                 html.Br(),
                 html.Span(
-                    f"{total_capacity_formatted} {capacity_unit_label(weight_pref)}",
+                    cap_display,
                     style={**incoming_style, "marginLeft": "20px"},
                 ),
             ], className="mb-2", style=base_style),
@@ -2430,7 +2460,7 @@ def _register_callbacks_impl(app):
                 html.Span(tr("accepts", lang) + ": ", style=label_style),
                 html.Br(),
                 html.Span(
-                    f"{accepts_formatted} {capacity_unit_label(weight_pref, False)} ",
+                    acc_display,
                     style={**accepts_style,"marginLeft":"20px"},
                 ),
                 html.Span(f"({accepts_percent_formatted}%)", style=accepts_style),
@@ -2440,7 +2470,7 @@ def _register_callbacks_impl(app):
                 html.Span(tr("rejects", lang) + ": ", style=label_style),
                 html.Br(),
                 html.Span(
-                    f"{rejects_formatted} {capacity_unit_label(weight_pref, False)} ",
+                    rej_display,
                     style={**rejects_style,"marginLeft":"20px"},
                 ),
                 html.Span(f"({rejects_percent_formatted}%)", style=rejects_style),
