@@ -16,6 +16,7 @@ import shutil
 import tempfile
 import time
 import csv
+import pandas as pd
 import hourly_data_saving
 import autoconnect
 import image_manager as img_utils
@@ -88,6 +89,7 @@ def load_lab_totals(machine_id, filename=None):
     obj_sum = 0.0
     prev_ts = None
     prev_rate = None
+    counter_series = [[] for _ in range(12)]
 
     if not os.path.exists(path):
         return counter_totals, timestamps, object_totals
@@ -107,9 +109,9 @@ def load_lab_totals(machine_id, filename=None):
             for i in range(1, 13):
                 val = row.get(f"counter_{i}")
                 try:
-                    counter_totals[i - 1] += float(val) if val else 0.0
+                    counter_series[i - 1].append(float(val) if val else None)
                 except ValueError:
-                    pass
+                    counter_series[i - 1].append(None)
 
             opm = row.get("objects_per_min")
             try:
@@ -133,6 +135,15 @@ def load_lab_totals(machine_id, filename=None):
             object_totals.append(obj_sum)
             prev_ts = ts_val
             prev_rate = rate_val
+
+    for i in range(12):
+        series = pd.Series(counter_series[i])
+        stats = generate_report.calculate_total_objects_from_csv_rates(
+            series,
+            timestamps=timestamps,
+            is_lab_mode=True,
+        )
+        counter_totals[i] = stats.get("total_objects", 0)
 
     return counter_totals, timestamps, object_totals
 
