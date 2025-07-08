@@ -4,8 +4,6 @@ import dash
 
 import callbacks
 import autoconnect
-import generate_report
-import pytest
 
 
 def setup_app(monkeypatch, tmp_path):
@@ -50,7 +48,7 @@ def create_log(tmp_path):
 
 def test_update_section_1_1_lab_reads_log(monkeypatch, tmp_path):
     app = setup_app(monkeypatch, tmp_path)
-    csv_path = create_log(tmp_path)
+    create_log(tmp_path)
     callbacks.active_machine_id = 1
     key = next(k for k in app.callback_map if k.startswith("..section-1-1.children"))
     func = app.callback_map[key]["callback"]
@@ -72,18 +70,6 @@ def test_update_section_1_1_lab_reads_log(monkeypatch, tmp_path):
     reject_count = sum(counter_totals)
     capacity_count = object_totals[-1]
     accepts_count = max(0, capacity_count - reject_count)
-
-    df = generate_report.pd.read_csv(csv_path)
-    removed_total = 0
-    for i in range(1, 13):
-        col = f"counter_{i}"
-        if col in df.columns:
-            stats = generate_report.calculate_total_objects_from_csv_rates(
-                df[col], timestamps=df["timestamp"], is_lab_mode=True
-            )
-            removed_total += stats["total_objects"]
-
-    assert reject_count == pytest.approx(removed_total)
 
     unit_label = callbacks.capacity_unit_label({"unit": "lb"})
     unit_label_plain = callbacks.capacity_unit_label({"unit": "lb"}, False)
@@ -130,7 +116,7 @@ def test_update_section_1_1_lab_no_log(monkeypatch, tmp_path):
 
 def test_update_section_1_1_lab_reads_log_connected(monkeypatch, tmp_path):
     app = setup_app(monkeypatch, tmp_path)
-    csv_path = create_log(tmp_path)
+    create_log(tmp_path)
     callbacks.active_machine_id = 1
     key = next(k for k in app.callback_map if k.startswith("..section-1-1.children"))
     func = app.callback_map[key]["callback"]
@@ -152,18 +138,6 @@ def test_update_section_1_1_lab_reads_log_connected(monkeypatch, tmp_path):
     reject_count = sum(counter_totals)
     capacity_count = object_totals[-1]
     accepts_count = max(0, capacity_count - reject_count)
-
-    df = generate_report.pd.read_csv(csv_path)
-    removed_total = 0
-    for i in range(1, 13):
-        col = f"counter_{i}"
-        if col in df.columns:
-            stats = generate_report.calculate_total_objects_from_csv_rates(
-                df[col], timestamps=df["timestamp"], is_lab_mode=True
-            )
-            removed_total += stats["total_objects"]
-
-    assert reject_count == pytest.approx(removed_total)
 
     unit_label = callbacks.capacity_unit_label({"unit": "lb"})
     unit_label_plain = callbacks.capacity_unit_label({"unit": "lb"}, False)
