@@ -20,7 +20,6 @@ import hourly_data_saving
 import autoconnect
 import image_manager as img_utils
 import generate_report
-import df_processor
 try:
     import resource
 except ImportError:  # pragma: no cover - resource not available on Windows
@@ -77,11 +76,6 @@ _REGISTERING = False
 # log file.
 _lab_totals_cache = {}
 
-# Cache of production metrics used in lab mode calculations
-_lab_production_cache = {}
-
-# Cache of cumulative counter totals from the live metrics CSV
-_live_totals_cache = {}
 
 
 def load_lab_totals(machine_id, filename=None):
@@ -121,7 +115,6 @@ def load_lab_totals(machine_id, filename=None):
         obj_sum = 0.0
         prev_ts = None
         prev_rate = None
-        prev_counter_rates = [None] * 12
         last_index = -1
     else:
         counter_totals = cache["counter_totals"]
@@ -130,7 +123,6 @@ def load_lab_totals(machine_id, filename=None):
         obj_sum = object_totals[-1] if object_totals else 0.0
         prev_ts = cache.get("prev_ts")
         prev_rate = cache.get("prev_rate")
-        prev_counter_rates = cache.get("prev_counter_rates", [None] * 12)
         last_index = cache.get("last_index", -1)
 
     with open(path, newline="", encoding="utf-8") as f:
@@ -148,28 +140,12 @@ def load_lab_totals(machine_id, filename=None):
                     ts_val = ts
             timestamps.append(ts_val)
 
-            counter_rates = []
             for i in range(1, 13):
                 val = row.get(f"counter_{i}")
                 try:
-                    rate = float(val) if val else None
+                    counter_totals[i - 1] += float(val) if val else 0.0
                 except ValueError:
-                    rate = None
-
-                if (
-                    prev_ts is not None
-                    and isinstance(prev_ts, datetime)
-                    and isinstance(ts_val, datetime)
-                    and prev_counter_rates[i - 1] is not None
-                ):
-                    c_stats = generate_report.calculate_total_objects_from_csv_rates(
-                        [prev_counter_rates[i - 1], prev_counter_rates[i - 1]],
-                        timestamps=[prev_ts, ts_val],
-                        is_lab_mode=True,
-                    )
-                    counter_totals[i - 1] += c_stats.get("total_objects", 0)
-
-                counter_rates.append(rate)
+                    pass
 
             opm = row.get("objects_per_min")
             try:
@@ -193,7 +169,6 @@ def load_lab_totals(machine_id, filename=None):
             object_totals.append(obj_sum)
             prev_ts = ts_val
             prev_rate = rate_val
-            prev_counter_rates = counter_rates
             last_index = idx
 
     _lab_totals_cache[key] = {
@@ -203,7 +178,6 @@ def load_lab_totals(machine_id, filename=None):
         "last_index": last_index,
         "prev_ts": prev_ts,
         "prev_rate": prev_rate,
-        "prev_counter_rates": prev_counter_rates,
         "mtime": mtime,
         "size": size,
     }
@@ -349,59 +323,6 @@ def load_lab_totals_metrics(machine_id):
             elapsed_seconds = 0
 
     return total_capacity, accepts_total, rejects_total, elapsed_seconds
-
-
-def load_live_counter_totals(machine_id):
-    """Return total objects removed for each counter from live metrics CSV."""
-    file_path = os.path.join(
-        hourly_data_saving.EXPORT_DIR,
-        str(machine_id),
-        hourly_data_saving.METRICS_FILENAME,
-    )
-
-    if not os.path.exists(file_path):
-        return [0] * 12
-
-    key = (machine_id, os.path.abspath(file_path))
-    stat = os.stat(file_path)
-    mtime = stat.st_mtime
-    size = stat.st_size
-
-    cache = _live_totals_cache.get(key)
-    if cache is not None:
-        if size < cache.get("size", 0) or mtime < cache.get("mtime", 0):
-            cache = None
-
-    if cache is None:
-        totals = [0.0] * 12
-        last_index = -1
-    else:
-        totals = cache["totals"]
-        last_index = cache["last_index"]
-
-    with open(file_path, newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for idx, row in enumerate(reader):
-            if idx <= last_index:
-                continue
-            for i in range(1, 13):
-                val = row.get(f"counter_{i}")
-                try:
-                    rate = float(val) if val else 0.0
-                except ValueError:
-                    rate = 0.0
-                totals[i - 1] += rate
-            last_index = idx
-
-    _live_totals_cache[key] = {
-        "totals": totals,
-        "last_index": last_index,
-        "mtime": mtime,
-        "size": size,
-    }
-
-    return totals
-
 
 def register_callbacks(app):
     """Public entry point that guards against re-entrant registration."""
@@ -2442,32 +2363,11 @@ def _register_callbacks_impl(app):
 
         elif mode == "lab":
             mid = active_machine_id
+            metrics = load_lab_totals_metrics(mid) if mid is not None else None
             capacity_count = accepts_count = reject_count = 0
-
-            machine_dir = os.path.join(hourly_data_saving.EXPORT_DIR, str(mid))
-            files = glob.glob(os.path.join(machine_dir, "Lab_Test_*.csv"))
-            metrics = None
-            counter_totals = None
-            object_totals = None
-            if files:
-                path = max(files, key=os.path.getmtime)
-                stat = os.stat(path)
-                cache = _lab_production_cache.get(mid)
-                if cache and cache.get("mtime") == stat.st_mtime and cache.get("size") == stat.st_size:
-                    metrics = cache["metrics"]
-                    counter_totals, _, object_totals = cache["totals"]
-                else:
-                    metrics = load_lab_totals_metrics(mid)
-                    counter_totals, _, object_totals = load_lab_totals(mid)
-                    _lab_production_cache[mid] = {
-                        "metrics": metrics,
-                        "totals": (counter_totals, [], object_totals),
-                        "mtime": stat.st_mtime,
-                        "size": stat.st_size,
-                    }
-
             if metrics:
                 tot_cap_lbs, acc_lbs, rej_lbs, _ = metrics
+                counter_totals, _, object_totals = load_lab_totals(mid)
 
                 reject_count = sum(counter_totals)
                 capacity_count = object_totals[-1] if object_totals else 0
@@ -4314,9 +4214,25 @@ def _register_callbacks_impl(app):
             previous_counter_values = new_counter_values.copy()
             logger.info(f"Section 5-2 values (lab mode): {new_counter_values}")
         elif mode in LIVE_LIKE_MODES and app_state_data.get("connected", False):
-            # Live mode: read cumulative counts from the metrics CSV
-            mid = active_machine_data.get("machine_id") if active_machine_data else None
-            new_counter_values = load_live_counter_totals(mid)
+            # Live mode: get values from OPC UA
+            # Use the tag pattern provided for each counter
+            new_counter_values = []
+            for i in range(1, 13):
+                # Construct the tag name using the provided pattern
+                tag_name = TAG_PATTERN.format(i)
+    
+                # Check if the tag exists
+                if tag_name in app_state.tags:
+                    value = app_state.tags[tag_name]["data"].latest_value
+                    if value is None:
+                        # If tag exists but value is None, keep previous value
+                        value = previous_counter_values[i-1]
+                    new_counter_values.append(value)
+                else:
+                    # Tag not found - keep previous value
+                    new_counter_values.append(previous_counter_values[i-1])
+    
+            # Store the new values for the next update
             previous_counter_values = new_counter_values.copy()
             logger.info(f"Section 5-2 values (live mode): {new_counter_values}")
         elif mode == "demo":
