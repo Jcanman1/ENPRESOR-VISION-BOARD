@@ -2248,7 +2248,7 @@ def _register_callbacks_impl(app):
         # Only update values if:
         # 1. We're in demo mode (always update with new random values)
         # 2. We're in live mode and connected (update from tags)
-        if mode in LIVE_LIKE_MODES and app_state_data.get("connected", False):
+        if mode == "live" and app_state_data.get("connected", False):
             # Live mode: get values from OPC UA tags
             total_capacity = 0
     

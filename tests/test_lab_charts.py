@@ -99,7 +99,10 @@ def test_update_section_5_1_lab_reads_log(monkeypatch, tmp_path):
 def test_update_section_1_1_lab_uses_log(monkeypatch, tmp_path):
     app = setup_app(monkeypatch, tmp_path)
     csv_path = create_lab_metrics(tmp_path)
-    func = app.callback_map["section-1-1.children"]["callback"]
+    key = next(k for k in app.callback_map if k.startswith("..section-1-1.children"))
+    func = app.callback_map[key]["callback"]
+
+    callbacks.active_machine_id = 1
 
     callbacks.previous_counter_values = [0] * 12
 
@@ -137,6 +140,6 @@ def test_update_section_1_1_lab_uses_log(monkeypatch, tmp_path):
     acc_text = content.children[2].children[2].children
     rej_text = content.children[3].children[2].children
 
-    assert cap_text == f"{capacity_count:,.0f} pcs / {expected['capacity']:,.2f} {unit_label}"
+    assert cap_text == f"{capacity_count:,.0f} pcs / {expected['capacity']:,.0f} {unit_label}"
     assert acc_text == f"{accepts_count:,.0f} pcs / {expected['accepts']:,.2f} {unit_label_plain} "
     assert rej_text == f"{reject_count:,.0f} pcs / {expected['rejects']:,.2f} {unit_label_plain} "

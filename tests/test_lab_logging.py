@@ -41,6 +41,11 @@ def test_lab_logging_uses_single_file(monkeypatch):
 
     monkeypatch.setattr(callbacks, "append_metrics", fake_append)
 
+    class DummyCtx:
+        def __init__(self, prop_id):
+            self.triggered = [{"prop_id": prop_id}]
+
+    monkeypatch.setattr(callbacks, "callback_context", DummyCtx("start-test-btn"))
     info = start_func.__wrapped__(1, None, "MyTest")
     assert "filename" in info
 
@@ -72,10 +77,16 @@ def test_lab_stop_retains_filename(monkeypatch):
         lambda metrics, machine_id=None, filename=None, mode=None: captured.append(filename),
     )
 
+    class DummyCtx:
+        def __init__(self, prop_id):
+            self.triggered = [{"prop_id": prop_id}]
+
+    monkeypatch.setattr(callbacks, "callback_context", DummyCtx("start-test-btn"))
     start_info = info_func.__wrapped__(1, None, "MyStopTest")
     assert "filename" in start_info
 
     # simulate pressing stop
+    monkeypatch.setattr(callbacks, "callback_context", DummyCtx("stop-test-btn"))
     stop_info = info_func.__wrapped__(None, 1, "")
     assert stop_info == {}
 
