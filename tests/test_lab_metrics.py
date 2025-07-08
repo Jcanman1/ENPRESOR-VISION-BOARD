@@ -53,21 +53,31 @@ def test_update_section_1_1_lab_reads_log(monkeypatch, tmp_path):
     key = next(k for k in app.callback_map if k.startswith("..section-1-1.children"))
     func = app.callback_map[key]["callback"]
 
-    _, prod = func.__wrapped__(0, "main", {}, {}, "en", {"connected": False}, {"mode": "lab"}, {}, {"unit": "lb"})
+    content, prod = func.__wrapped__(0, "main", {}, {}, "en", {"connected": False}, {"mode": "lab"}, {}, {"unit": "lb"})
 
-    with (tmp_path/"1"/"Lab_Test_sample.csv").open() as f:
-        rows = list(csv.DictReader(f))
+    metrics = callbacks.load_lab_totals_metrics(1)
+    total_lbs, acc_lbs, rej_lbs, _ = metrics
 
-    timestamps = [r["timestamp"] for r in rows]
-    cap_values = [float(r["capacity"]) for r in rows]
-    stats = callbacks.generate_report.calculate_total_capacity_from_csv_rates(
-        cap_values, timestamps=timestamps, is_lab_mode=True
-    )
-    cap_avg = stats["average_rate_lbs_per_hr"]
-    acc_total = sum(float(r["accepts"]) for r in rows)
-    counter_totals, _, _ = callbacks.load_lab_totals(1)
-    rej_weight = callbacks.convert_capacity_from_kg(sum(counter_totals) * 46, {"unit": "lb"})
+    expected_cap = callbacks.convert_capacity_from_lbs(total_lbs, {"unit": "lb"})
+    expected_acc = callbacks.convert_capacity_from_lbs(acc_lbs, {"unit": "lb"})
+    expected_rej = callbacks.convert_capacity_from_lbs(rej_lbs, {"unit": "lb"})
 
-    assert prod["capacity"] == cap_avg
-    assert prod["accepts"] == acc_total
-    assert prod["rejects"] == rej_weight
+    assert prod["capacity"] == expected_cap
+    assert prod["accepts"] == expected_acc
+    assert prod["rejects"] == expected_rej
+
+    counter_totals, _, object_totals = callbacks.load_lab_totals(1)
+    reject_count = sum(counter_totals)
+    capacity_count = object_totals[-1]
+    accepts_count = max(0, capacity_count - reject_count)
+
+    unit_label = callbacks.capacity_unit_label({"unit": "lb"})
+    unit_label_plain = callbacks.capacity_unit_label({"unit": "lb"}, False)
+
+    cap_text = content.children[1].children[2].children
+    acc_text = content.children[2].children[2].children
+    rej_text = content.children[3].children[2].children
+
+    assert cap_text == f"{capacity_count:,.0f} pcs / {expected_cap:,.0f} {unit_label}"
+    assert acc_text == f"{accepts_count:,.0f} pcs / {expected_acc:,.0f} {unit_label_plain} "
+    assert rej_text == f"{reject_count:,.0f} pcs / {expected_rej:,.0f} {unit_label_plain} "

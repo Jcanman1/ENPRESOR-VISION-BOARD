@@ -97,7 +97,7 @@ def test_update_section_1_1_lab_uses_log(monkeypatch, tmp_path):
 
     callbacks.previous_counter_values = [0] * 12
 
-    _, prod = func.__wrapped__(
+    content, prod = func.__wrapped__(
         0,
         "main",
         {},
@@ -109,22 +109,28 @@ def test_update_section_1_1_lab_uses_log(monkeypatch, tmp_path):
         {"unit": "lb"},
     )
 
-    with csv_path.open() as f:
-        rows = list(csv.DictReader(f))
-
-    timestamps = [r["timestamp"] for r in rows]
-    cap_values = [float(r["capacity"]) for r in rows]
-    stats = callbacks.generate_report.calculate_total_capacity_from_csv_rates(
-        cap_values, timestamps=timestamps, is_lab_mode=True
-    )
-    cap_avg = stats["average_rate_lbs_per_hr"]
-    acc_total = sum(float(r["accepts"]) for r in rows)
-    counter_totals, _, _ = callbacks.load_lab_totals(1)
-    rej_weight = callbacks.convert_capacity_from_kg(sum(counter_totals) * 46, {"unit": "lb"})
+    metrics = callbacks.load_lab_totals_metrics(1)
+    total_lbs, acc_lbs, rej_lbs, _ = metrics
     expected = {
-        "capacity": cap_avg,
-        "accepts": acc_total,
-        "rejects": rej_weight,
+        "capacity": callbacks.convert_capacity_from_lbs(total_lbs, {"unit": "lb"}),
+        "accepts": callbacks.convert_capacity_from_lbs(acc_lbs, {"unit": "lb"}),
+        "rejects": callbacks.convert_capacity_from_lbs(rej_lbs, {"unit": "lb"}),
     }
 
+    counter_totals, _, object_totals = callbacks.load_lab_totals(1)
+    reject_count = sum(counter_totals)
+    capacity_count = object_totals[-1]
+    accepts_count = max(0, capacity_count - reject_count)
+
+    unit_label = callbacks.capacity_unit_label({"unit": "lb"})
+    unit_label_plain = callbacks.capacity_unit_label({"unit": "lb"}, False)
+
     assert prod == expected
+
+    cap_text = content.children[1].children[2].children
+    acc_text = content.children[2].children[2].children
+    rej_text = content.children[3].children[2].children
+
+    assert cap_text == f"{capacity_count:,.0f} pcs / {expected['capacity']:,.0f} {unit_label}"
+    assert acc_text == f"{accepts_count:,.0f} pcs / {expected['accepts']:,.0f} {unit_label_plain} "
+    assert rej_text == f"{reject_count:,.0f} pcs / {expected['rejects']:,.0f} {unit_label_plain} "
