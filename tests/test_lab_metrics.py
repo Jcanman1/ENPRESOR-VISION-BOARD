@@ -80,4 +80,4 @@ def test_update_section_1_1_lab_reads_log(monkeypatch, tmp_path):
 
     assert cap_text == f"{capacity_count:,.0f} pcs / {expected_cap:,.0f} {unit_label}"
     assert acc_text == f"{accepts_count:,.0f} pcs / {expected_acc:,.0f} {unit_label_plain} "
-    assert rej_text == f"{reject_count:,.0f} pcs / {expected_rej:,.0f} {unit_label_plain} "
+    assert rej_text == f"{reject_count:,.0f} obj / {expected_rej:,.0f} {unit_label_plain} "

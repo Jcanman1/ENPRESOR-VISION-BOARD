@@ -2414,8 +2414,9 @@ def _register_callbacks_impl(app):
             if accepts_count_fmt is not None
             else f"{accepts_formatted} {capacity_unit_label(weight_pref, False)} "
         )
+        rej_label = "obj" if mode == "lab" else "pcs"
         rej_display = (
-            f"{reject_count_fmt} pcs / {rejects_formatted} {capacity_unit_label(weight_pref, False)} "
+            f"{reject_count_fmt} {rej_label} / {rejects_formatted} {capacity_unit_label(weight_pref, False)} "
             if reject_count_fmt is not None
             else f"{rejects_formatted} {capacity_unit_label(weight_pref, False)} "
         )
