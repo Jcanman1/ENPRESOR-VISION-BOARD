@@ -73,7 +73,8 @@ _REGISTERING = False
 # Cache of lab log totals keyed by ``(machine_id, file_path)``. Each entry
 # stores cumulative counter totals, timestamps, object totals and bookkeeping
 # information so that subsequent calls only process new rows appended to the
-# log file.
+# log file.  In addition to the overall objects-per-minute rate, the previous
+# per-counter rates are tracked so object totals can be integrated correctly.
 _lab_totals_cache = {}
 
 # Maximum number of cached lab log entries to retain
@@ -138,17 +139,19 @@ def load_lab_totals(machine_id, filename=None):
     size = stat.st_size
 
     cache = _lab_totals_cache.get(key)
-    if (
-        cache is None
-        or cache.get("mtime") != mtime
-        or size < cache.get("size", 0)
-    ):
+    if cache is not None:
+        # Reset if file was truncated or replaced with an older version
+        if size < cache.get("size", 0) or mtime < cache.get("mtime", 0):
+            cache = None
+
+    if cache is None:
         counter_totals = [0] * 12
         timestamps = []
         object_totals = []
         obj_sum = 0.0
         prev_ts = None
         prev_rate = None
+        prev_counter_rates = [None] * 12
         last_index = -1
     else:
         counter_totals = cache["counter_totals"]
@@ -157,6 +160,7 @@ def load_lab_totals(machine_id, filename=None):
         obj_sum = object_totals[-1] if object_totals else 0.0
         prev_ts = cache.get("prev_ts")
         prev_rate = cache.get("prev_rate")
+        prev_counter_rates = cache.get("prev_counter_rates", [None] * 12)
         last_index = cache.get("last_index", -1)
         cache["last_access"] = time.time()
 
@@ -175,12 +179,28 @@ def load_lab_totals(machine_id, filename=None):
                     ts_val = ts
             timestamps.append(ts_val)
 
+            counter_rates = []
             for i in range(1, 13):
                 val = row.get(f"counter_{i}")
                 try:
-                    counter_totals[i - 1] += float(val) if val else 0.0
+                    rate = float(val) if val else None
                 except ValueError:
-                    pass
+                    rate = None
+
+                if (
+                    prev_ts is not None
+                    and isinstance(prev_ts, datetime)
+                    and isinstance(ts_val, datetime)
+                    and prev_counter_rates[i - 1] is not None
+                ):
+                    c_stats = generate_report.calculate_total_objects_from_csv_rates(
+                        [prev_counter_rates[i - 1], prev_counter_rates[i - 1]],
+                        timestamps=[prev_ts, ts_val],
+                        is_lab_mode=True,
+                    )
+                    counter_totals[i - 1] += c_stats.get("total_objects", 0)
+
+                counter_rates.append(rate)
 
             opm = row.get("objects_per_min")
             try:
@@ -204,6 +224,7 @@ def load_lab_totals(machine_id, filename=None):
             object_totals.append(obj_sum)
             prev_ts = ts_val
             prev_rate = rate_val
+            prev_counter_rates = counter_rates
             last_index = idx
 
     _lab_totals_cache[key] = {
@@ -213,6 +234,7 @@ def load_lab_totals(machine_id, filename=None):
         "last_index": last_index,
         "prev_ts": prev_ts,
         "prev_rate": prev_rate,
+        "prev_counter_rates": prev_counter_rates,
         "mtime": mtime,
         "size": size,
         "last_access": time.time(),
