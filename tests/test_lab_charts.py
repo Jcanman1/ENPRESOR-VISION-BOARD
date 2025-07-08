@@ -75,8 +75,8 @@ def test_update_section_5_2_lab_reads_log(monkeypatch, tmp_path):
 
     res = func.__wrapped__(0, "main", {}, {}, "en", {"connected": False}, {"mode": "lab"}, {"machine_id": 1})
 
-    counter_totals, _, _ = callbacks.load_lab_totals(1)
-    expected = counter_totals[0]
+
+    expected = generate_report.LAB_OBJECT_SCALE_FACTOR * 2 / 60
 
     assert callbacks.previous_counter_values[0] == pytest.approx(expected)
     bar = res.children[1]
