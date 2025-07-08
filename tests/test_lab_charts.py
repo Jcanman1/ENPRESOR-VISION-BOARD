@@ -131,6 +131,6 @@ def test_update_section_1_1_lab_uses_log(monkeypatch, tmp_path):
     acc_text = content.children[2].children[2].children
     rej_text = content.children[3].children[2].children
 
-    assert cap_text == f"{capacity_count:,.0f} pcs / {expected['capacity']:,.0f} {unit_label}"
-    assert acc_text == f"{accepts_count:,.0f} pcs / {expected['accepts']:,.0f} {unit_label_plain} "
-    assert rej_text == f"{reject_count:,.0f} pcs / {expected['rejects']:,.0f} {unit_label_plain} "
+    assert cap_text == f"{capacity_count:,.0f} pcs / {expected['capacity']:,.2f} {unit_label}"
+    assert acc_text == f"{accepts_count:,.0f} pcs / {expected['accepts']:,.2f} {unit_label_plain} "
+    assert rej_text == f"{reject_count:,.0f} pcs / {expected['rejects']:,.2f} {unit_label_plain} "
