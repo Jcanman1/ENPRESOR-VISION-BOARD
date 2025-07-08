@@ -111,12 +111,20 @@ def test_update_section_1_1_lab_uses_log(monkeypatch, tmp_path):
 
     with csv_path.open() as f:
         rows = list(csv.DictReader(f))
+
+    timestamps = [r["timestamp"] for r in rows]
+    cap_values = [float(r["capacity"]) for r in rows]
+    stats = callbacks.generate_report.calculate_total_capacity_from_csv_rates(
+        cap_values, timestamps=timestamps, is_lab_mode=True
+    )
+    cap_avg = stats["average_rate_lbs_per_hr"]
     acc_total = sum(float(r["accepts"]) for r in rows)
-    rej_total = sum(float(r["rejects"]) for r in rows)
+    counter_totals, _, _ = callbacks.load_lab_totals(1)
+    rej_weight = callbacks.convert_capacity_from_kg(sum(counter_totals) * 46, {"unit": "lb"})
     expected = {
-        "capacity": acc_total + rej_total,
+        "capacity": cap_avg,
         "accepts": acc_total,
-        "rejects": rej_total,
+        "rejects": rej_weight,
     }
 
     assert prod == expected

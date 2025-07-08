@@ -152,6 +152,58 @@ def load_last_lab_metrics(machine_id):
     return capacity, accepts, rejects
 
 
+def load_lab_average_capacity_and_accepts(machine_id):
+    """Return the average capacity rate (lbs/hr), total accepts in lbs,
+    and elapsed seconds from the latest lab log."""
+    machine_dir = os.path.join(hourly_data_saving.EXPORT_DIR, str(machine_id))
+    files = glob.glob(os.path.join(machine_dir, "Lab_Test_*.csv"))
+    if not files:
+        return None
+
+    path = max(files, key=os.path.getmtime)
+    if not os.path.exists(path):
+        return None
+
+    capacities = []
+    accepts = []
+    timestamps = []
+
+    with open(path, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            cap = row.get("capacity")
+            acc = row.get("accepts")
+            ts = row.get("timestamp")
+            try:
+                if cap:
+                    capacities.append(float(cap))
+            except ValueError:
+                pass
+            try:
+                accepts.append(float(acc)) if acc else accepts.append(0.0)
+            except ValueError:
+                accepts.append(0.0)
+            if ts:
+                timestamps.append(ts)
+
+    stats = generate_report.calculate_total_capacity_from_csv_rates(
+        capacities, timestamps=timestamps, is_lab_mode=True
+    )
+    cap_avg = stats.get("average_rate_lbs_per_hr", 0)
+    acc_total = sum(accepts)
+
+    elapsed_seconds = 0
+    if timestamps:
+        try:
+            start = datetime.fromisoformat(str(timestamps[0]))
+            end = datetime.fromisoformat(str(timestamps[-1]))
+            elapsed_seconds = int((end - start).total_seconds())
+        except Exception:
+            elapsed_seconds = 0
+
+    return cap_avg, acc_total, elapsed_seconds
+
+
 def load_lab_totals_metrics(machine_id):
     """Return total capacity, accepts, rejects and elapsed seconds from the latest lab log."""
     machine_dir = os.path.join(hourly_data_saving.EXPORT_DIR, str(machine_id))
@@ -2245,24 +2297,23 @@ def _register_callbacks_impl(app):
 
         elif mode == "lab":
             mid = active_machine_id
-            metrics = load_lab_totals_metrics(mid) if mid is not None else None
+            metrics = (
+                load_lab_average_capacity_and_accepts(mid) if mid is not None else None
+            )
             if metrics:
-                cap_lbs, acc_lbs, rej_lbs, elapsed = metrics
-                total_capacity = convert_capacity_from_lbs(cap_lbs, weight_pref)
-                accepts = convert_capacity_from_lbs(acc_lbs, weight_pref)
-                rejects = convert_capacity_from_lbs(rej_lbs, weight_pref)
+                cap_avg_lbs, acc_total_lbs, elapsed = metrics
+                counter_totals, _, _ = load_lab_totals(mid)
+                reject_count = sum(counter_totals)
+
+                total_capacity = convert_capacity_from_lbs(cap_avg_lbs, weight_pref)
+                accepts = convert_capacity_from_lbs(acc_total_lbs, weight_pref)
+                rejects = convert_capacity_from_kg(reject_count * 46, weight_pref)
+
                 production_data = {
                     "capacity": total_capacity,
                     "accepts": accepts,
                     "rejects": rejects,
                 }
-                if elapsed < 60:
-                    total_capacity_formatted = f"{total_capacity:.0f} lbs in {elapsed} seconds"
-                else:
-                    minutes, seconds = divmod(elapsed, 60)
-                    total_capacity_formatted = (
-                        f"{total_capacity:.0f} lbs in {minutes} minutes {seconds} seconds"
-                    )
             else:
                 total_capacity = production_data.get("capacity", 50000)
                 accepts = production_data.get("accepts", 47500)
