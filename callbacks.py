@@ -2374,8 +2374,8 @@ def _register_callbacks_impl(app):
         # Format values with commas for thousands separator and limited decimal places
         if total_capacity_formatted is None:
             total_capacity_formatted = f"{total_capacity:,.0f}"
-        accepts_formatted = f"{accepts:,.0f}"
-        rejects_formatted = f"{rejects:,.0f}"
+        accepts_formatted = f"{accepts:,.2f}"
+        rejects_formatted = f"{rejects:,.2f}"
         accepts_percent_formatted = f"{accepts_percent:.1f}"
         rejects_percent_formatted = f"{rejects_percent:.1f}"
 
