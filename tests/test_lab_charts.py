@@ -111,11 +111,12 @@ def test_update_section_1_1_lab_uses_log(monkeypatch, tmp_path):
 
     with csv_path.open() as f:
         rows = list(csv.DictReader(f))
-    last = rows[-1]
+    acc_total = sum(float(r["accepts"]) for r in rows)
+    rej_total = sum(float(r["rejects"]) for r in rows)
     expected = {
-        "capacity": float(last["capacity"]),
-        "accepts": float(last["accepts"]),
-        "rejects": float(last["rejects"]),
+        "capacity": acc_total + rej_total,
+        "accepts": acc_total,
+        "rejects": rej_total,
     }
 
     assert prod == expected

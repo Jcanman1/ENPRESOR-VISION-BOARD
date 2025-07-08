@@ -19,6 +19,7 @@ import csv
 import hourly_data_saving
 import autoconnect
 import image_manager as img_utils
+import generate_report
 try:
     import resource
 except ImportError:  # pragma: no cover - resource not available on Windows
@@ -149,6 +150,61 @@ def load_last_lab_metrics(machine_id):
     rejects = _get_float("rejects")
 
     return capacity, accepts, rejects
+
+
+def load_lab_totals_metrics(machine_id):
+    """Return total capacity, accepts, rejects and elapsed seconds from the latest lab log."""
+    machine_dir = os.path.join(hourly_data_saving.EXPORT_DIR, str(machine_id))
+    files = glob.glob(os.path.join(machine_dir, "Lab_Test_*.csv"))
+    if not files:
+        return None
+
+    path = max(files, key=os.path.getmtime)
+    if not os.path.exists(path):
+        return None
+
+    accepts = []
+    rejects = []
+    timestamps = []
+
+    with open(path, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            a = row.get("accepts")
+            r = row.get("rejects")
+            ts = row.get("timestamp")
+            try:
+                accepts.append(float(a)) if a else accepts.append(0.0)
+            except ValueError:
+                accepts.append(0.0)
+            try:
+                rejects.append(float(r)) if r else rejects.append(0.0)
+            except ValueError:
+                rejects.append(0.0)
+            if ts:
+                timestamps.append(ts)
+
+    a_stats = generate_report.calculate_total_capacity_from_csv_rates(
+        accepts, timestamps=timestamps, is_lab_mode=True
+    )
+    r_stats = generate_report.calculate_total_capacity_from_csv_rates(
+        rejects, timestamps=timestamps, is_lab_mode=True
+    )
+
+    accepts_total = a_stats.get("total_capacity_lbs", 0)
+    rejects_total = r_stats.get("total_capacity_lbs", 0)
+    total_capacity = accepts_total + rejects_total
+
+    elapsed_seconds = 0
+    if timestamps:
+        try:
+            start = datetime.fromisoformat(str(timestamps[0]))
+            end = datetime.fromisoformat(str(timestamps[-1]))
+            elapsed_seconds = int((end - start).total_seconds())
+        except Exception:
+            elapsed_seconds = 0
+
+    return total_capacity, accepts_total, rejects_total, elapsed_seconds
 
 
 def register_callbacks(app):
@@ -2103,6 +2159,8 @@ def _register_callbacks_impl(app):
             app_state.update_thread.is_alive() if app_state.update_thread else False,
             app_state.thread_stop_flag,
         )
+
+        total_capacity_formatted = None
         
     
         # Tag definitions - Easy to update when actual tag names are available
@@ -2187,9 +2245,9 @@ def _register_callbacks_impl(app):
 
         elif mode == "lab":
             mid = active_machine_id
-            metrics = load_last_lab_metrics(mid) if mid is not None else None
+            metrics = load_lab_totals_metrics(mid) if mid is not None else None
             if metrics:
-                cap_lbs, acc_lbs, rej_lbs = metrics
+                cap_lbs, acc_lbs, rej_lbs, elapsed = metrics
                 total_capacity = convert_capacity_from_lbs(cap_lbs, weight_pref)
                 accepts = convert_capacity_from_lbs(acc_lbs, weight_pref)
                 rejects = convert_capacity_from_lbs(rej_lbs, weight_pref)
@@ -2198,6 +2256,13 @@ def _register_callbacks_impl(app):
                     "accepts": accepts,
                     "rejects": rejects,
                 }
+                if elapsed < 60:
+                    total_capacity_formatted = f"{total_capacity:.0f} lbs in {elapsed} seconds"
+                else:
+                    minutes, seconds = divmod(elapsed, 60)
+                    total_capacity_formatted = (
+                        f"{total_capacity:.0f} lbs in {minutes} minutes {seconds} seconds"
+                    )
             else:
                 total_capacity = production_data.get("capacity", 50000)
                 accepts = production_data.get("accepts", 47500)
@@ -2234,7 +2299,8 @@ def _register_callbacks_impl(app):
         rejects_percent = (rejects / total * 100) if total > 0 else 0
         
         # Format values with commas for thousands separator and limited decimal places
-        total_capacity_formatted = f"{total_capacity:,.0f}"
+        if total_capacity_formatted is None:
+            total_capacity_formatted = f"{total_capacity:,.0f}"
         accepts_formatted = f"{accepts:,.0f}"
         rejects_formatted = f"{rejects:,.0f}"
         accepts_percent_formatted = f"{accepts_percent:.1f}"
