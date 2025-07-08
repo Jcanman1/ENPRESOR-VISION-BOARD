@@ -38,9 +38,9 @@ the application:
 
 ## Setup
 1. Ensure you have Python 3 installed.
-2. Install required dependencies:
+2. Install required dependencies (include `test-requirements.txt` if you plan to run the test suite):
    ```bash
-   pip install -r requirements.txt
+   pip install -r requirements.txt -r test-requirements.txt
    ```
    (If no `requirements.txt` is provided, install packages referenced in the legacy script as needed.)
 
@@ -120,6 +120,10 @@ Install `pytest` along with any runtime dependencies, for example:
 
 ```bash
 pip install -r requirements.txt -r test-requirements.txt
+```
+or run the helper script:
+```bash
+./scripts/setup-tests.sh
 ```
 
 Then run the test suite from the repository root:
