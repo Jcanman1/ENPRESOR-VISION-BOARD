@@ -73,8 +73,55 @@ _REGISTERING = False
 # Cache of lab log totals keyed by ``(machine_id, file_path)``. Each entry
 # stores cumulative counter totals, timestamps, object totals and bookkeeping
 # information so that subsequent calls only process new rows appended to the
-# log file.
+# log file.  In addition to the overall objects-per-minute rate, the previous
+# per-counter rates are tracked so object totals can be integrated correctly.
 _lab_totals_cache = {}
+
+# Cache final production data calculations for lab mode
+_lab_production_cache = {}
+
+
+def get_cached_lab_production_data(machine_id):
+    """Return cached production data if available and recent"""
+    cache_key = f"production_{machine_id}"
+    cache_entry = _lab_production_cache.get(cache_key)
+
+    if cache_entry and time.time() - cache_entry["timestamp"] < 5:
+        return cache_entry["data"]
+
+    return None
+
+
+def cache_lab_production_data(machine_id, production_data):
+    """Cache production data with timestamp"""
+    _lab_production_cache[f"production_{machine_id}"] = {
+        "data": production_data,
+        "timestamp": time.time(),
+    }
+
+
+def should_recalculate_lab_totals(machine_id):
+    """Return True if the lab log was modified since the last calculation."""
+    machine_dir = os.path.join(hourly_data_saving.EXPORT_DIR, str(machine_id))
+    files = glob.glob(os.path.join(machine_dir, "Lab_Test_*.csv"))
+    if not files:
+        return False
+
+    path = max(files, key=os.path.getmtime)
+    key = (machine_id, os.path.abspath(path))
+    try:
+        stat = os.stat(path)
+    except OSError:
+        return False
+
+    cache = _lab_totals_cache.get(key)
+    if cache is None:
+        return True
+
+    if stat.st_mtime != cache.get("mtime") or stat.st_size != cache.get("size"):
+        return True
+
+    return False
 
 
 def load_lab_totals(machine_id, filename=None):
@@ -114,6 +161,7 @@ def load_lab_totals(machine_id, filename=None):
         obj_sum = 0.0
         prev_ts = None
         prev_rate = None
+        prev_counter_rates = [None] * 12
         last_index = -1
     else:
         counter_totals = cache["counter_totals"]
@@ -122,6 +170,7 @@ def load_lab_totals(machine_id, filename=None):
         obj_sum = object_totals[-1] if object_totals else 0.0
         prev_ts = cache.get("prev_ts")
         prev_rate = cache.get("prev_rate")
+        prev_counter_rates = cache.get("prev_counter_rates", [None] * 12)
         last_index = cache.get("last_index", -1)
 
     with open(path, newline="", encoding="utf-8") as f:
@@ -139,12 +188,28 @@ def load_lab_totals(machine_id, filename=None):
                     ts_val = ts
             timestamps.append(ts_val)
 
+            counter_rates = []
             for i in range(1, 13):
                 val = row.get(f"counter_{i}")
                 try:
-                    counter_totals[i - 1] += float(val) if val else 0.0
+                    rate = float(val) if val else None
                 except ValueError:
-                    pass
+                    rate = None
+
+                if (
+                    prev_ts is not None
+                    and isinstance(prev_ts, datetime)
+                    and isinstance(ts_val, datetime)
+                    and prev_counter_rates[i - 1] is not None
+                ):
+                    c_stats = generate_report.calculate_total_objects_from_csv_rates(
+                        [prev_counter_rates[i - 1], prev_counter_rates[i - 1]],
+                        timestamps=[prev_ts, ts_val],
+                        is_lab_mode=True,
+                    )
+                    counter_totals[i - 1] += c_stats.get("total_objects", 0)
+
+                counter_rates.append(rate)
 
             opm = row.get("objects_per_min")
             try:
@@ -168,6 +233,7 @@ def load_lab_totals(machine_id, filename=None):
             object_totals.append(obj_sum)
             prev_ts = ts_val
             prev_rate = rate_val
+            prev_counter_rates = counter_rates
             last_index = idx
 
     _lab_totals_cache[key] = {
@@ -177,6 +243,7 @@ def load_lab_totals(machine_id, filename=None):
         "last_index": last_index,
         "prev_ts": prev_ts,
         "prev_rate": prev_rate,
+        "prev_counter_rates": prev_counter_rates,
         "mtime": mtime,
         "size": size,
     }
@@ -2363,38 +2430,60 @@ def _register_callbacks_impl(app):
 
         elif mode == "lab":
             mid = active_machine_id
-            metrics = load_lab_totals_metrics(mid) if mid is not None else None
             capacity_count = accepts_count = reject_count = 0
-            if metrics:
-                tot_cap_lbs, acc_lbs, rej_lbs, _ = metrics
-                counter_totals, _, object_totals = load_lab_totals(mid)
 
-                reject_count = sum(counter_totals)
-                capacity_count = object_totals[-1] if object_totals else 0
-                accepts_count = max(0, capacity_count - reject_count)
+            if should_recalculate_lab_totals(mid):
+                metrics = load_lab_totals_metrics(mid) if mid is not None else None
+                if metrics:
+                    tot_cap_lbs, acc_lbs, rej_lbs, _ = metrics
+                    counter_totals, _, object_totals = load_lab_totals(mid)
 
-                total_capacity = convert_capacity_from_lbs(tot_cap_lbs, weight_pref)
-                accepts = convert_capacity_from_lbs(acc_lbs, weight_pref)
-                rejects = convert_capacity_from_lbs(rej_lbs, weight_pref)
+                    reject_count = sum(counter_totals)
+                    capacity_count = object_totals[-1] if object_totals else 0
+                    accepts_count = max(0, capacity_count - reject_count)
 
-                production_data = {
-                    "capacity": total_capacity,
-                    "accepts": accepts,
-                    "rejects": rejects,
-                }
+                    total_capacity = convert_capacity_from_lbs(tot_cap_lbs, weight_pref)
+                    accepts = convert_capacity_from_lbs(acc_lbs, weight_pref)
+                    rejects = convert_capacity_from_lbs(rej_lbs, weight_pref)
+
+                    production_data = {
+                        "capacity": total_capacity,
+                        "accepts": accepts,
+                        "rejects": rejects,
+                    }
+                else:
+                    total_capacity = 0
+                    accepts = 0
+                    rejects = 0
+                    production_data = {
+                        "capacity": 0,
+                        "accepts": 0,
+                        "rejects": 0,
+                    }
+
+                cache_lab_production_data(mid, production_data)
             else:
-                # No existing lab log yet. Use zeroed placeholders for
-                # all metrics so the dashboard doesn't display stale live
-                # production values when switching to lab mode.
-                total_capacity = 0
-                accepts = 0
-                rejects = 0
-                capacity_count = accepts_count = reject_count = 0
-                production_data = {
+                production_data = get_cached_lab_production_data(mid) or {
                     "capacity": 0,
                     "accepts": 0,
                     "rejects": 0,
                 }
+
+                total_capacity = production_data.get("capacity", 0)
+                accepts = production_data.get("accepts", 0)
+                rejects = production_data.get("rejects", 0)
+
+                machine_dir = os.path.join(hourly_data_saving.EXPORT_DIR, str(mid))
+                files = glob.glob(os.path.join(machine_dir, "Lab_Test_*.csv"))
+                if files:
+                    path = max(files, key=os.path.getmtime)
+                    key = (mid, os.path.abspath(path))
+                    cache = _lab_totals_cache.get(key)
+                    if cache:
+                        reject_count = sum(cache["counter_totals"])
+                        obj_tot = cache["object_totals"]
+                        capacity_count = obj_tot[-1] if obj_tot else 0
+                        accepts_count = max(0, capacity_count - reject_count)
 
         elif mode == "demo":
     
