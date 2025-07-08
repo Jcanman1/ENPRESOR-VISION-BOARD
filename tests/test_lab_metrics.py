@@ -55,6 +55,11 @@ def test_update_section_1_1_lab_reads_log(monkeypatch, tmp_path):
 
     _, prod = func.__wrapped__(0, "main", {}, {}, "en", {"connected": False}, {"mode": "lab"}, {}, {"unit": "lb"})
 
-    assert prod["capacity"] == 100
-    assert prod["accepts"] == 80
-    assert prod["rejects"] == 20
+    with (tmp_path/"1"/"Lab_Test_sample.csv").open() as f:
+        rows = list(csv.DictReader(f))
+    acc_total = sum(float(r["accepts"]) for r in rows)
+    rej_total = sum(float(r["rejects"]) for r in rows)
+
+    assert prod["capacity"] == acc_total + rej_total
+    assert prod["accepts"] == acc_total
+    assert prod["rejects"] == rej_total
