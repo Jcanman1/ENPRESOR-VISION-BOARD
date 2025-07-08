@@ -133,4 +133,4 @@ def test_update_section_1_1_lab_uses_log(monkeypatch, tmp_path):
 
     assert cap_text == f"{capacity_count:,.0f} pcs / {expected['capacity']:,.0f} {unit_label}"
     assert acc_text == f"{accepts_count:,.0f} pcs / {expected['accepts']:,.0f} {unit_label_plain} "
-    assert rej_text == f"{reject_count:,.0f} obj / {expected['rejects']:,.0f} {unit_label_plain} "
+    assert rej_text == f"{reject_count:,.0f} pcs / {expected['rejects']:,.0f} {unit_label_plain} "
