@@ -1,6 +1,7 @@
 import os
 import sys
 import csv
+import generate_report
 import pytest
 
 dash = pytest.importorskip("dash")
@@ -87,7 +88,12 @@ def test_update_section_5_1_lab_reads_log(monkeypatch, tmp_path):
     result = func.__wrapped__(0, "main", {}, {}, "en", {"connected": False}, {"mode": "lab"}, {"machine_id": 1}, {"unit": "lb"}, "objects")
 
     graph = result.children[1]
-    assert list(graph.figure.data[0].y) == [1.0, 2.0, 3.0]
+    expected = [
+        0.0,
+        1 * generate_report.LAB_OBJECT_SCALE_FACTOR,
+        2 * generate_report.LAB_OBJECT_SCALE_FACTOR,
+    ]
+    assert list(graph.figure.data[0].y) == pytest.approx(expected)
 
 
 def test_update_section_1_1_lab_uses_log(monkeypatch, tmp_path):
