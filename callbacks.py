@@ -72,13 +72,7 @@ _REGISTERING = False
 
 
 def load_lab_totals(machine_id, filename=None):
-    """Return cumulative counter totals and object totals from a lab log.
-
-    The counters in lab logs represent objects/min rates rather than raw
-    counts. To get accurate totals we integrate these rates over the actual
-    time intervals between log entries. This mirrors the logic used when
-    generating the PDF report so the dashboard matches the report output.
-    """
+    """Return cumulative counter totals and object totals from a lab log."""
     machine_dir = os.path.join(hourly_data_saving.EXPORT_DIR, str(machine_id))
     if filename:
         path = os.path.join(machine_dir, filename)
@@ -98,7 +92,6 @@ def load_lab_totals(machine_id, filename=None):
 
     with open(path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
-        prev_ts = None
         for row in reader:
             ts = row.get("timestamp")
             if ts:
@@ -107,29 +100,18 @@ def load_lab_totals(machine_id, filename=None):
                 except Exception:
                     ts_val = ts
                 timestamps.append(ts_val)
-            else:
-                ts_val = None
-
-            # Determine elapsed minutes since last row for integration
-            if prev_ts is not None and ts_val is not None:
-                diff_min = (ts_val - prev_ts).total_seconds() / 60.0
-            else:
-                diff_min = 0.0
-            prev_ts = ts_val if ts_val is not None else prev_ts
 
             for i in range(1, 13):
                 val = row.get(f"counter_{i}")
                 try:
-                    rate = float(val) if val else 0.0
+                    counter_totals[i - 1] += float(val) if val else 0.0
                 except ValueError:
-                    rate = 0.0
-                counter_totals[i - 1] += rate * diff_min * generate_report.LAB_OBJECT_SCALE_FACTOR
+                    pass
 
             opm = row.get("objects_per_min")
             if opm:
                 try:
-                    obj_rate = float(opm)
-                    obj_sum += obj_rate * diff_min * generate_report.LAB_OBJECT_SCALE_FACTOR
+                    obj_sum += float(opm) / 60.0
                 except ValueError:
                     pass
             object_totals.append(obj_sum)

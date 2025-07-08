@@ -9,7 +9,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 import callbacks
 import autoconnect
-import generate_report
 
 
 def setup_app(monkeypatch, tmp_path):
@@ -75,10 +74,9 @@ def test_update_section_5_2_lab_reads_log(monkeypatch, tmp_path):
 
     res = func.__wrapped__(0, "main", {}, {}, "en", {"connected": False}, {"mode": "lab"}, {"machine_id": 1})
 
-    expected_total = 2 * generate_report.LAB_OBJECT_SCALE_FACTOR / 60
-    assert pytest.approx(callbacks.previous_counter_values[0], rel=1e-3) == expected_total
+    assert callbacks.previous_counter_values[0] == 3
     bar = res.children[1]
-    assert pytest.approx(bar.figure.data[0].y[0], rel=1e-3) == expected_total
+    assert bar.figure.data[0].y[0] == 3
 
 
 def test_update_section_5_1_lab_reads_log(monkeypatch, tmp_path):
@@ -127,7 +125,7 @@ def test_update_section_1_1_lab_uses_log(monkeypatch, tmp_path):
     unit_label = callbacks.capacity_unit_label({"unit": "lb"})
     unit_label_plain = callbacks.capacity_unit_label({"unit": "lb"}, False)
 
-    assert prod == pytest.approx(expected)
+    assert prod == expected
 
     cap_text = content.children[1].children[2].children
     acc_text = content.children[2].children[2].children
