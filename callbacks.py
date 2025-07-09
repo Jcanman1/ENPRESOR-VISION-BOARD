@@ -57,6 +57,21 @@ SENSITIVITY_ACTIVE_TAGS = {
     "Settings.ColorSort.Primary12.IsAssigned": 12,
 }
 
+
+def get_active_counter_flags(machine_id):
+    """Return a list of booleans indicating which counters are active."""
+    flags = [True] * 12
+    try:
+        states = prev_active_states.get(machine_id, {})
+    except Exception:
+        states = {}
+    for tag, num in SENSITIVITY_ACTIVE_TAGS.items():
+        if num <= len(flags):
+            val = states.get(tag)
+            if val is not None:
+                flags[num - 1] = bool(val)
+    return flags
+
 # OPC tag for the preset name
 PRESET_NAME_TAG = "Status.Info.PresetName"
 
@@ -91,8 +106,19 @@ _lab_production_cache = {}
 
 
 
-def load_lab_totals(machine_id, filename=None):
+def load_lab_totals(machine_id, filename=None, active_counters=None):
     """Return cumulative counter totals and object totals from a lab log.
+
+    Parameters
+    ----------
+    machine_id : int
+        Identifier for the machine directory under ``EXPORT_DIR``.
+    filename : str, optional
+        Specific CSV log filename.  If omitted the newest ``Lab_Test_*.csv`` is
+        used.
+    active_counters : list[bool], optional
+        Boolean flags for each counter index ``1-12``.  When provided, only
+        counters whose flag is ``True`` contribute to the returned totals.
 
     The results are cached per file so subsequent calls only process rows that
     were appended since the last invocation. This significantly reduces I/O when
@@ -120,6 +146,9 @@ def load_lab_totals(machine_id, filename=None):
         # Reset if file was truncated or replaced with an older version
         if size < cache.get("size", 0) or mtime < cache.get("mtime", 0):
             cache = None
+
+    if active_counters is None:
+        active_counters = [True] * 12
 
     if cache is None:
         counter_totals = [0] * 12
@@ -178,7 +207,8 @@ def load_lab_totals(machine_id, filename=None):
 
                 scale = generate_report.LAB_OBJECT_SCALE_FACTOR
                 for idx_c, prev_val in enumerate(prev_counters):
-                    counter_totals[idx_c] += prev_val * delta_minutes * scale
+                    if idx_c < len(active_counters) and active_counters[idx_c]:
+                        counter_totals[idx_c] += prev_val * delta_minutes * scale
 
 
             opm = row.get("objects_per_min")
@@ -373,8 +403,12 @@ def load_lab_average_capacity_and_accepts(machine_id):
     return cap_avg, acc_total, elapsed_seconds
 
 
-def load_lab_totals_metrics(machine_id):
-    """Return total capacity, accepts, rejects and elapsed seconds from the latest lab log."""
+def load_lab_totals_metrics(machine_id, active_counters=None):
+    """Return total capacity, accepts, rejects and elapsed seconds from the latest lab log.
+
+    ``active_counters`` is accepted for API symmetry with :func:`load_lab_totals`
+    but is currently unused.
+    """
     machine_dir = os.path.join(hourly_data_saving.EXPORT_DIR, str(machine_id))
     files = glob.glob(os.path.join(machine_dir, "Lab_Test_*.csv"))
     if not files:
@@ -496,12 +530,14 @@ def refresh_lab_cache(machine_id):
     mtime = stat.st_mtime
     size = stat.st_size
 
-    metrics = load_lab_totals_metrics(machine_id)
+    metrics = load_lab_totals_metrics(machine_id, active_counters=get_active_counter_flags(machine_id))
     if not metrics:
         return
 
     tot_cap_lbs, acc_lbs, rej_lbs, _ = metrics
-    counter_totals, _, object_totals = load_lab_totals(machine_id)
+    counter_totals, _, object_totals = load_lab_totals(
+        machine_id, active_counters=get_active_counter_flags(machine_id)
+    )
 
     reject_count = sum(counter_totals)
     capacity_count = object_totals[-1] if object_totals else 0
@@ -1252,10 +1288,14 @@ def _register_callbacks_impl(app):
             # Display metrics from lab logs for each machine
             for machine in machines:
                 machine_id = machine.get("id")
-                metrics = load_lab_totals_metrics(machine_id)
+                metrics = load_lab_totals_metrics(
+                    machine_id, active_counters=get_active_counter_flags(machine_id)
+                )
                 if metrics:
                     tot_cap_lbs, acc_lbs, rej_lbs, _ = metrics
-                    counter_totals, _, object_totals = load_lab_totals(machine_id)
+                    counter_totals, _, object_totals = load_lab_totals(
+                        machine_id, active_counters=get_active_counter_flags(machine_id)
+                    )
                     reject_count = sum(counter_totals)
                     capacity_count = object_totals[-1] if object_totals else 0
                     accepts_count = max(0, capacity_count - reject_count)
@@ -2636,10 +2676,16 @@ def _register_callbacks_impl(app):
                 accepts_count = cache_entry.get("accepts_count", 0)
                 reject_count = cache_entry.get("reject_count", 0)
             else:
-                metrics = load_lab_totals_metrics(mid) if path else None
+                metrics = (
+                    load_lab_totals_metrics(mid, active_counters=get_active_counter_flags(mid))
+                    if path
+                    else None
+                )
                 if metrics:
                     tot_cap_lbs, acc_lbs, rej_lbs, _ = metrics
-                    counter_totals, _, object_totals = load_lab_totals(mid)
+                    counter_totals, _, object_totals = load_lab_totals(
+                        mid, active_counters=get_active_counter_flags(mid)
+                    )
 
                     reject_count = sum(counter_totals)
                     capacity_count = object_totals[-1] if object_totals else 0
@@ -4162,7 +4208,7 @@ def _register_callbacks_impl(app):
                 max_val = 10000
         elif mode == "lab":
             mid = active_machine_data.get("machine_id") if active_machine_data else None
-            _, times, totals = load_lab_totals(mid)
+            _, times, totals = load_lab_totals(mid, active_counters=get_active_counter_flags(mid))
             x_data = [t.strftime("%H:%M:%S") if isinstance(t, datetime) else t for t in times]
             y_data = totals
             if y_data:
@@ -4484,7 +4530,9 @@ def _register_callbacks_impl(app):
             logger.info(f"Section 5-2 values (historical mode): {new_counter_values}")
         elif mode == "lab":
             mid = active_machine_data.get("machine_id") if active_machine_data else None
-            totals, _, _ = load_lab_totals(mid)
+            totals, _, _ = load_lab_totals(
+                mid, active_counters=get_active_counter_flags(mid)
+            )
             new_counter_values = totals
             previous_counter_values = new_counter_values.copy()
             logger.info(f"Section 5-2 values (lab mode): {new_counter_values}")
