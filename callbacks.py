@@ -5817,9 +5817,15 @@ def _register_callbacks_impl(app):
                 lab_filename = lab_test_info.get("filename")
             if not lab_filename:
                 lab_filename = current_lab_filename
+
+            # If no filename is available yet, skip logging rather than
+            # creating a generic file.  This avoids race conditions where a
+            # log entry could be written to ``Lab_Test_<date>.csv`` just after
+            # a test stops.
             if not lab_filename:
-                lab_filename = f"Lab_Test_{datetime.now().strftime('%m_%d_%Y')}.csv"
-                current_lab_filename = lab_filename
+                return dash.no_update
+
+            current_lab_filename = lab_filename
         else:
             machines_iter = machine_connections.items()
 
