@@ -24,7 +24,7 @@ FONT_DEFAULT = "Helvetica"
 FONT_BOLD = "Helvetica-Bold"
 LAB_OBJECT_SCALE_FACTOR = 1.042
 
-# Weight conversion for lab metrics: 46 lbs per 1800 pieces
+# Weight conversion for lab metrics: 1 lbs per 1800 pieces
 
 LAB_WEIGHT_MULTIPLIER = 1 / 1800
 
