@@ -42,6 +42,7 @@ def simulate(csv_path: Path, delay: float = 0.0) -> None:
             for i, row in enumerate(reader, 1):
                 writer.writerow(row)
                 dst.flush()
+
                 callbacks._lab_totals_cache.clear()
 
                 section, _ = update_1_1.__wrapped__(

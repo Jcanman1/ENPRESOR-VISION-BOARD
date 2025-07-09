@@ -76,10 +76,12 @@ _REGISTERING = False
 # log file.
 _lab_totals_cache = {}
 
+
 # Cache of live metrics totals keyed by ``(machine_id, file_path)``. Each entry
 # stores cumulative counter totals and bookkeeping information so that
 # subsequent calls only process new rows appended to the 24h metrics file.
 _live_totals_cache = {}
+
 
 
 
@@ -122,6 +124,7 @@ def load_lab_totals(machine_id, filename=None):
         prev_ts = None
         prev_rate = None
         prev_counters = None
+
         last_index = -1
     else:
         counter_totals = cache["counter_totals"]
@@ -148,6 +151,7 @@ def load_lab_totals(machine_id, filename=None):
                     ts_val = ts
             timestamps.append(ts_val)
 
+
             current_counters = []
             for i in range(1, 13):
                 val = row.get(f"counter_{i}")
@@ -170,6 +174,7 @@ def load_lab_totals(machine_id, filename=None):
                 scale = generate_report.LAB_OBJECT_SCALE_FACTOR
                 for idx_c, prev_val in enumerate(prev_counters):
                     counter_totals[idx_c] += prev_val * delta_minutes * scale
+
 
             opm = row.get("objects_per_min")
             try:
@@ -194,6 +199,7 @@ def load_lab_totals(machine_id, filename=None):
             prev_ts = ts_val
             prev_rate = rate_val
             prev_counters = current_counters
+
             last_index = idx
 
     _lab_totals_cache[key] = {
@@ -415,6 +421,58 @@ def load_lab_totals_metrics(machine_id):
             elapsed_seconds = 0
 
     return total_capacity, accepts_total, rejects_total, elapsed_seconds
+
+
+def load_live_counter_totals(machine_id):
+    """Return total objects removed for each counter from live metrics CSV."""
+    file_path = os.path.join(
+        hourly_data_saving.EXPORT_DIR,
+        str(machine_id),
+        hourly_data_saving.METRICS_FILENAME,
+    )
+
+    if not os.path.exists(file_path):
+        return [0] * 12
+
+    key = (machine_id, os.path.abspath(file_path))
+    stat = os.stat(file_path)
+    mtime = stat.st_mtime
+    size = stat.st_size
+
+    cache = _live_totals_cache.get(key)
+    if cache is not None:
+        if size < cache.get("size", 0) or mtime < cache.get("mtime", 0):
+            cache = None
+
+    if cache is None:
+        totals = [0.0] * 12
+        last_index = -1
+    else:
+        totals = cache["totals"]
+        last_index = cache["last_index"]
+
+    with open(file_path, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for idx, row in enumerate(reader):
+            if idx <= last_index:
+                continue
+            for i in range(1, 13):
+                val = row.get(f"counter_{i}")
+                try:
+                    rate = float(val) if val else 0.0
+                except ValueError:
+                    rate = 0.0
+                totals[i - 1] += rate
+            last_index = idx
+
+    _live_totals_cache[key] = {
+        "totals": totals,
+        "last_index": last_index,
+        "mtime": mtime,
+        "size": size,
+    }
+
+    return totals
 
 def register_callbacks(app):
     """Public entry point that guards against re-entrant registration."""
@@ -2464,6 +2522,7 @@ def _register_callbacks_impl(app):
                 stat = os.stat(path)
                 mtime = stat.st_mtime
                 size = stat.st_size
+
             else:
                 mtime = size = 0
 
