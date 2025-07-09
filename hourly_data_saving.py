@@ -109,6 +109,7 @@ def append_metrics(
     filename: str = METRICS_FILENAME,
     mode: Optional[str] = None,
 ):
+
     """Append a row of metrics for a machine and purge old entries.
 
     A ``mode`` column is added so callers can record whether values were
