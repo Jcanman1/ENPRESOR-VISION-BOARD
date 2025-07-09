@@ -109,7 +109,6 @@ def append_metrics(
     filename: str = METRICS_FILENAME,
     mode: Optional[str] = None,
 ):
-
     """Append a row of metrics for a machine and purge old entries.
 
     A ``mode`` column is added so callers can record whether values were
@@ -118,21 +117,6 @@ def append_metrics(
     machine_dir = os.path.join(export_dir, str(machine_id))
     os.makedirs(machine_dir, exist_ok=True)
     file_path = os.path.join(machine_dir, filename)
-
-    # Rebuild header if an older file exists with columns in the wrong order.
-    if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
-        with open(file_path, newline="", encoding="utf-8") as f:
-            reader = csv.reader(f)
-            existing = next(reader, [])
-        if existing != list(METRIC_FIELDNAMES):
-            with open(file_path, newline="", encoding="utf-8") as f:
-                reader = csv.DictReader(f, fieldnames=existing)
-                rows = list(reader)
-            with open(file_path, "w", newline="", encoding="utf-8") as f:
-                writer = csv.DictWriter(f, fieldnames=METRIC_FIELDNAMES)
-                writer.writeheader()
-                for r in rows:
-                    writer.writerow({fn: r.get(fn, "") for fn in METRIC_FIELDNAMES})
 
     # Use microsecond precision for timestamps so entries can be ordered
     # correctly even when multiple samples occur within the same second.
