@@ -8,10 +8,15 @@ import os
 import csv
 from datetime import datetime, timedelta
 from typing import Optional, List
+from time import time
 
 EXPORT_DIR = os.path.join(os.path.dirname(__file__), "exports")
 METRICS_FILENAME = "last_24h_metrics.csv"
 CONTROL_LOG_FILENAME = "last_24h_control_log.csv"
+
+# Purge old entries at most once per PURGE_INTERVAL_SECONDS per machine.
+PURGE_INTERVAL_SECONDS = 60
+_last_purge_times = {}
 
 
 
@@ -116,8 +121,13 @@ def append_metrics(metrics: dict, machine_id: str,
         # Skip writing if file is locked by another process
         return
 
-    purge_old_entries(export_dir, machine_id, filename,
-                      fieldnames_hint=list(row.keys()))
+    key = ("metrics", machine_id)
+    now = time()
+    last = _last_purge_times.get(key, 0)
+    if now - last >= PURGE_INTERVAL_SECONDS:
+        purge_old_entries(export_dir, machine_id, filename,
+                          fieldnames_hint=list(row.keys()))
+        _last_purge_times[key] = now
 
 
 
@@ -311,8 +321,13 @@ def append_control_log(entry: dict, machine_id: str,
     except OSError:
         return
 
-    purge_old_control_entries(export_dir, machine_id, filename,
-                              fieldnames_hint=list(row.keys()))
+    key = ("control", machine_id)
+    now = time()
+    last = _last_purge_times.get(key, 0)
+    if now - last >= PURGE_INTERVAL_SECONDS:
+        purge_old_control_entries(export_dir, machine_id, filename,
+                                  fieldnames_hint=list(row.keys()))
+        _last_purge_times[key] = now
 
 
 def purge_old_control_entries(export_dir: str = EXPORT_DIR, machine_id: Optional[str] = None,
