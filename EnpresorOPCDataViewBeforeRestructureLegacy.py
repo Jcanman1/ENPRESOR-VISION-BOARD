@@ -4060,14 +4060,34 @@ def create_enhanced_machine_card_with_selection(machine, ip_options, floors_data
             accepts = production_info.get('accepts_formatted', '0')
             rejects = production_info.get('rejects_formatted', '0')
             diagnostic = production_info.get('diagnostic_counter', '0')
+            capacity_count = production_info.get('capacity_count')
+            accepts_count = production_info.get('accepts_count')
+            reject_count = production_info.get('reject_count')
         else:
             capacity = operational_data.get('capacity', '0')
             accepts = operational_data.get('accepts', '0')
             rejects = operational_data.get('rejects', '0')
             diagnostic = operational_data.get('diagnostic_counter', '0')
+            capacity_count = accepts_count = reject_count = None
             
         # Connection status for display
         connection_status_display = "Demo" if demo_mode else "Connected"
+
+        pref = load_weight_preference()
+        if capacity_count is not None:
+            capacity = f"{capacity_count:,.0f} pcs / {capacity} {capacity_unit_label(pref)}"
+        else:
+            capacity = f"{capacity} {capacity_unit_label(pref)}"
+
+        if accepts_count is not None:
+            accepts = f"{accepts_count:,.0f} pcs / {accepts} {capacity_unit_label(pref, False)} "
+        else:
+            accepts = f"{accepts} {capacity_unit_label(pref, False)} "
+
+        if reject_count is not None:
+            rejects = f"{reject_count:,.0f} pcs / {rejects} {capacity_unit_label(pref, False)} "
+        else:
+            rejects = f"{rejects} {capacity_unit_label(pref, False)} "
         
     else:
         # Not connected - use default values
@@ -4248,7 +4268,7 @@ def create_enhanced_machine_card_with_selection(machine, ip_options, floors_data
 
                 #html.Div("Production Data:", className="text-center fw-bold mb-0", style={"fontSize": "1.2rem"}),
                 html.Div(
-                    f"{capacity} {capacity_unit_label(load_weight_preference())}",
+                    capacity,
                     className="text-center production-data",
                     style={"fontSize": "2.6rem", "fontWeight": "bold","fontFamily": NUMERIC_FONT}
                 )

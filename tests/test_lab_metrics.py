@@ -215,3 +215,33 @@ def test_update_section_1_1_lab_cache_skips_calculation(monkeypatch, tmp_path):
     func.__wrapped__(1, "main", {}, {}, "en", {"connected": False}, {"mode": "lab"}, {}, {"unit": "lb"})
     assert calls["metrics"] == 1
     assert calls["totals"] == 1
+
+
+def test_machine_dashboard_data_lab(monkeypatch, tmp_path):
+    app = setup_app(monkeypatch, tmp_path)
+    create_log(tmp_path)
+    key = next(k for k in app.callback_map if k.startswith("machines-data.data"))
+    func = app.callback_map[key]["callback"]
+
+    machines = {"machines": [{"id": 1, "floor_id": 1}]}
+    res = func.__wrapped__(0, {}, {"mode": "lab"}, machines, {}, {"unit": "lb"})
+
+    prod = res["machines"][0]["operational_data"]["production"]
+
+    metrics = callbacks.load_lab_totals_metrics(1)
+    total_lbs, acc_lbs, rej_lbs, _ = metrics
+    expected_cap = callbacks.convert_capacity_from_lbs(total_lbs, {"unit": "lb"})
+    expected_acc = callbacks.convert_capacity_from_lbs(acc_lbs, {"unit": "lb"})
+    expected_rej = callbacks.convert_capacity_from_lbs(rej_lbs, {"unit": "lb"})
+
+    counter_totals, _, object_totals = callbacks.load_lab_totals(1)
+    reject_count = sum(counter_totals)
+    capacity_count = object_totals[-1]
+    accepts_count = max(0, capacity_count - reject_count)
+
+    assert prod["capacity"] == expected_cap
+    assert prod["accepts"] == expected_acc
+    assert prod["rejects"] == expected_rej
+    assert prod["capacity_count"] == capacity_count
+    assert prod["accepts_count"] == accepts_count
+    assert prod["reject_count"] == reject_count
