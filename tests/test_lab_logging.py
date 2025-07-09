@@ -140,3 +140,49 @@ def test_lab_logging_captures_all_counters(monkeypatch):
     for i in range(1, 13):
         assert captured[f"counter_{i}"] == i
 
+
+def test_lab_logging_clamps_small_values(monkeypatch):
+    app = setup_app(monkeypatch)
+    log_func = app.callback_map["metric-logging-store.data"]["callback"]
+
+    tags = {
+        CAPACITY_TAG: {"data": callbacks.TagData(CAPACITY_TAG)},
+        OPM_TAG: {"data": callbacks.TagData(OPM_TAG)},
+    }
+    tags[CAPACITY_TAG]["data"].latest_value = 0.0003
+    tags[OPM_TAG]["data"].latest_value = 1
+
+    counter_tag = "Status.ColorSort.Sort1.DefectCount{}.Rate.Current"
+    for i in range(1, 13):
+        name = counter_tag.format(i)
+        tags[name] = {"data": callbacks.TagData(name)}
+        tags[name]["data"].latest_value = 0.0
+    tags[counter_tag.format(2)]["data"].latest_value = 1e-8
+
+    callbacks.machine_connections = {1: {"tags": tags, "connected": True}}
+
+    captured = {}
+
+    monkeypatch.setattr(
+        callbacks,
+        "append_metrics",
+        lambda metrics, machine_id=None, filename=None, mode=None: captured.update(metrics),
+    )
+
+    log_func.__wrapped__(
+        0,
+        {"connected": True},
+        {"mode": "lab"},
+        None,
+        None,
+        {"unit": "lb"},
+        True,
+        {"machine_id": 1},
+        {"filename": "Lab_Test_sample.csv"},
+    )
+
+    assert captured["capacity"] == 0
+    assert captured["accepts"] == 0
+    assert captured["rejects"] == 0
+    assert captured["counter_2"] == 0
+
