@@ -2705,7 +2705,20 @@ def _render_new_dashboard():
         html.Div(id="floor-machine-container", className="px-4 pt-2 pb-4"),
 
         # Placeholder container for dynamic sections (IDs defined in main dashboard)
-        html.Div([], id="new-dashboard-placeholders", style={"display": "none"})
+        html.Div([
+            html.Div(id="section-1-1", children=[], style={"display": "none"}),
+            html.Div(id="section-1-2", children=[], style={"display": "none"}),
+            html.Div(id="section-2", children=[], style={"display": "none"}),
+            html.Div(id="section-3-1", children=[], style={"display": "none"}),
+            html.Div(id="section-3-2", children=[], style={"display": "none"}),
+            html.Div(id="section-4", children=[], style={"display": "none"}),
+            html.Div(id="section-5-1", children=[], style={"display": "none"}),
+            html.Div(id="section-5-2", children=[], style={"display": "none"}),
+            html.Div(id="section-6-1", children=[], style={"display": "none"}),
+            html.Div(id="section-6-2", children=[], style={"display": "none"}),
+            html.Div(id="section-7-1", children=[], style={"display": "none"}),
+            html.Div(id="section-7-2", children=[], style={"display": "none"}),
+        ], id="new-dashboard-placeholders", style={"display": "none"})
     ])
 
 
