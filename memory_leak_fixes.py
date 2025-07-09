@@ -77,14 +77,19 @@ class AppStateManager:
         self.interval = interval
         self._stop_event = threading.Event()
         self._thread = threading.Thread(target=self._loop, daemon=True)
+        self.cleanup_paused = False
 
     def start_cleanup_thread(self) -> None:
         self._thread.start()
 
+    def set_paused(self, value: bool) -> None:
+        self.cleanup_paused = value
+
     def _loop(self) -> None:
         while not self._stop_event.is_set():
             time.sleep(self.interval)
-            self.cleanup()
+            if not self.cleanup_paused:
+                self.cleanup()
 
     def cleanup(self) -> None:
         tags = getattr(self.app_state, "tags", {})
