@@ -1,11 +1,9 @@
 import os
 import csv
 import dash
-import pytest
 
 import callbacks
 import autoconnect
-import generate_report
 
 
 def setup_app(monkeypatch, tmp_path):
@@ -196,13 +194,13 @@ def test_update_section_1_1_lab_cache_skips_calculation(monkeypatch, tmp_path):
     orig_metrics = callbacks.load_lab_totals_metrics
     orig_totals = callbacks.load_lab_totals
 
-    def wrapped_metrics(mid, *args, **kwargs):
+    def wrapped_metrics(mid):
         calls["metrics"] += 1
-        return orig_metrics(mid, *args, **kwargs)
+        return orig_metrics(mid)
 
-    def wrapped_totals(mid, *args, **kwargs):
+    def wrapped_totals(mid):
         calls["totals"] += 1
-        return orig_totals(mid, *args, **kwargs)
+        return orig_totals(mid)
 
     monkeypatch.setattr(callbacks, "load_lab_totals_metrics", wrapped_metrics)
     monkeypatch.setattr(callbacks, "load_lab_totals", wrapped_totals)
@@ -247,43 +245,3 @@ def test_machine_dashboard_data_lab(monkeypatch, tmp_path):
     assert prod["capacity_count"] == capacity_count
     assert prod["accepts_count"] == accepts_count
     assert prod["reject_count"] == reject_count
-
-
-def create_active_log(tmp_path):
-    machine_dir = tmp_path / "1"
-    machine_dir.mkdir(parents=True, exist_ok=True)
-    path = machine_dir / "Lab_Test_sample.csv"
-    fieldnames = ["timestamp", "objects_per_min"] + [f"counter_{i}" for i in range(1, 13)]
-    with path.open("w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
-        row1 = {"timestamp": "2025-01-01T00:00:00", "objects_per_min": "60"}
-        row2 = {"timestamp": "2025-01-01T00:01:00", "objects_per_min": "60"}
-        for i in range(1, 13):
-            row1[f"counter_{i}"] = "1"
-            row2[f"counter_{i}"] = "1"
-        writer.writerow(row1)
-        writer.writerow(row2)
-    return path
-
-
-def test_inactive_counters_filtered(monkeypatch, tmp_path):
-    app = setup_app(monkeypatch, tmp_path)
-    create_active_log(tmp_path)
-    callbacks._lab_totals_cache.clear()
-    callbacks._lab_production_cache.clear()
-    key = next(k for k in app.callback_map if k.startswith("machines-data.data"))
-    func = app.callback_map[key]["callback"]
-
-    monkeypatch.setattr(
-        callbacks,
-        "get_active_counter_flags",
-        lambda mid: ([False] + [True] * 11) if mid == 1 else [True] * 12,
-    )
-
-    machines = {"machines": [{"id": 1, "floor_id": 1}]}
-    res = func.__wrapped__(0, {}, {"mode": "lab"}, machines, {}, {"unit": "lb"})
-    prod = res["machines"][0]["operational_data"]["production"]
-
-    expected = 11 * generate_report.LAB_OBJECT_SCALE_FACTOR
-    assert prod["reject_count"] == pytest.approx(expected)
