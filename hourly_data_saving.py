@@ -102,7 +102,6 @@ METRIC_FIELDNAMES = (
 )
 
 
-
 def append_metrics(
     metrics: dict,
     machine_id: str,
@@ -111,13 +110,11 @@ def append_metrics(
     mode: Optional[str] = None,
 ):
 
-
     """Append a row of metrics for a machine and purge old entries.
 
     A ``mode`` column is added so callers can record whether values were
     captured from a live connection or generated while in demo mode.
     """
-
     machine_dir = os.path.join(export_dir, str(machine_id))
     os.makedirs(machine_dir, exist_ok=True)
     file_path = os.path.join(machine_dir, filename)
@@ -141,7 +138,6 @@ def append_metrics(
     # correctly even when multiple samples occur within the same second.
     timestamp = datetime.now().isoformat(timespec="microseconds")
     row = {"timestamp": timestamp}
-
     row.update(metrics)
     if mode:
         row["mode"] = mode

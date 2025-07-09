@@ -71,16 +71,12 @@ def test_append_metrics_rewrites_header_on_mismatch(tmp_path):
     with file_path.open("w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=bad_header)
         writer.writeheader()
-
         writer.writerow({h: i for i, h in enumerate(bad_header)})
-
 
     append_metrics({"capacity": 1, "accepts": 0, "rejects": 0}, machine_id, export_dir=str(tmp_path))
 
     with file_path.open() as f:
-
         header = next(csv.reader(f))
 
     assert header == list(METRIC_FIELDNAMES)
-
 
