@@ -4767,7 +4767,7 @@ def _register_callbacks_impl(app):
                     if vals:
                         max_hist_value = max(max_hist_value, max(vals))
 
-            yaxis_range = [0, 1] if max_hist_value < 1 else [0, None]
+            yaxis_range = [0, 10] if max_hist_value < 1 else [0, None]
 
             fig.update_layout(
                 title=None,
