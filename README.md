@@ -70,6 +70,7 @@ absolute magnitude is below `SMALL_VALUE_THRESHOLD` (default `0.001`) are stored
 as `0` to avoid noise from very small readings. Adjust the constant in
 `callbacks.py` if different behavior is desired.
 
+
 ## Running with Gunicorn
 
 For production deployments you can run the Dash application using Gunicorn.
