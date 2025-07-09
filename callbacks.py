@@ -82,6 +82,11 @@ _lab_totals_cache = {}
 # subsequent calls only process new rows appended to the 24h metrics file.
 _live_totals_cache = {}
 
+# Cache of lab production metrics keyed by machine id. Stores total capacity,
+# accepts, rejects and associated object counts so repeated updates only parse
+# new log data.
+_lab_production_cache = {}
+
 
 
 
@@ -1193,7 +1198,48 @@ def _register_callbacks_impl(app):
             return machines_data
         
     
-        if mode == "demo":
+        elif mode == "lab":
+            # Display metrics from lab logs for each machine
+            for machine in machines:
+                machine_id = machine.get("id")
+                metrics = load_lab_totals_metrics(machine_id)
+                if metrics:
+                    tot_cap_lbs, acc_lbs, rej_lbs, _ = metrics
+                    counter_totals, _, object_totals = load_lab_totals(machine_id)
+                    reject_count = sum(counter_totals)
+                    capacity_count = object_totals[-1] if object_totals else 0
+                    accepts_count = max(0, capacity_count - reject_count)
+
+                    cap = convert_capacity_from_lbs(tot_cap_lbs, weight_pref)
+                    acc = convert_capacity_from_lbs(acc_lbs, weight_pref)
+                    rej = convert_capacity_from_lbs(rej_lbs, weight_pref)
+                else:
+                    cap = acc = rej = 0
+                    capacity_count = accepts_count = reject_count = 0
+
+                prod = {
+                    "capacity_formatted": f"{cap:,.0f}",
+                    "accepts_formatted": f"{acc:,.0f}",
+                    "rejects_formatted": f"{rej:,.0f}",
+                    "capacity": cap,
+                    "accepts": acc,
+                    "rejects": rej,
+                    "capacity_count": capacity_count,
+                    "accepts_count": accepts_count,
+                    "reject_count": reject_count,
+                    "diagnostic_counter": (machine.get("operational_data") or {}).get("production", {}).get("diagnostic_counter", "0"),
+                }
+
+                if not machine.get("operational_data"):
+                    machine["operational_data"] = {"preset": {}, "status": {}, "feeder": {}, "production": prod}
+                else:
+                    machine["operational_data"].setdefault("production", {})
+                    machine["operational_data"]["production"].update(prod)
+
+            machines_data["machines"] = machines
+            return machines_data
+
+        elif mode == "demo":
             now_str = datetime.now().strftime("%H:%M:%S")
             new_machines = []
     
