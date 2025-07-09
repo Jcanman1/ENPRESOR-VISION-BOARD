@@ -4760,6 +4760,15 @@ def _register_callbacks_impl(app):
             hist_values = [historical_data[i]['values'][-1] if historical_data[i]['values'] else None for i in range(1, 13)]
             logger.info(f"Section 6-1 latest values (historical mode): {hist_values}")
 
+            max_hist_value = 0
+            for i in range(1, 13):
+                if display_settings.get(i, True):
+                    vals = historical_data[i]["values"]
+                    if vals:
+                        max_hist_value = max(max_hist_value, max(vals))
+
+            yaxis_range = [0, 1] if max_hist_value < 1 else [0, None]
+
             fig.update_layout(
                 title=None,
                 xaxis=dict(
@@ -4774,7 +4783,7 @@ def _register_callbacks_impl(app):
                     title=None,
                     showgrid=False,
                     gridcolor='rgba(211,211,211,0.3)',
-                    range=[0, None],
+                    range=yaxis_range,
                 ),
                 margin=dict(l=5, r=5, t=5, b=5),
                 height=200,
@@ -4844,6 +4853,15 @@ def _register_callbacks_impl(app):
                         hovertext=[f"{counter_name}: {value}" for value in values],
                     ))
 
+        max_live_value = 0
+        for i in range(1, 13):
+            if display_settings.get(i, True):
+                vals = app_state.counter_history[i]["values"]
+                if vals:
+                    max_live_value = max(max_live_value, max(vals))
+
+        yaxis_range = [0, 1] if max_live_value < 1 else [0, None]
+
         fig.update_layout(
             title=None,
             xaxis=dict(
@@ -4859,7 +4877,7 @@ def _register_callbacks_impl(app):
                 title=None,
                 showgrid=False,
                 gridcolor='rgba(211,211,211,0.3)',
-                range=[0, None],
+                range=yaxis_range,
             ),
             margin=dict(l=5, r=5, t=5, b=5),
             height=200,

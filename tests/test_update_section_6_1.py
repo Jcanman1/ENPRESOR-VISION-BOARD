@@ -47,3 +47,24 @@ def test_update_section_6_1_yaxis_min_zero(monkeypatch):
 
     graph = div.children[1]
     assert graph.figure.layout.yaxis.range[0] == 0
+    assert graph.figure.layout.yaxis.range[1] is None
+
+
+def test_update_section_6_1_yaxis_max_one(monkeypatch):
+    """Ensure y-axis upper bound defaults to 1 when all values are below 1."""
+    monkeypatch.setattr(autoconnect, "initialize_autoconnect", lambda: None)
+
+    app = dash.Dash(__name__)
+    callbacks.register_callbacks(app)
+    func = app.callback_map["section-6-1.children"]["callback"]
+
+    monkeypatch.setattr(callbacks.counter_manager, "add_data_point", lambda *a, **k: None, raising=False)
+
+    callbacks.previous_counter_values = [0.5] * 12
+    callbacks.display_settings = {i: True for i in range(1, 13)}
+    callbacks.app_state.counter_history = {i: {"times": [], "values": []} for i in range(1, 13)}
+
+    div = func.__wrapped__(0, "main", {}, "en", {"connected": True}, {"mode": "demo"}, {"machine_id": 1})
+
+    graph = div.children[1]
+    assert graph.figure.layout.yaxis.range == (0, 1)
