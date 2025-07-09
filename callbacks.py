@@ -88,6 +88,38 @@ _live_totals_cache = {}
 _lab_production_cache = {}
 
 
+def _clear_lab_caches(machine_id):
+    """Remove cached lab data for the given machine."""
+    for key in list(_lab_totals_cache):
+        if key[0] == machine_id:
+            _lab_totals_cache.pop(key, None)
+    _lab_production_cache.pop(machine_id, None)
+
+
+def _reset_lab_session(machine_id):
+    """Reset counters and history for a new lab test."""
+    _clear_lab_caches(machine_id)
+    global previous_counter_values
+    previous_counter_values = [0] * 12
+    if "app_state" in globals() and hasattr(app_state, "counter_history"):
+        app_state.counter_history = {
+            i: {"times": [], "values": []} for i in range(1, 13)
+        }
+
+
+def _create_empty_lab_log(machine_id, filename):
+    """Ensure a new lab log file exists so cached data does not reuse old logs."""
+    machine_dir = os.path.join(hourly_data_saving.EXPORT_DIR, str(machine_id))
+    os.makedirs(machine_dir, exist_ok=True)
+    path = os.path.join(machine_dir, filename)
+    try:
+        with open(path, "w", encoding="utf-8"):
+            pass
+    except OSError:
+        # Ignore failures if file cannot be created
+        pass
+
+
 
 
 
@@ -5394,6 +5426,11 @@ def _register_callbacks_impl(app):
         if ctx.triggered:
             trigger = ctx.triggered[0]["prop_id"].split(".")[0]
             if trigger == "start-test-btn":
+                try:
+                    if active_machine_id is not None:
+                        _reset_lab_session(active_machine_id)
+                except Exception as exc:
+                    logger.warning(f"Failed to reset lab session: {exc}")
                 return True
             elif trigger == "stop-test-btn":
                 # Do not end the test immediately; allow a 30s grace period
@@ -5429,6 +5466,12 @@ def _register_callbacks_impl(app):
                 f"Lab_Test_{test_name}_{datetime.now().strftime('%m_%d_%Y')}.csv"
             )
             current_lab_filename = filename
+            try:
+                if active_machine_id is not None:
+                    _create_empty_lab_log(active_machine_id, filename)
+                    _reset_lab_session(active_machine_id)
+            except Exception as exc:
+                logger.warning(f"Failed to prepare new lab log: {exc}")
             return {"filename": filename}
         return {}
 
