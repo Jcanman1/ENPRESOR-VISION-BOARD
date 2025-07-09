@@ -96,6 +96,7 @@ def test_lab_stop_retains_filename(monkeypatch):
     assert captured[-1] == start_info["filename"]
 
 
+
 def test_lab_logging_captures_all_counters(monkeypatch):
     app = setup_app(monkeypatch)
     log_func = app.callback_map["metric-logging-store.data"]["callback"]
@@ -104,6 +105,7 @@ def test_lab_logging_captures_all_counters(monkeypatch):
         CAPACITY_TAG: {"data": callbacks.TagData(CAPACITY_TAG)},
         OPM_TAG: {"data": callbacks.TagData(OPM_TAG)},
     }
+
     tags[CAPACITY_TAG]["data"].latest_value = 1000
     tags[OPM_TAG]["data"].latest_value = 100
 
@@ -116,6 +118,7 @@ def test_lab_logging_captures_all_counters(monkeypatch):
     callbacks.machine_connections = {1: {"tags": tags, "connected": True}}
 
     captured = {}
+
     monkeypatch.setattr(
         callbacks,
         "append_metrics",
@@ -136,3 +139,4 @@ def test_lab_logging_captures_all_counters(monkeypatch):
 
     for i in range(1, 13):
         assert captured[f"counter_{i}"] == i
+
