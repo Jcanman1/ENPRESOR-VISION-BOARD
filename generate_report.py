@@ -23,6 +23,8 @@ import math  # for label angle calculations
 FONT_DEFAULT = "Helvetica"
 FONT_BOLD = "Helvetica-Bold"
 LAB_OBJECT_SCALE_FACTOR = 1.042
+# Weight conversion for lab metrics: 1 lb per 1800 pieces
+LAB_WEIGHT_MULTIPLIER = 1 / 1800
 
 from i18n import tr
 
@@ -509,6 +511,10 @@ def draw_global_summary(
                     values_in_kg=values_in_kg,
                 )
                 total_rejects += stats['total_capacity_lbs']
+
+    if is_lab_mode:
+        total_accepts *= LAB_WEIGHT_MULTIPLIER
+        total_rejects *= LAB_WEIGHT_MULTIPLIER
 
     # Section 1: Totals
     y_sec1 = current_y - h1
@@ -1194,6 +1200,10 @@ def draw_machine_sections(
             values_in_kg=values_in_kg,
         )
         machine_rejects = r_stats["total_capacity_lbs"]
+
+    if is_lab_mode:
+        machine_accepts *= LAB_WEIGHT_MULTIPLIER
+        machine_rejects *= LAB_WEIGHT_MULTIPLIER
 
     
     # Draw SMALLER blue counts section
