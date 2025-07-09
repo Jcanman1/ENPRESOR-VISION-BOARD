@@ -199,8 +199,11 @@ def test_draw_machine_sections_lab_mode_decimals(tmp_path, monkeypatch):
         df["rejects"], timestamps=df["timestamp"], is_lab_mode=True
     )
 
-    assert f"{a_stats['total_capacity_lbs']:.2f} lbs" in canvas.strings
-    assert f"{r_stats['total_capacity_lbs']:.2f} lbs" in canvas.strings
+    expected_accepts = a_stats['total_capacity_lbs'] * generate_report.LAB_WEIGHT_MULTIPLIER
+    expected_rejects = r_stats['total_capacity_lbs'] * generate_report.LAB_WEIGHT_MULTIPLIER
+
+    assert f"{expected_accepts:.2f} lbs" in canvas.strings
+    assert f"{expected_rejects:.2f} lbs" in canvas.strings
 
 
 def test_global_summary_totals_sum_machines(tmp_path, monkeypatch):
