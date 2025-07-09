@@ -76,14 +76,11 @@ _REGISTERING = False
 # log file.
 _lab_totals_cache = {}
 
-# Cache of live counter totals keyed by ``(machine_id, file_path)`` to avoid
-# re-reading the entire ``last_24h_metrics.csv`` file on each invocation.
+# Cache of live metrics totals keyed by ``(machine_id, file_path)``. Each entry
+# stores cumulative counter totals and bookkeeping information so that
+# subsequent calls only process new rows appended to the 24h metrics file.
 _live_totals_cache = {}
 
-# Cache used by tests to verify that lab production calculations are skipped
-# when data has not changed. The application itself does not currently rely on
-# this, but defining it allows the test suite to clear and inspect the cache.
-_lab_production_cache = {}
 
 
 
@@ -214,10 +211,18 @@ def load_lab_totals(machine_id, filename=None):
     return counter_totals, timestamps, object_totals
 
 
-def load_live_counter_totals(machine_id, filename="last_24h_metrics.csv"):
-    """Return cumulative counter totals from a live metrics CSV file."""
+
+def load_live_counter_totals(machine_id, filename=hourly_data_saving.METRICS_FILENAME):
+    """Return cumulative counter totals from the live metrics file.
+
+    The results are cached per file so subsequent calls only process rows that
+    were appended since the last invocation. This mirrors the caching logic
+    used by :func:`load_lab_totals` but only tracks counter totals.
+    """
     machine_dir = os.path.join(hourly_data_saving.EXPORT_DIR, str(machine_id))
     path = os.path.join(machine_dir, filename)
+
+
     if not os.path.exists(path):
         return [0] * 12
 
@@ -228,14 +233,19 @@ def load_live_counter_totals(machine_id, filename="last_24h_metrics.csv"):
 
     cache = _live_totals_cache.get(key)
     if cache is not None:
+
+        # Reset if file was truncated or replaced with an older version
+
         if size < cache.get("size", 0) or mtime < cache.get("mtime", 0):
             cache = None
 
     if cache is None:
-        counter_totals = [0] * 12
+
+        totals = [0] * 12
         last_index = -1
     else:
-        counter_totals = cache["counter_totals"]
+        totals = cache["totals"]
+
         last_index = cache.get("last_index", -1)
 
     with open(path, newline="", encoding="utf-8") as f:
@@ -246,19 +256,25 @@ def load_live_counter_totals(machine_id, filename="last_24h_metrics.csv"):
             for i in range(1, 13):
                 val = row.get(f"counter_{i}")
                 try:
-                    counter_totals[i - 1] += float(val) if val else 0.0
+
+                    totals[i - 1] += float(val) if val else 0.0
+
                 except ValueError:
                     pass
             last_index = idx
 
     _live_totals_cache[key] = {
-        "counter_totals": counter_totals,
+
+        "totals": totals,
+
         "last_index": last_index,
         "mtime": mtime,
         "size": size,
     }
 
-    return counter_totals
+
+    return totals
+
 
 
 def load_last_lab_metrics(machine_id):
