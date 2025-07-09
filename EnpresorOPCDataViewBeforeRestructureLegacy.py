@@ -2704,6 +2704,9 @@ def _render_new_dashboard():
         # Main content area
         html.Div(id="floor-machine-container", className="px-4 pt-2 pb-4"),
 
+        # Hidden placeholder so callbacks referencing this ID don't warn
+        html.Button(id="add-floor-btn", style={"display": "none"}),
+
         # Placeholder container for dynamic sections (IDs defined in main dashboard)
         html.Div([
             html.Div(id="section-1-1", children=[], style={"display": "none"}),
