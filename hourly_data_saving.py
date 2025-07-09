@@ -18,8 +18,6 @@ CONTROL_LOG_FILENAME = "last_24h_control_log.csv"
 PURGE_INTERVAL_SECONDS = 60
 _last_purge_times = {}
 
-
-
 def initialize_data_saving(export_dir: str = EXPORT_DIR,
                            machine_ids: Optional[List[str]] = None):
     """Set up periodic CSV export directory and optional per-machine folders."""
@@ -125,8 +123,10 @@ def append_metrics(metrics: dict, machine_id: str,
     now = time()
     last = _last_purge_times.get(key, 0)
     if now - last >= PURGE_INTERVAL_SECONDS:
+
         purge_old_entries(export_dir, machine_id, filename,
                           fieldnames_hint=list(row.keys()))
+
         _last_purge_times[key] = now
 
 
@@ -325,8 +325,10 @@ def append_control_log(entry: dict, machine_id: str,
     now = time()
     last = _last_purge_times.get(key, 0)
     if now - last >= PURGE_INTERVAL_SECONDS:
+
         purge_old_control_entries(export_dir, machine_id, filename,
                                   fieldnames_hint=list(row.keys()))
+
         _last_purge_times[key] = now
 
 
