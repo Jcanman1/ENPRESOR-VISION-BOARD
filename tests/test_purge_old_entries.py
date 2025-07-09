@@ -5,7 +5,12 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from hourly_data_saving import append_metrics, purge_old_entries, METRICS_FILENAME
+from hourly_data_saving import (
+    append_metrics,
+    purge_old_entries,
+    METRICS_FILENAME,
+    METRIC_FIELDNAMES,
+)
 
 
 def test_header_rebuild_with_extra_columns(tmp_path):
@@ -52,4 +57,26 @@ def test_header_rebuild_with_extra_columns(tmp_path):
     idx_stop = header.index("stopped")
     assert data[idx_run] == "1"
     assert data[idx_stop] == "0"
+
+
+def test_append_metrics_rewrites_header_on_mismatch(tmp_path):
+    machine_id = "1"
+    machine_dir = tmp_path / machine_id
+    machine_dir.mkdir(parents=True, exist_ok=True)
+    file_path = machine_dir / METRICS_FILENAME
+
+    bad_header = list(METRIC_FIELDNAMES)
+    bad_header[10], bad_header[11] = bad_header[11], bad_header[10]
+
+    with file_path.open("w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=bad_header)
+        writer.writeheader()
+        writer.writerow({h: i for i, h in enumerate(bad_header)})
+
+    append_metrics({"capacity": 1, "accepts": 0, "rejects": 0}, machine_id, export_dir=str(tmp_path))
+
+    with file_path.open() as f:
+        header = next(csv.reader(f))
+
+    assert header == list(METRIC_FIELDNAMES)
 
