@@ -36,8 +36,13 @@ def _minutes_to_hm(minutes: float) -> str:
     return f"{hours}:{mins:02d}"
 
 
-def calculate_total_capacity_from_csv_rates(csv_rate_entries, log_interval_minutes=1,
-                                          timestamps=None, is_lab_mode=False):
+def calculate_total_capacity_from_csv_rates(
+    csv_rate_entries,
+    log_interval_minutes=1,
+    timestamps=None,
+    is_lab_mode=False,
+    values_in_kg=False,
+):
     """
     Convert lbs/hr rates into total lbs and related stats.
     
@@ -53,10 +58,16 @@ def calculate_total_capacity_from_csv_rates(csv_rate_entries, log_interval_minut
         Timestamp data for lab mode calculations.
     is_lab_mode : bool, optional
         Whether to use irregular interval calculation for lab mode.
+    values_in_kg : bool, optional
+        Set to ``True`` if the provided rates are in kilograms per hour.
+        When enabled the values are converted to pounds per hour before
+        totals are computed.
     """
     def _calc(entries):
         if is_lab_mode and timestamps is not None:
-            return _calculate_capacity_lab_mode(timestamps, entries)
+            return _calculate_capacity_lab_mode(
+                timestamps, entries, values_in_kg=values_in_kg
+            )
 
         rates = []
         for r in entries:
@@ -75,6 +86,9 @@ def calculate_total_capacity_from_csv_rates(csv_rate_entries, log_interval_minut
                 "min_rate_lbs_per_hr": 0,
             }
 
+        if values_in_kg:
+            rates = [r * 2.205 for r in rates]
+
         total_lbs = sum(val * (log_interval_minutes / 60.0) for val in rates)
         avg_rate = sum(rates) / len(rates)
 
@@ -87,7 +101,7 @@ def calculate_total_capacity_from_csv_rates(csv_rate_entries, log_interval_minut
 
     return df_processor.process_with_cleanup(csv_rate_entries, _calc)
 
-def _calculate_capacity_lab_mode(timestamps, rates):
+def _calculate_capacity_lab_mode(timestamps, rates, *, values_in_kg=False):
     """Calculate capacity totals using actual time intervals for lab mode data."""
     # Convert to list to avoid pandas negative index issues
     timestamps = list(timestamps)
@@ -109,6 +123,9 @@ def _calculate_capacity_lab_mode(timestamps, rates):
             current_rate = float(rates[i])
             if pd.isna(current_rate):
                 continue
+
+            if values_in_kg:
+                current_rate *= 2.205
                 
             # Parse timestamps
             current_time = pd.to_datetime(timestamps[i])
@@ -128,6 +145,8 @@ def _calculate_capacity_lab_mode(timestamps, rates):
     try:
         last_rate = float(rates[-1])
         if not pd.isna(last_rate):
+            if values_in_kg:
+                last_rate *= 2.205
             valid_rates.append(last_rate)
     except (ValueError, TypeError, IndexError):
         pass
@@ -412,7 +431,18 @@ def draw_header(c, width, height, page_number=None, *, lang="en"):
 
 
 
-def draw_global_summary(c, csv_parent_dir, x0, y0, total_w, available_height, *, is_lab_mode=False, lang="en"):
+def draw_global_summary(
+    c,
+    csv_parent_dir,
+    x0,
+    y0,
+    total_w,
+    available_height,
+    *,
+    is_lab_mode=False,
+    lang="en",
+    values_in_kg=False,
+):
     """Draw the global summary sections (totals, pie, trend, counts)"""
     machines = sorted(
         [d for d in os.listdir(csv_parent_dir)
@@ -457,7 +487,8 @@ def draw_global_summary(c, csv_parent_dir, x0, y0, total_w, available_height, *,
                 stats = calculate_total_capacity_from_csv_rates(
                     df['capacity'],
                     timestamps=df['timestamp'] if is_lab_mode else None,
-                    is_lab_mode=is_lab_mode
+                    is_lab_mode=is_lab_mode,
+                    values_in_kg=values_in_kg,
                 )
                 total_capacity += stats['total_capacity_lbs']
             ac = next((c for c in df.columns if c.lower()=='accepts'), None)
@@ -466,14 +497,16 @@ def draw_global_summary(c, csv_parent_dir, x0, y0, total_w, available_height, *,
                 stats = calculate_total_capacity_from_csv_rates(
                     df[ac],
                     timestamps=df['timestamp'] if is_lab_mode else None,
-                    is_lab_mode=is_lab_mode
+                    is_lab_mode=is_lab_mode,
+                    values_in_kg=values_in_kg,
                 )
                 total_accepts += stats['total_capacity_lbs']
             if rj:
                 stats = calculate_total_capacity_from_csv_rates(
                     df[rj],
                     timestamps=df['timestamp'] if is_lab_mode else None,
-                    is_lab_mode=is_lab_mode
+                    is_lab_mode=is_lab_mode,
+                    values_in_kg=values_in_kg,
                 )
                 total_rejects += stats['total_capacity_lbs']
 
@@ -868,6 +901,7 @@ def build_report(
     machines: list | None = None,
     include_global: bool = True,
     is_lab_mode: bool = False,
+    values_in_kg: bool = False,
     lang: str = "en",
 ) -> None:
     """Generate a PDF report and write it to ``pdf_path``.
@@ -884,6 +918,7 @@ def build_report(
             include_global=include_global,
             lang=lang,
             is_lab_mode=is_lab_mode,
+            values_in_kg=values_in_kg,
         )
     else:
         draw_layout_standard(
@@ -893,6 +928,7 @@ def build_report(
             include_global=include_global,
             lang=lang,
             is_lab_mode=is_lab_mode,
+            values_in_kg=values_in_kg,
         )
 
 def draw_machine_sections(
@@ -907,6 +943,7 @@ def draw_machine_sections(
     *,
     is_lab_mode=False,
     lang="en",
+    values_in_kg=False,
 ):
     """Draw the three sections for a single machine - OPTIMIZED FOR 2 MACHINES PER PAGE"""
     fp = os.path.join(csv_parent_dir, machine, 'last_24h_metrics.csv')
@@ -1143,7 +1180,8 @@ def draw_machine_sections(
         a_stats = calculate_total_capacity_from_csv_rates(
             df[ac_col],
             timestamps=df['timestamp'] if is_lab_mode else None,
-            is_lab_mode=is_lab_mode
+            is_lab_mode=is_lab_mode,
+            values_in_kg=values_in_kg,
         )
         machine_accepts = a_stats["total_capacity_lbs"]
 
@@ -1152,7 +1190,8 @@ def draw_machine_sections(
         r_stats = calculate_total_capacity_from_csv_rates(
             df[rj_col],
             timestamps=df['timestamp'] if is_lab_mode else None,
-            is_lab_mode=is_lab_mode
+            is_lab_mode=is_lab_mode,
+            values_in_kg=values_in_kg,
         )
         machine_rejects = r_stats["total_capacity_lbs"]
 
@@ -1241,6 +1280,7 @@ def draw_layout_optimized(
     include_global=True,
     lang="en",
     is_lab_mode: bool = False,
+    values_in_kg: bool = False,
 ):
     """Optimized version - CONSISTENT SIZING, 2 machines per page"""
     logger.debug("=== DEBUGGING MACHINE DATA ===")
@@ -1281,6 +1321,7 @@ def draw_layout_optimized(
             available_height,
             is_lab_mode=is_lab_mode,
             lang=lang,
+            values_in_kg=values_in_kg,
         )
     
     # Process machines in groups of 2 (HARD LIMIT)
@@ -1319,6 +1360,7 @@ def draw_layout_optimized(
                 global_max_firing,
                 is_lab_mode=is_lab_mode,
                 lang=lang,
+                values_in_kg=values_in_kg,
             )
             # FIXED spacing between machines
             current_y -= 20
@@ -1345,6 +1387,7 @@ def draw_layout_standard(
     include_global=True,
     lang="en",
     is_lab_mode: bool = False,
+    values_in_kg: bool = False,
 ):
     """Standard layout - CONSISTENT SIZING with dynamic page breaks"""
     logger.debug("=== DEBUGGING MACHINE DATA ===")
@@ -1386,6 +1429,7 @@ def draw_layout_standard(
             available_height,
             is_lab_mode=is_lab_mode,
             lang=lang,
+            values_in_kg=values_in_kg,
         )
     
     # Process machines starting on page 2
@@ -1421,6 +1465,7 @@ def draw_layout_standard(
             global_max_firing,
             is_lab_mode=is_lab_mode,
             lang=lang,
+            values_in_kg=values_in_kg,
         )
         
         machines_processed += 1
@@ -1444,13 +1489,26 @@ if __name__=='__main__':
     parser.add_argument("export_dir", nargs="?", default=os.path.join(sd, 'exports'))
     parser.add_argument("--optimized", action="store_true", help="use optimized layout")
     parser.add_argument("--lab", action="store_true", help="enable lab mode calculations")
+    parser.add_argument("--log-kg", action="store_true", help="metrics in CSV are in kilograms")
     args = parser.parse_args()
 
     pdf_path = generate_report_filename(sd)
 
     if args.optimized:
         logger.info("Using optimized layout (2 machines per page)...")
-        draw_layout_optimized(pdf_path, args.export_dir, lang="en", is_lab_mode=args.lab)
+        draw_layout_optimized(
+            pdf_path,
+            args.export_dir,
+            lang="en",
+            is_lab_mode=args.lab,
+            values_in_kg=args.log_kg,
+        )
     else:
         logger.info("Using standard layout (dynamic page breaks)...")
-        draw_layout_standard(pdf_path, args.export_dir, lang="en", is_lab_mode=args.lab)
+        draw_layout_standard(
+            pdf_path,
+            args.export_dir,
+            lang="en",
+            is_lab_mode=args.lab,
+            values_in_kg=args.log_kg,
+        )

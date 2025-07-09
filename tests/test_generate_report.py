@@ -43,6 +43,14 @@ def test_calculate_total_capacity_from_csv_rates():
     assert stats["max_rate_lbs_per_hr"] == 120
 
 
+def test_capacity_rates_convert_from_kg():
+    series = generate_report.pd.Series([60])
+    stats = generate_report.calculate_total_capacity_from_csv_rates(
+        series, values_in_kg=True
+    )
+    assert stats["total_capacity_lbs"] == pytest.approx(2.205)
+
+
 def test_calculate_total_objects_from_csv_rates():
     series = generate_report.pd.Series([10, 20])
     stats = generate_report.calculate_total_objects_from_csv_rates(series, log_interval_minutes=2)
@@ -338,7 +346,7 @@ def test_draw_header_uses_internal_assets_font(tmp_path, monkeypatch):
 def test_build_report_passes_options(monkeypatch):
     captured = {}
 
-    def fake_draw(pdf_path, export_dir, machines=None, include_global=True, lang="en", is_lab_mode=False):
+    def fake_draw(pdf_path, export_dir, machines=None, include_global=True, lang="en", is_lab_mode=False, **kwargs):
         captured["args"] = (pdf_path, export_dir, machines, include_global, lang, is_lab_mode)
 
     monkeypatch.setattr(generate_report, "draw_layout_standard", fake_draw)
@@ -350,7 +358,7 @@ def test_build_report_passes_options(monkeypatch):
 def test_build_report_uses_optimized(monkeypatch):
     called = {}
 
-    def fake_draw(pdf_path, export_dir, machines=None, include_global=True, lang="en", is_lab_mode=False):
+    def fake_draw(pdf_path, export_dir, machines=None, include_global=True, lang="en", is_lab_mode=False, **kwargs):
         called["optimized"] = is_lab_mode
 
     monkeypatch.setattr(generate_report, "draw_layout_optimized", fake_draw)
@@ -361,7 +369,7 @@ def test_build_report_uses_optimized(monkeypatch):
 def test_build_report_passes_lab_mode(monkeypatch):
     captured = {}
 
-    def fake_draw(pdf_path, export_dir, machines=None, include_global=True, lang="en", is_lab_mode=False):
+    def fake_draw(pdf_path, export_dir, machines=None, include_global=True, lang="en", is_lab_mode=False, **kwargs):
         captured["lab"] = is_lab_mode
 
     monkeypatch.setattr(generate_report, "draw_layout_standard", fake_draw)
