@@ -94,3 +94,33 @@ def test_lab_stop_retains_filename(monkeypatch):
     log_func.__wrapped__(0, {"connected": True}, {"mode": "lab"}, None, None, {"unit": "lb"}, True, {"machine_id": 1}, stop_info)
 
     assert captured[-1] == start_info["filename"]
+
+
+def test_lab_logging_clamps_negative(monkeypatch):
+    app = setup_app(monkeypatch)
+    log_func = app.callback_map["metric-logging-store.data"]["callback"]
+
+    tags = {
+        CAPACITY_TAG: {"data": callbacks.TagData(CAPACITY_TAG)},
+        OPM_TAG: {"data": callbacks.TagData(OPM_TAG)},
+    }
+    tags[CAPACITY_TAG]["data"].latest_value = -100
+    tags[OPM_TAG]["data"].latest_value = -50
+
+    for i in range(1, 13):
+        tname = f"Status.ColorSort.Sort1.DefectCount{i}.Rate.Current"
+        tags[tname] = {"data": callbacks.TagData(tname)}
+        tags[tname]["data"].latest_value = -1
+
+    callbacks.machine_connections = {1: {"tags": tags, "connected": True}}
+
+    captured = {}
+
+    def fake_append(metrics, machine_id=None, filename=None, mode=None):
+        captured.update(metrics)
+
+    monkeypatch.setattr(callbacks, "append_metrics", fake_append)
+
+    log_func.__wrapped__(0, {"connected": True}, {"mode": "lab"}, None, None, {"unit": "lb"}, True, {"machine_id": 1}, {"filename": "test.csv"})
+
+    assert all(v >= 0 for v in captured.values() if isinstance(v, (int, float)))

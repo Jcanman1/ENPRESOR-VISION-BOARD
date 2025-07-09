@@ -4774,6 +4774,7 @@ def _register_callbacks_impl(app):
                     title=None,
                     showgrid=False,
                     gridcolor='rgba(211,211,211,0.3)',
+                    range=[0, None],
                 ),
                 margin=dict(l=5, r=5, t=5, b=5),
                 height=200,
@@ -4858,6 +4859,7 @@ def _register_callbacks_impl(app):
                 title=None,
                 showgrid=False,
                 gridcolor='rgba(211,211,211,0.3)',
+                range=[0, None],
             ),
             margin=dict(l=5, r=5, t=5, b=5),
             height=200,
@@ -5917,9 +5919,13 @@ def _register_callbacks_impl(app):
                 "stopped": 0 if feeder_running else 1,
             }
             metrics.update(counters)
-    
+
             log_mode = "Lab" if mode == "lab" else "Live"
             if mode == "lab":
+                # Clamp negative values when logging lab data
+                for key, value in metrics.items():
+                    if isinstance(value, (int, float)) and value < 0:
+                        metrics[key] = 0
                 append_metrics(
                     metrics,
                     machine_id=str(machine_id),
