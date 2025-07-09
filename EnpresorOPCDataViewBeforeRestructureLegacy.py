@@ -531,6 +531,7 @@ active_machine_id = None  # This will track which machine's data to display on m
 # a Dash callback whenever the ``app-mode`` store changes so that background
 # threads can check the latest mode without needing a callback context.
 current_app_mode = "live"
+pause_reconnection = False
 
 # Tag for the currently loaded preset name
 PRESET_NAME_TAG = "Status.Info.PresetName"
@@ -970,6 +971,8 @@ def update_machine_connections():
             continue
         tags = info.get("tags", {})
         for tag_name, tag_info in tags.items():
+            if current_app_mode == "lab" and tag_name not in FAST_UPDATE_TAGS:
+                continue
             try:
                 value = tag_info["node"].get_value()
                 tag_info["data"].add_value(value)
@@ -1078,8 +1081,10 @@ def opc_update_thread():
             # Reset failure count on success
             consecutive_failures = 0
             
-            # Continue with tag updates (your existing logic)
+            # Continue with tag updates (only FAST_UPDATE_TAGS in lab mode)
             for tag_name, tag_info in app_state.tags.items():
+                if current_app_mode == "lab" and tag_name not in FAST_UPDATE_TAGS:
+                    continue
                 try:
                     current_value = tag_info['node'].get_value()
                     tag_info['data'].add_value(current_value)
@@ -1143,6 +1148,20 @@ def resume_update_thread():
         app_state.update_thread.daemon = True
         app_state.update_thread.start()
     print(f"DEBUG: resume_update_thread called, alive={app_state.update_thread.is_alive()}", flush=True)
+
+
+def pause_background_processes():
+    """Pause non-essential background threads for lab mode."""
+    global pause_reconnection
+    pause_reconnection = True
+    app_state_manager.set_paused(True)
+
+
+def resume_background_processes():
+    """Resume paused background threads when exiting lab mode."""
+    global pause_reconnection
+    pause_reconnection = False
+    app_state_manager.set_paused(False)
 
 # Connect to OPC UA server
 async def connect_to_server(server_url, server_name=None):
@@ -3014,8 +3033,11 @@ def load_historical_data(timeframe="24h", machine_id=None):
 def auto_reconnection_thread():
     """Background thread for automatic reconnection attempts"""
     logger.info("Auto-reconnection thread STARTED and running")
-    
+
     while not app_state.thread_stop_flag:
+        if pause_reconnection or current_app_mode == "lab":
+            time.sleep(1)
+            continue
         try:
             logger.info("Auto-reconnection thread cycle beginning...")
             current_time = datetime.now()

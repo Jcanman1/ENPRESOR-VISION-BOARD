@@ -509,6 +509,8 @@ def _register_callbacks_impl(app):
         "opc_update_thread",
         "auto_reconnection_thread",
         "resume_update_thread",
+        "pause_background_processes",
+        "resume_background_processes",
         "logger",
     ]:
         if name in globals():
@@ -5588,7 +5590,13 @@ def _register_callbacks_impl(app):
         """Synchronize ``current_app_mode`` with the ``app-mode`` store."""
         global current_app_mode
         if isinstance(data, dict) and "mode" in data:
-            current_app_mode = data["mode"]
+            new_mode = data["mode"]
+            if new_mode != current_app_mode:
+                current_app_mode = new_mode
+                if new_mode == "lab":
+                    pause_background_processes()
+                else:
+                    resume_background_processes()
         return dash.no_update
 
     @app.callback(
