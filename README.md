@@ -70,6 +70,11 @@ absolute magnitude is below `SMALL_VALUE_THRESHOLD` (default `0.001`) are stored
 as `0` to avoid noise from very small readings. Adjust the constant in
 `callbacks.py` if different behavior is desired.
 
+If your machine numbers counters starting at zero instead of one, set the
+`COUNTER_INDEX_OFFSET` environment variable to `-1`. This shifts the OPC UA tag
+names so that `counter_1` reads `DefectCount0.Rate.Current` and prevents data
+from appearing under the wrong counter columns.
+
 ## Running with Gunicorn
 
 For production deployments you can run the Dash application using Gunicorn.

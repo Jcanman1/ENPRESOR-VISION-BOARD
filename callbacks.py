@@ -69,6 +69,11 @@ current_lab_filename = None
 # Any metric whose absolute value is below this threshold will be logged as 0.
 SMALL_VALUE_THRESHOLD = 1e-3
 
+# Offset applied when mapping counter numbers to OPC UA tag names.  Set the
+# ``COUNTER_INDEX_OFFSET`` environment variable to ``-1`` when counters are
+# zero-based on the machine so that ``counter_1`` reads ``DefectCount0``.
+COUNTER_INDEX_OFFSET = int(os.environ.get("COUNTER_INDEX_OFFSET", "0"))
+
 # Flag to prevent re-entrancy when the legacy module imports this module and
 # executes ``register_callbacks`` during import.
 _REGISTERING = False
@@ -4529,7 +4534,7 @@ def _register_callbacks_impl(app):
             new_counter_values = []
             for i in range(1, 13):
                 # Construct the tag name using the provided pattern
-                tag_name = TAG_PATTERN.format(i)
+                tag_name = TAG_PATTERN.format(i + COUNTER_INDEX_OFFSET)
     
                 # Check if the tag exists
                 if tag_name in app_state.tags:
@@ -5910,7 +5915,7 @@ def _register_callbacks_impl(app):
             reject_count = 0
             counters = {}
             for i in range(1, 13):
-                tname = COUNTER_TAG.format(i)
+                tname = COUNTER_TAG.format(i + COUNTER_INDEX_OFFSET)
                 val = tags.get(tname, {}).get("data").latest_value if tname in tags else 0
                 if val is None:
                     val = 0
