@@ -479,6 +479,54 @@ def load_live_counter_totals(machine_id):
 
     return totals
 
+
+def refresh_lab_cache(machine_id):
+    """Update cached lab totals after a test completes."""
+    weight_pref = load_weight_preference()
+    machine_dir = os.path.join(hourly_data_saving.EXPORT_DIR, str(machine_id))
+    files = glob.glob(os.path.join(machine_dir, "Lab_Test_*.csv"))
+    if not files:
+        return
+
+    path = max(files, key=os.path.getmtime)
+    if not os.path.exists(path):
+        return
+
+    stat = os.stat(path)
+    mtime = stat.st_mtime
+    size = stat.st_size
+
+    metrics = load_lab_totals_metrics(machine_id)
+    if not metrics:
+        return
+
+    tot_cap_lbs, acc_lbs, rej_lbs, _ = metrics
+    counter_totals, _, object_totals = load_lab_totals(machine_id)
+
+    reject_count = sum(counter_totals)
+    capacity_count = object_totals[-1] if object_totals else 0
+    accepts_count = max(0, capacity_count - reject_count)
+
+    total_capacity = convert_capacity_from_lbs(tot_cap_lbs, weight_pref)
+    accepts = convert_capacity_from_lbs(acc_lbs, weight_pref)
+    rejects = convert_capacity_from_lbs(rej_lbs, weight_pref)
+
+    production_data = {
+        "capacity": total_capacity,
+        "accepts": accepts,
+        "rejects": rejects,
+    }
+
+    _lab_production_cache[machine_id] = {
+        "mtime": mtime,
+        "size": size,
+        "production_data": production_data,
+        "capacity_count": capacity_count,
+        "accepts_count": accepts_count,
+        "reject_count": reject_count,
+    }
+
+
 def register_callbacks(app):
     """Public entry point that guards against re-entrant registration."""
     global _REGISTERING
@@ -5355,6 +5403,10 @@ def _register_callbacks_impl(app):
         # Check if we should end the test based on the stop time
         if running and stop_time and (time.time() - stop_time >= 30):
             current_lab_filename = None
+            try:
+                refresh_lab_cache(active_machine_id)
+            except Exception as exc:
+                logger.warning(f"Failed to refresh lab cache: {exc}")
             return False
 
         return running
