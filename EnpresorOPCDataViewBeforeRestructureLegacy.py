@@ -2704,6 +2704,22 @@ def _render_new_dashboard():
         # Main content area
         html.Div(id="floor-machine-container", className="px-4 pt-2 pb-4"),
 
+        # Hidden placeholders for sections from the main dashboard. These
+        # ensure callbacks referencing these IDs remain valid when the new
+        # dashboard is active.
+        html.Div(id="section-1-1", style={"display": "none"}),
+        html.Div(id="section-1-2", style={"display": "none"}),
+        html.Div(id="section-2",   style={"display": "none"}),
+        html.Div(id="section-3-1", style={"display": "none"}),
+        html.Div(id="section-3-2", style={"display": "none"}),
+        html.Div(id="section-4",   style={"display": "none"}),
+        html.Div(id="section-5-1", style={"display": "none"}),
+        html.Div(id="section-5-2", style={"display": "none"}),
+        html.Div(id="section-6-1", style={"display": "none"}),
+        html.Div(id="section-6-2", style={"display": "none"}),
+        html.Div(id="section-7-1", style={"display": "none"}),
+        html.Div(id="section-7-2", style={"display": "none"}),
+
         # Placeholder container for dynamic sections (IDs defined in main dashboard)
         html.Div([], id="new-dashboard-placeholders", style={"display": "none"})
     ])
