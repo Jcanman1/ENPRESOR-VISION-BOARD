@@ -76,6 +76,11 @@ _REGISTERING = False
 # log file.
 _lab_totals_cache = {}
 
+# Cache of live metrics totals keyed by ``(machine_id, file_path)``. Each entry
+# stores cumulative counter totals and bookkeeping information so that
+# subsequent calls only process new rows appended to the 24h metrics file.
+_live_totals_cache = {}
+
 
 
 def load_lab_totals(machine_id, filename=None):
@@ -183,6 +188,60 @@ def load_lab_totals(machine_id, filename=None):
     }
 
     return counter_totals, timestamps, object_totals
+
+
+def load_live_counter_totals(machine_id, filename=hourly_data_saving.METRICS_FILENAME):
+    """Return cumulative counter totals from the live metrics file.
+
+    The results are cached per file so subsequent calls only process rows that
+    were appended since the last invocation. This mirrors the caching logic
+    used by :func:`load_lab_totals` but only tracks counter totals.
+    """
+    machine_dir = os.path.join(hourly_data_saving.EXPORT_DIR, str(machine_id))
+    path = os.path.join(machine_dir, filename)
+
+    if not os.path.exists(path):
+        return [0] * 12
+
+    key = (machine_id, os.path.abspath(path))
+    stat = os.stat(path)
+    mtime = stat.st_mtime
+    size = stat.st_size
+
+    cache = _live_totals_cache.get(key)
+    if cache is not None:
+        # Reset if file was truncated or replaced with an older version
+        if size < cache.get("size", 0) or mtime < cache.get("mtime", 0):
+            cache = None
+
+    if cache is None:
+        totals = [0] * 12
+        last_index = -1
+    else:
+        totals = cache["totals"]
+        last_index = cache.get("last_index", -1)
+
+    with open(path, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for idx, row in enumerate(reader):
+            if idx <= last_index:
+                continue
+            for i in range(1, 13):
+                val = row.get(f"counter_{i}")
+                try:
+                    totals[i - 1] += float(val) if val else 0.0
+                except ValueError:
+                    pass
+            last_index = idx
+
+    _live_totals_cache[key] = {
+        "totals": totals,
+        "last_index": last_index,
+        "mtime": mtime,
+        "size": size,
+    }
+
+    return totals
 
 
 def load_last_lab_metrics(machine_id):
