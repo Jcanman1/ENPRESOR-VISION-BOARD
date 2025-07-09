@@ -5336,7 +5336,8 @@ def _register_callbacks_impl(app):
         prevent_initial_call=True,
     )
     def update_lab_running(start_click, stop_click, mode, n_intervals, running, stop_time):
-        """Maintain lab running state for 30 seconds after stopping."""
+        """Update lab running state based on start/stop actions."""
+        global current_lab_filename
         ctx = callback_context
 
         if mode != "lab":
@@ -5347,13 +5348,13 @@ def _register_callbacks_impl(app):
             if trigger == "start-test-btn":
                 return True
             elif trigger == "stop-test-btn":
-                # stop_time is recorded in a separate callback. Continue
-                # reporting as running until 30 seconds elapse.
-                return running
+                # End the test immediately when stop is clicked so dashboard
+                # totals match the generated report.
+                current_lab_filename = None
+                return False
 
         # Check if we should end the test based on the stop time
         if running and stop_time and (time.time() - stop_time >= 30):
-            global current_lab_filename
             current_lab_filename = None
             return False
 
