@@ -192,15 +192,16 @@ def test_draw_machine_sections_lab_mode_decimals(tmp_path, monkeypatch):
     )
 
     df = generate_report.pd.read_csv(csv_file)
-    a_stats = generate_report.calculate_total_capacity_from_csv_rates(
+    a_stats = generate_report.calculate_total_objects_from_csv_rates(
         df["accepts"], timestamps=df["timestamp"], is_lab_mode=True
     )
-    r_stats = generate_report.calculate_total_capacity_from_csv_rates(
+    r_stats = generate_report.calculate_total_objects_from_csv_rates(
         df["rejects"], timestamps=df["timestamp"], is_lab_mode=True
     )
 
-    expected_accepts = a_stats['total_capacity_lbs'] * generate_report.LAB_WEIGHT_MULTIPLIER
-    expected_rejects = r_stats['total_capacity_lbs'] * generate_report.LAB_WEIGHT_MULTIPLIER
+    total_objs = a_stats['total_objects'] + r_stats['total_objects']
+    expected_accepts = max(total_objs - 0, 0) * generate_report.LAB_WEIGHT_MULTIPLIER
+    expected_rejects = 0 * generate_report.LAB_WEIGHT_MULTIPLIER
 
     assert f"{expected_accepts:.2f} lbs" in canvas.strings
     assert f"{expected_rejects:.2f} lbs" in canvas.strings
@@ -507,6 +508,48 @@ def test_draw_global_summary_spanish_labels(tmp_path, monkeypatch):
     generate_report.draw_global_summary(canvas, str(tmp_path), 0, 0, 100, 100, lang="es")
 
     assert any("Aceptados" in s for s in canvas.strings)
+
+
+def test_global_summary_lab_weights_from_objects(tmp_path, monkeypatch):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    machine_dir = data_dir / "1"
+    machine_dir.mkdir()
+
+    csv = machine_dir / "last_24h_metrics.csv"
+    csv.write_text(
+        "timestamp,objects_per_min,counter_1\n"
+        "2025-01-01T00:00:00.000000,500,10\n"
+        "2025-01-01T00:01:00.000000,500,10\n"
+        "2025-01-01T00:02:00.000000,500,10\n"
+    )
+
+    layout = {"machines": {"machines": [{"id": 1}], "next_machine_id": 2}}
+    (data_dir / "floor_machine_layout.json").write_text(json.dumps(layout))
+
+    monkeypatch.setattr(generate_report, "__file__", str(tmp_path / "dummy.py"))
+    monkeypatch.setattr(generate_report.renderPDF, "draw", lambda *a, **k: None)
+
+    canvas = DummyCanvas()
+    generate_report.draw_global_summary(
+        canvas, str(data_dir), 0, 0, 100, 100, is_lab_mode=True
+    )
+
+    df = generate_report.pd.read_csv(csv)
+    o_stats = generate_report.calculate_total_objects_from_csv_rates(
+        df["objects_per_min"], timestamps=df["timestamp"], is_lab_mode=True
+    )
+    r_stats = generate_report.calculate_total_objects_from_csv_rates(
+        df["counter_1"], timestamps=df["timestamp"], is_lab_mode=True
+    )
+
+    expected_accepts = max(
+        int(o_stats["total_objects"]) - int(r_stats["total_objects"]), 0
+    ) * generate_report.LAB_WEIGHT_MULTIPLIER
+    expected_rejects = int(r_stats["total_objects"]) * generate_report.LAB_WEIGHT_MULTIPLIER
+
+    assert f"{expected_accepts:.2f} lbs" in canvas.strings
+    assert f"{expected_rejects:.2f} lbs" in canvas.strings
 
 def test_draw_header_registers_japanese_font(tmp_path, monkeypatch):
     font_src = Path(__file__).resolve().parents[1] / "assets" / "NotoSansJP-Regular.otf"
