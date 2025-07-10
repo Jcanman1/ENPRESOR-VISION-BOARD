@@ -530,9 +530,6 @@ def draw_global_summary(
                     )
                     total_rejects += stats['total_capacity_lbs']
 
-    if is_lab_mode:
-        total_accepts *= LAB_WEIGHT_MULTIPLIER
-        total_rejects *= LAB_WEIGHT_MULTIPLIER
 
     # Section 1: Totals
     y_sec1 = current_y - h1
