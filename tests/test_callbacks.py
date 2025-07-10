@@ -226,8 +226,10 @@ def test_lab_auto_start(monkeypatch):
             self.triggered = [{"prop_id": prop_id}]
 
     monkeypatch.setattr(callbacks, "callback_context", DummyCtx("status-update-interval.n_intervals"))
+
     res = func.__wrapped__(None, None, "lab", 1, False, None)
     assert res is True
+
 
 
 def test_lab_auto_stop_sets_time(monkeypatch):

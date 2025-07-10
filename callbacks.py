@@ -5483,9 +5483,12 @@ def _register_callbacks_impl(app):
          Input("stop-test-btn", "n_clicks"),
          Input("mode-selector", "value"),
          Input("status-update-interval", "n_intervals")],
-        [State("lab-test-running", "data"), State("lab-test-stop-time", "data")],
+        [State("lab-test-running", "data"),
+         State("lab-test-stop-time", "data"),
+         State("lab-test-name", "value")],
         prevent_initial_call=True,
     )
+
     def update_lab_running(start_click, stop_click, mode, n_intervals, running, stop_time):
         """Update lab running state based on start/stop actions or feeder status."""
         global current_lab_filename
@@ -5522,6 +5525,8 @@ def _register_callbacks_impl(app):
                     break
 
         if feeders_running and not running:
+
+
             try:
                 if active_machine_id is not None:
                     _reset_lab_session(active_machine_id)
