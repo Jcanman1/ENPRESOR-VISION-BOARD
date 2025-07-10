@@ -483,6 +483,7 @@ def draw_global_summary(
     
     # Aggregate global data
     total_capacity = total_accepts = total_rejects = 0
+    total_objects = total_removed = 0
     for m in machines:
         fp = os.path.join(csv_parent_dir, m, 'last_24h_metrics.csv')
         if os.path.isfile(fp):
@@ -495,28 +496,53 @@ def draw_global_summary(
                     values_in_kg=values_in_kg,
                 )
                 total_capacity += stats['total_capacity_lbs']
-            ac = next((c for c in df.columns if c.lower()=='accepts'), None)
-            rj = next((c for c in df.columns if c.lower()=='rejects'), None)
-            if ac:
-                stats = calculate_total_capacity_from_csv_rates(
-                    df[ac],
-                    timestamps=df['timestamp'] if is_lab_mode else None,
-                    is_lab_mode=is_lab_mode,
-                    values_in_kg=values_in_kg,
-                )
-                total_accepts += stats['total_capacity_lbs']
-            if rj:
-                stats = calculate_total_capacity_from_csv_rates(
-                    df[rj],
-                    timestamps=df['timestamp'] if is_lab_mode else None,
-                    is_lab_mode=is_lab_mode,
-                    values_in_kg=values_in_kg,
-                )
-                total_rejects += stats['total_capacity_lbs']
 
-    if is_lab_mode:
-        total_accepts *= LAB_WEIGHT_MULTIPLIER
-        total_rejects *= LAB_WEIGHT_MULTIPLIER
+            # Gather object totals
+            if 'objects_per_min' in df.columns:
+                obj_stats = calculate_total_objects_from_csv_rates(
+                    df['objects_per_min'],
+                    timestamps=df['timestamp'] if is_lab_mode else None,
+                    is_lab_mode=is_lab_mode,
+                )
+                total_objects += obj_stats['total_objects']
+
+            for i in range(1, 13):
+                col = next((c for c in df.columns if c.lower() == f'counter_{i}'), None)
+                if col:
+                    c_stats = calculate_total_objects_from_csv_rates(
+                        df[col],
+                        timestamps=df['timestamp'] if is_lab_mode else None,
+                        is_lab_mode=is_lab_mode,
+                    )
+                    total_removed += c_stats['total_objects']
+
+            # Live-mode accepts/rejects
+            if not is_lab_mode:
+                ac = next((c for c in df.columns if c.lower() == 'accepts'), None)
+                rj = next((c for c in df.columns if c.lower() == 'rejects'), None)
+                if ac:
+                    stats = calculate_total_capacity_from_csv_rates(
+                        df[ac],
+                        timestamps=None,
+                        is_lab_mode=False,
+                        values_in_kg=values_in_kg,
+                    )
+                    total_accepts += stats['total_capacity_lbs']
+                if rj:
+                    stats = calculate_total_capacity_from_csv_rates(
+                        df[rj],
+                        timestamps=None,
+                        is_lab_mode=False,
+                        values_in_kg=values_in_kg,
+                    )
+                    total_rejects += stats['total_capacity_lbs']
+
+    if is_lab_mode and (total_objects or total_removed):
+        # Convert object totals to weight when using object-based data
+        accept_objects = max(total_objects - total_removed, 0)
+        total_accepts += accept_objects * LAB_WEIGHT_MULTIPLIER
+        total_rejects += total_removed * LAB_WEIGHT_MULTIPLIER
+
 
     # Section 1: Totals
     y_sec1 = current_y - h1
@@ -699,27 +725,8 @@ def draw_global_summary(
     c.rect(x0, y_sec4, total_w, h4)
     c.setFillColor(colors.HexColor('#1f77b4')); c.rect(x0, y_sec4, total_w, h4, fill=1, stroke=0)
     
-    total_objs = total_rem = 0
-    for m in machines:
-        fp = os.path.join(csv_parent_dir, m, 'last_24h_metrics.csv')
-        if os.path.isfile(fp):
-            df = df_processor.safe_read_csv(fp)
-            if 'objects_per_min' in df.columns:
-                obj_stats = calculate_total_objects_from_csv_rates(
-                    df['objects_per_min'],
-                    timestamps=df['timestamp'] if is_lab_mode else None,
-                    is_lab_mode=is_lab_mode
-                )
-                total_objs += obj_stats['total_objects']
-            for i in range(1, 13):
-                col = next((c for c in df.columns if c.lower() == f'counter_{i}'), None)
-                if col:
-                    c_stats = calculate_total_objects_from_csv_rates(
-                        df[col],
-                        timestamps=df['timestamp'] if is_lab_mode else None,
-                        is_lab_mode=is_lab_mode
-                    )
-                    total_rem += c_stats['total_objects']
+    total_objs = total_objects
+    total_rem = total_removed
     
     c.setFillColor(colors.white); c.setFont(FONT_BOLD,10)
     c.drawString(x0+10, y_sec4+h4-14, tr('counts_title', lang))
@@ -1184,28 +1191,51 @@ def draw_machine_sections(
     
 
     machine_accepts = 0
-    if ac_col:
-        a_stats = calculate_total_capacity_from_csv_rates(
-            df[ac_col],
-            timestamps=df['timestamp'] if is_lab_mode else None,
-            is_lab_mode=is_lab_mode,
-            values_in_kg=values_in_kg,
-        )
-        machine_accepts = a_stats["total_capacity_lbs"]
-
     machine_rejects = 0
-    if rj_col:
-        r_stats = calculate_total_capacity_from_csv_rates(
-            df[rj_col],
-            timestamps=df['timestamp'] if is_lab_mode else None,
-            is_lab_mode=is_lab_mode,
-            values_in_kg=values_in_kg,
-        )
-        machine_rejects = r_stats["total_capacity_lbs"]
 
     if is_lab_mode:
-        machine_accepts *= LAB_WEIGHT_MULTIPLIER
-        machine_rejects *= LAB_WEIGHT_MULTIPLIER
+        opm_col = next((c for c in df.columns if c.lower()=="objects_per_min"), None)
+        if opm_col:
+            stats = calculate_total_objects_from_csv_rates(
+                df[opm_col],
+                timestamps=df["timestamp"],
+                is_lab_mode=True,
+            )
+            machine_objs = stats["total_objects"]
+            machine_accepts = max(machine_objs - machine_rem, 0) * LAB_WEIGHT_MULTIPLIER
+            machine_rejects = machine_rem * LAB_WEIGHT_MULTIPLIER
+        else:
+            if ac_col:
+                a_stats = calculate_total_objects_from_csv_rates(
+                    df[ac_col],
+                    timestamps=df['timestamp'],
+                    is_lab_mode=True,
+                )
+                machine_accepts = a_stats["total_objects"] * LAB_WEIGHT_MULTIPLIER
+            if rj_col:
+                r_stats = calculate_total_objects_from_csv_rates(
+                    df[rj_col],
+                    timestamps=df['timestamp'],
+                    is_lab_mode=True,
+                )
+                machine_rejects = r_stats["total_objects"] * LAB_WEIGHT_MULTIPLIER
+    else:
+        if ac_col:
+            a_stats = calculate_total_capacity_from_csv_rates(
+                df[ac_col],
+                timestamps=df['timestamp'] if is_lab_mode else None,
+                is_lab_mode=is_lab_mode,
+                values_in_kg=values_in_kg,
+            )
+            machine_accepts = a_stats["total_capacity_lbs"]
+        if rj_col:
+            r_stats = calculate_total_capacity_from_csv_rates(
+                df[rj_col],
+                timestamps=df['timestamp'] if is_lab_mode else None,
+                is_lab_mode=is_lab_mode,
+                values_in_kg=values_in_kg,
+            )
+            machine_rejects = r_stats["total_capacity_lbs"]
 
     
     # Draw SMALLER blue counts section
