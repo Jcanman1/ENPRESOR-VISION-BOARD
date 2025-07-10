@@ -46,7 +46,7 @@ def test_lab_logging_uses_single_file(monkeypatch):
             self.triggered = [{"prop_id": prop_id}]
 
     monkeypatch.setattr(callbacks, "callback_context", DummyCtx("start-test-btn"))
-    info = start_func.__wrapped__(1, None, 0, "MyTest", False, None, {})
+    info = start_func.__wrapped__(1, None, "MyTest")
     assert "filename" in info
 
     log_func.__wrapped__(0, {"connected": True}, {"mode": "lab"}, None, None, {"unit": "lb"}, True, {"machine_id": 1}, info)
@@ -82,12 +82,12 @@ def test_lab_stop_retains_filename(monkeypatch):
             self.triggered = [{"prop_id": prop_id}]
 
     monkeypatch.setattr(callbacks, "callback_context", DummyCtx("start-test-btn"))
-    start_info = info_func.__wrapped__(1, None, 0, "MyStopTest", False, None, {})
+    start_info = info_func.__wrapped__(1, None, "MyStopTest")
     assert "filename" in start_info
 
     # simulate pressing stop
     monkeypatch.setattr(callbacks, "callback_context", DummyCtx("stop-test-btn"))
-    stop_info = info_func.__wrapped__(None, 1, 0, "", True, None, start_info)
+    stop_info = info_func.__wrapped__(None, 1, "")
     assert stop_info == {}
 
     # log metrics while the lab test is still considered running
