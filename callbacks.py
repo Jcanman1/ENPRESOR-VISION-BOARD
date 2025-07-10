@@ -5488,7 +5488,8 @@ def _register_callbacks_impl(app):
          State("lab-test-name", "value")],
         prevent_initial_call=True,
     )
-    def update_lab_running(start_click, stop_click, mode, n_intervals, running, stop_time, lab_name):
+
+    def update_lab_running(start_click, stop_click, mode, n_intervals, running, stop_time):
         """Update lab running state based on start/stop actions or feeder status."""
         global current_lab_filename
         ctx = callback_context
@@ -5524,17 +5525,8 @@ def _register_callbacks_impl(app):
                     break
 
         if feeders_running and not running:
-            if not current_lab_filename:
-                test_name = lab_name or "Test"
-                filename = (
-                    f"Lab_Test_{test_name}_{datetime.now().strftime('%m_%d_%Y')}.csv"
-                )
-                current_lab_filename = filename
-                try:
-                    if active_machine_id is not None:
-                        _create_empty_lab_log(active_machine_id, filename)
-                except Exception as exc:
-                    logger.warning(f"Failed to prepare new lab log: {exc}")
+
+
             try:
                 if active_machine_id is not None:
                     _reset_lab_session(active_machine_id)
