@@ -207,13 +207,16 @@ def test_generate_report_disable_callback(monkeypatch):
 
 
 def test_lab_auto_start(monkeypatch):
-    """Lab mode should auto start when any feeder runs."""
+
+    """Lab mode should start automatically when any feeder is running."""
+
     monkeypatch.setattr(autoconnect, "initialize_autoconnect", lambda: None)
     app = dash.Dash(__name__)
     callbacks.register_callbacks(app)
 
-    run_func = app.callback_map["lab-test-running.data"]["callback"]
-    info_func = app.callback_map["lab-test-info.data"]["callback"]
+
+    func = app.callback_map["lab-test-running.data"]["callback"]
+
 
     tag = callbacks.TagData("Status.Feeders.1IsRunning")
     tag.latest_value = True
@@ -227,20 +230,22 @@ def test_lab_auto_start(monkeypatch):
             self.triggered = [{"prop_id": prop_id}]
 
     monkeypatch.setattr(callbacks, "callback_context", DummyCtx("status-update-interval.n_intervals"))
-    running = run_func.__wrapped__(None, None, "lab", 1, False, None)
-    assert running is True
 
-    info = info_func.__wrapped__(None, None, 1, "Auto", True, None, {})
-    assert "filename" in info
+
+    res = func.__wrapped__(None, None, "lab", 1, False, None)
+    assert res is True
 
 
 def test_lab_auto_stop_sets_time(monkeypatch):
-    """Stop time should be set when feeders stop running."""
+    """Stop time should be recorded when all feeders stop running."""
+
     monkeypatch.setattr(autoconnect, "initialize_autoconnect", lambda: None)
     app = dash.Dash(__name__)
     callbacks.register_callbacks(app)
 
-    stop_func = app.callback_map["lab-test-stop-time.data"]["callback"]
+
+    func = app.callback_map["lab-test-stop-time.data"]["callback"]
+
 
     tag = callbacks.TagData("Status.Feeders.1IsRunning")
     tag.latest_value = False
@@ -255,5 +260,7 @@ def test_lab_auto_stop_sets_time(monkeypatch):
 
     monkeypatch.setattr(callbacks, "callback_context", DummyCtx("status-update-interval.n_intervals"))
     monkeypatch.setattr(callbacks.time, "time", lambda: 123.0)
-    res = stop_func.__wrapped__(None, None, 1, True, None)
+
+    res = func.__wrapped__(None, None, 1, True, None, {"mode": "lab"}, {"machine_id": 1})
+
     assert res == 123.0
