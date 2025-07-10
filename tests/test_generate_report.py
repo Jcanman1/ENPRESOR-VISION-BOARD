@@ -192,15 +192,15 @@ def test_draw_machine_sections_lab_mode_decimals(tmp_path, monkeypatch):
     )
 
     df = generate_report.pd.read_csv(csv_file)
-    a_stats = generate_report.calculate_total_capacity_from_csv_rates(
+    a_stats = generate_report.calculate_total_objects_from_csv_rates(
         df["accepts"], timestamps=df["timestamp"], is_lab_mode=True
     )
-    r_stats = generate_report.calculate_total_capacity_from_csv_rates(
+    r_stats = generate_report.calculate_total_objects_from_csv_rates(
         df["rejects"], timestamps=df["timestamp"], is_lab_mode=True
     )
 
-    expected_accepts = a_stats['total_capacity_lbs'] * generate_report.LAB_WEIGHT_MULTIPLIER
-    expected_rejects = r_stats['total_capacity_lbs'] * generate_report.LAB_WEIGHT_MULTIPLIER
+    expected_accepts = a_stats['total_objects'] * generate_report.LAB_WEIGHT_MULTIPLIER
+    expected_rejects = r_stats['total_objects'] * generate_report.LAB_WEIGHT_MULTIPLIER
 
     assert f"{expected_accepts:.2f} lbs" in canvas.strings
     assert f"{expected_rejects:.2f} lbs" in canvas.strings
