@@ -204,3 +204,56 @@ def test_generate_report_disable_callback(monkeypatch):
 
     monkeypatch.setattr(callbacks.time, "time", lambda: 100.0)
     assert func.__wrapped__(0, False, 50) is False
+
+
+def test_lab_auto_start(monkeypatch):
+    """Lab mode should auto start when any feeder runs."""
+    monkeypatch.setattr(autoconnect, "initialize_autoconnect", lambda: None)
+    app = dash.Dash(__name__)
+    callbacks.register_callbacks(app)
+
+    run_func = app.callback_map["lab-test-running.data"]["callback"]
+    info_func = app.callback_map["lab-test-info.data"]["callback"]
+
+    tag = callbacks.TagData("Status.Feeders.1IsRunning")
+    tag.latest_value = True
+    callbacks.machine_connections = {
+        1: {"tags": {"Status.Feeders.1IsRunning": {"data": tag}}, "connected": True}
+    }
+    callbacks.active_machine_id = 1
+
+    class DummyCtx:
+        def __init__(self, prop_id):
+            self.triggered = [{"prop_id": prop_id}]
+
+    monkeypatch.setattr(callbacks, "callback_context", DummyCtx("status-update-interval.n_intervals"))
+    running = run_func.__wrapped__(None, None, "lab", 1, False, None)
+    assert running is True
+
+    info = info_func.__wrapped__(None, None, 1, "Auto", True, None, {})
+    assert "filename" in info
+
+
+def test_lab_auto_stop_sets_time(monkeypatch):
+    """Stop time should be set when feeders stop running."""
+    monkeypatch.setattr(autoconnect, "initialize_autoconnect", lambda: None)
+    app = dash.Dash(__name__)
+    callbacks.register_callbacks(app)
+
+    stop_func = app.callback_map["lab-test-stop-time.data"]["callback"]
+
+    tag = callbacks.TagData("Status.Feeders.1IsRunning")
+    tag.latest_value = False
+    callbacks.machine_connections = {
+        1: {"tags": {"Status.Feeders.1IsRunning": {"data": tag}}, "connected": True}
+    }
+    callbacks.active_machine_id = 1
+
+    class DummyCtx:
+        def __init__(self, prop_id):
+            self.triggered = [{"prop_id": prop_id}]
+
+    monkeypatch.setattr(callbacks, "callback_context", DummyCtx("status-update-interval.n_intervals"))
+    monkeypatch.setattr(callbacks.time, "time", lambda: 123.0)
+    res = stop_func.__wrapped__(None, None, 1, True, None)
+    assert res == 123.0

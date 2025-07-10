@@ -5487,7 +5487,7 @@ def _register_callbacks_impl(app):
         prevent_initial_call=True,
     )
     def update_lab_running(start_click, stop_click, mode, n_intervals, running, stop_time):
-        """Update lab running state based on start/stop actions."""
+        """Update lab running state based on start/stop actions or feeder state."""
         global current_lab_filename
         ctx = callback_context
 
@@ -5508,6 +5508,27 @@ def _register_callbacks_impl(app):
                 # so logging can continue before finalizing.
                 return True
 
+        feeders_running = False
+        if (
+            active_machine_id is not None
+            and active_machine_id in machine_connections
+        ):
+            tags = machine_connections[active_machine_id].get("tags", {})
+            for i in range(1, 5):
+                tag = f"Status.Feeders.{i}IsRunning"
+                data = tags.get(tag, {}).get("data") if tag in tags else None
+                if data and bool(getattr(data, "latest_value", False)):
+                    feeders_running = True
+                    break
+
+        if feeders_running and not running:
+            try:
+                if active_machine_id is not None:
+                    _reset_lab_session(active_machine_id)
+            except Exception as exc:
+                logger.warning(f"Failed to reset lab session: {exc}")
+            return True
+
         # Check if we should end the test based on the stop time
         if running and stop_time and (time.time() - stop_time >= 30):
             current_lab_filename = None
@@ -5521,21 +5542,39 @@ def _register_callbacks_impl(app):
 
     @app.callback(
         Output("lab-test-info", "data"),
-        [Input("start-test-btn", "n_clicks"), Input("stop-test-btn", "n_clicks")],
-        [State("lab-test-name", "value")],
+        [Input("start-test-btn", "n_clicks"),
+         Input("stop-test-btn", "n_clicks"),
+         Input("status-update-interval", "n_intervals")],
+        [State("lab-test-name", "value"),
+         State("lab-test-running", "data"),
+         State("lab-test-stop-time", "data"),
+         State("lab-test-info", "data")],
         prevent_initial_call=True,
     )
-    def manage_lab_test_info(start_click, stop_click, name):
+    def manage_lab_test_info(start_click, stop_click, n_intervals, name, running, stop_time, info):
         ctx = callback_context
-        if not ctx.triggered:
-            raise PreventUpdate
-        trigger = ctx.triggered[0]["prop_id"].split(".")[0]
+        trigger = ctx.triggered[0]["prop_id"].split(".")[0] if ctx.triggered else None
         global current_lab_filename
-        if trigger == "start-test-btn":
+
+        feeders_running = False
+        if (
+            active_machine_id is not None
+            and active_machine_id in machine_connections
+        ):
+            tags = machine_connections[active_machine_id].get("tags", {})
+            for i in range(1, 5):
+                tag = f"Status.Feeders.{i}IsRunning"
+                data = tags.get(tag, {}).get("data") if tag in tags else None
+                if data and bool(getattr(data, "latest_value", False)):
+                    feeders_running = True
+                    break
+
+        if trigger == "stop-test-btn" or (running and stop_time and (time.time() - stop_time >= 30)):
+            return {}
+
+        if trigger == "start-test-btn" or (feeders_running and not info):
             test_name = name or "Test"
-            filename = (
-                f"Lab_Test_{test_name}_{datetime.now().strftime('%m_%d_%Y')}.csv"
-            )
+            filename = f"Lab_Test_{test_name}_{datetime.now().strftime('%m_%d_%Y')}.csv"
             current_lab_filename = filename
             try:
                 if active_machine_id is not None:
@@ -5544,7 +5583,8 @@ def _register_callbacks_impl(app):
             except Exception as exc:
                 logger.warning(f"Failed to prepare new lab log: {exc}")
             return {"filename": filename}
-        return {}
+
+        return dash.no_update
 
     @app.callback(
         [Output("metric-logging-interval", "interval"), Output("metric-logging-interval", "disabled")],
@@ -5557,17 +5597,41 @@ def _register_callbacks_impl(app):
 
     @app.callback(
         Output("lab-test-stop-time", "data"),
-        [Input("start-test-btn", "n_clicks"), Input("stop-test-btn", "n_clicks")],
+        [Input("start-test-btn", "n_clicks"),
+         Input("stop-test-btn", "n_clicks"),
+         Input("status-update-interval", "n_intervals")],
+        [State("lab-test-running", "data"), State("lab-test-stop-time", "data")],
         prevent_initial_call=True,
     )
-    def update_lab_test_stop_time(start_click, stop_click):
+    def update_lab_test_stop_time(start_click, stop_click, n_intervals, running, stop_time):
         ctx = callback_context
-        if not ctx.triggered:
-            raise PreventUpdate
-        trigger = ctx.triggered[0]["prop_id"].split(".")[0]
+        trigger = ctx.triggered[0]["prop_id"].split(".")[0] if ctx.triggered else None
+
         if trigger == "stop-test-btn":
             return time.time()
-        return None
+        if trigger == "start-test-btn":
+            return None
+
+        feeders_running = False
+        if (
+            active_machine_id is not None
+            and active_machine_id in machine_connections
+        ):
+            tags = machine_connections[active_machine_id].get("tags", {})
+            for i in range(1, 5):
+                tag = f"Status.Feeders.{i}IsRunning"
+                data = tags.get(tag, {}).get("data") if tag in tags else None
+                if data and bool(getattr(data, "latest_value", False)):
+                    feeders_running = True
+                    break
+
+        if running and not feeders_running and stop_time is None:
+            return time.time()
+
+        if feeders_running and stop_time is not None:
+            return None
+
+        return dash.no_update
 
     @app.callback(
         Output("clear-data-btn", "n_clicks"),
