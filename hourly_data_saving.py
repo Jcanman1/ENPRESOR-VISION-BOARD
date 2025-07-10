@@ -124,17 +124,20 @@ def append_metrics(metrics: dict, machine_id: str,
     last = _last_purge_times.get(key, 0)
     if now - last >= PURGE_INTERVAL_SECONDS:
 
-        purge_old_entries(export_dir, machine_id, filename,
-                          fieldnames_hint=list(row.keys()))
+        purge_old_entries(export_dir, machine_id, filename)
 
         _last_purge_times[key] = now
 
 
 
 
-def purge_old_entries(export_dir: str = EXPORT_DIR, machine_id: Optional[str] = None,
-                      filename: str = METRICS_FILENAME, hours: int = 24,
-                      fieldnames_hint: Optional[List[str]] = None):
+def purge_old_entries(
+    export_dir: str = EXPORT_DIR,
+    machine_id: Optional[str] = None,
+    filename: str = METRICS_FILENAME,
+    hours: int = 24,
+    fieldnames_hint: Optional[List[str]] = None,
+):
     """Remove CSV rows older than the specified number of hours for a machine."""
     file_path = os.path.join(export_dir, str(machine_id), filename)
     if not os.path.exists(file_path):
@@ -143,74 +146,27 @@ def purge_old_entries(export_dir: str = EXPORT_DIR, machine_id: Optional[str] = 
     with open(file_path, newline="", encoding="utf-8") as f:
         dict_reader = csv.DictReader(f)
         reader = list(dict_reader)
-        detected_fieldnames = dict_reader.fieldnames or []
+        fieldnames = dict_reader.fieldnames or []
 
-    if not detected_fieldnames or "timestamp" not in detected_fieldnames:
-        # Header missing or corrupted - rebuild using hint or generic names
-        with open(file_path, newline="", encoding="utf-8") as f:
-            raw_rows = list(csv.reader(f))
-        if not raw_rows:
-            return
-        if fieldnames_hint:
-            detected_fieldnames = list(fieldnames_hint)
-        else:
-            detected_fieldnames = [f"field_{i}" for i in range(len(raw_rows[0]))]
-        reader = [dict(zip(detected_fieldnames, r)) for r in raw_rows]
-    # Combine detected header with hint
-    fieldnames = list(detected_fieldnames)
-    if fieldnames_hint:
-        for fn in fieldnames_hint:
-            if fn not in fieldnames:
-                fieldnames.append(fn)
-
-    if not reader:
+    if not fieldnames or "timestamp" not in fieldnames:
         return
 
-    # Allow for legacy files without a ``mode`` column
     if "mode" not in fieldnames:
         fieldnames.append("mode")
 
     cutoff = datetime.now() - timedelta(hours=hours)
     filtered = []
     for row in reader:
-        extras = []
-        if None in row:
-            extras = row.pop(None)
-            if not isinstance(extras, list):
-                extras = [extras]
-
-        if (
-            fieldnames_hint
-            and "mode" in fieldnames_hint
-            and "mode" in detected_fieldnames
-            and fieldnames_hint.index("mode") > detected_fieldnames.index("mode")
-            and extras
-        ):
-            extras = [row.get("mode", "")] + extras
-            row["mode"] = ""
-
-        missing = [fn for fn in fieldnames if fn not in row]
-        for val, fnm in zip(extras, missing):
-            row[fnm] = val
-        extras = extras[len(missing):]
-        if extras:
-            leftover = extras[0]
-            if leftover and not row.get("mode"):
-                row["mode"] = leftover
-
-        for fn in fieldnames:
-            row.setdefault(fn, "")
-
         try:
-            ts = datetime.fromisoformat(row["timestamp"])
-            if ts >= cutoff:
-                filtered.append(row)
+            ts = datetime.fromisoformat(row.get("timestamp", ""))
         except Exception:
             continue
+        if ts >= cutoff:
+            filtered.append(row)
 
     try:
         with open(file_path, "w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
             writer.writeheader()
             writer.writerows(filtered)
     except OSError:
@@ -326,18 +282,20 @@ def append_control_log(entry: dict, machine_id: str,
     last = _last_purge_times.get(key, 0)
     if now - last >= PURGE_INTERVAL_SECONDS:
 
-        purge_old_control_entries(export_dir, machine_id, filename,
-                                  fieldnames_hint=list(row.keys()))
+        purge_old_control_entries(export_dir, machine_id, filename)
 
         _last_purge_times[key] = now
 
 
-def purge_old_control_entries(export_dir: str = EXPORT_DIR, machine_id: Optional[str] = None,
-                              filename: str = CONTROL_LOG_FILENAME, hours: int = 24,
-                              fieldnames_hint: Optional[List[str]] = None):
+def purge_old_control_entries(
+    export_dir: str = EXPORT_DIR,
+    machine_id: Optional[str] = None,
+    filename: str = CONTROL_LOG_FILENAME,
+    hours: int = 24,
+    fieldnames_hint: Optional[List[str]] = None,
+):
     """Remove control log rows older than the specified hours."""
-    purge_old_entries(export_dir, machine_id, filename,
-                      hours=hours, fieldnames_hint=fieldnames_hint)
+    purge_old_entries(export_dir, machine_id, filename, hours=hours)
 
 
 def load_recent_control_log(export_dir: str = EXPORT_DIR, machine_id: Optional[str] = None,

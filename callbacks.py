@@ -5504,10 +5504,9 @@ def _register_callbacks_impl(app):
                     logger.warning(f"Failed to reset lab session: {exc}")
                 return True
             elif trigger == "stop-test-btn":
-                # End the test immediately when stop is clicked so dashboard
-                # totals match the generated report.
-                current_lab_filename = None
-                return False
+                # Do not end the test immediately; allow a 30s grace period
+                # so logging can continue before finalizing.
+                return True
 
         # Check if we should end the test based on the stop time
         if running and stop_time and (time.time() - stop_time >= 30):
