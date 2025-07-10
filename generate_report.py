@@ -388,7 +388,7 @@ def draw_header(c, width, height, page_number=None, *, lang="en"):
     title_size = 24
     x_center = width / 2
     satake = "Satake "
-    enpresor = "Enpresor"
+    enpresor = "ENPRESOR"
     data_rep = tr("data_report", lang)
     font_default = FONT_BOLD
     
