@@ -5484,16 +5484,20 @@ def _register_callbacks_impl(app):
          Input("mode-selector", "value"),
          Input("status-update-interval", "n_intervals")],
 
+
         [State("lab-test-running", "data"),
+
 
          State("lab-test-stop-time", "data"),
          State("lab-test-name", "value")],
         prevent_initial_call=True,
     )
 
+
     def update_lab_running(start_click, stop_click, mode, n_intervals, running, stop_time):
 
         """Update lab running state based on start/stop actions or feeder status."""
+
         global current_lab_filename
         ctx = callback_context
 
@@ -5514,7 +5518,9 @@ def _register_callbacks_impl(app):
                 # so logging can continue before finalizing.
                 return True
 
+
         # Auto-start when any feeder begins running
+
         feeders_running = False
         if (
             active_machine_id is not None
@@ -5528,6 +5534,8 @@ def _register_callbacks_impl(app):
                     break
 
         if feeders_running and not running:
+
+
 
             try:
                 if active_machine_id is not None:
@@ -5594,7 +5602,9 @@ def _register_callbacks_impl(app):
          State("active-machine-store", "data")],
         prevent_initial_call=True,
     )
+
     def update_lab_test_stop_time(start_click, stop_click, n_intervals, running, stop_time, mode, active_machine_data):
+
         ctx = callback_context
         if ctx.triggered:
             trigger = ctx.triggered[0]["prop_id"].split(".")[0]
@@ -5622,7 +5632,9 @@ def _register_callbacks_impl(app):
                 break
 
 
+
         if not any_running and stop_time is None:
+
 
             return time.time()
 
