@@ -199,8 +199,10 @@ def test_draw_machine_sections_lab_mode_decimals(tmp_path, monkeypatch):
         df["rejects"], timestamps=df["timestamp"], is_lab_mode=True
     )
 
+
     expected_accepts = a_stats['total_objects'] * generate_report.LAB_WEIGHT_MULTIPLIER
     expected_rejects = r_stats['total_objects'] * generate_report.LAB_WEIGHT_MULTIPLIER
+
 
     assert f"{expected_accepts:.2f} lbs" in canvas.strings
     assert f"{expected_rejects:.2f} lbs" in canvas.strings
@@ -543,11 +545,13 @@ def test_global_summary_lab_weights_from_objects(tmp_path, monkeypatch):
     )
 
     expected_accepts = max(
+
         o_stats["total_objects"] - r_stats["total_objects"], 0
     ) * generate_report.LAB_WEIGHT_MULTIPLIER
     expected_rejects = (
         r_stats["total_objects"] * generate_report.LAB_WEIGHT_MULTIPLIER
     )
+
 
     assert f"{expected_accepts:.2f} lbs" in canvas.strings
     assert f"{expected_rejects:.2f} lbs" in canvas.strings

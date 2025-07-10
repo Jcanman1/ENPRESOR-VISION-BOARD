@@ -499,6 +499,7 @@ def draw_global_summary(
 
 
 
+
             ac = next((c for c in df.columns if c.lower()=='accepts'), None)
             rj = next((c for c in df.columns if c.lower()=='rejects'), None)
             if is_lab_mode:
@@ -525,12 +526,14 @@ def draw_global_summary(
                         is_lab_mode=is_lab_mode,
 
 
+
                         values_in_kg=values_in_kg,
                     )
                     total_accepts += stats['total_capacity_lbs']
                 if rj:
                     stats = calculate_total_capacity_from_csv_rates(
                         df[rj],
+
 
 
                         timestamps=df['timestamp'] if is_lab_mode else None,
@@ -540,6 +543,7 @@ def draw_global_summary(
                         values_in_kg=values_in_kg,
                     )
                     total_rejects += stats['total_capacity_lbs']
+
 
 
 
@@ -1176,9 +1180,26 @@ def draw_machine_sections(
         obj_stats = calculate_total_objects_from_csv_rates(
             df['objects_per_min'],
             timestamps=df['timestamp'] if is_lab_mode else None,
-            is_lab_mode=is_lab_mode
+            is_lab_mode=is_lab_mode,
         )
         machine_objs = obj_stats['total_objects']
+    elif is_lab_mode:
+        ac_tot = rj_tot = 0
+        if ac_col:
+            a_stats = calculate_total_objects_from_csv_rates(
+                df[ac_col],
+                timestamps=df['timestamp'],
+                is_lab_mode=True,
+            )
+            ac_tot = a_stats['total_objects']
+        if rj_col:
+            r_stats = calculate_total_objects_from_csv_rates(
+                df[rj_col],
+                timestamps=df['timestamp'],
+                is_lab_mode=True,
+            )
+            rj_tot = r_stats['total_objects']
+        machine_objs = ac_tot + rj_tot
     machine_rem = 0
     for i in range(1, 13):
         col = next((c for c in df.columns if c.lower() == f'counter_{i}'), None)
@@ -1198,6 +1219,7 @@ def draw_machine_sections(
 
 
 
+
         if ac_col:
             a_stats = calculate_total_objects_from_csv_rates(
                 df[ac_col],
@@ -1212,6 +1234,7 @@ def draw_machine_sections(
                 is_lab_mode=True,
             )
             machine_rejects = r_stats["total_objects"] * LAB_WEIGHT_MULTIPLIER
+
 
 
 
