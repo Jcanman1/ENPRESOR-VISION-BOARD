@@ -67,4 +67,4 @@ def test_update_section_6_1_yaxis_max_one(monkeypatch):
     div = func.__wrapped__(0, "main", {}, "en", {"connected": True}, {"mode": "demo"}, {"machine_id": 1})
 
     graph = div.children[1]
-    assert graph.figure.layout.yaxis.range == (0, 1)
+    assert graph.figure.layout.yaxis.range == (0, 10)

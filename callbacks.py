@@ -81,6 +81,9 @@ last_logged_capacity = defaultdict(lambda: None)
 # Filename used for the active lab test session
 current_lab_filename = None
 
+# Any metric whose absolute value is below this threshold will be logged as 0.
+SMALL_VALUE_THRESHOLD = 1e-3
+
 # Flag to prevent re-entrancy when the legacy module imports this module and
 # executes ``register_callbacks`` during import.
 _REGISTERING = False
@@ -4815,7 +4818,7 @@ def _register_callbacks_impl(app):
                     if vals:
                         max_hist_value = max(max_hist_value, max(vals))
 
-            yaxis_range = [0, 10] if max_hist_value < 1 else [0, None]
+            yaxis_range = [0, 10] if max_hist_value < 10 else [0, None]
 
             fig.update_layout(
                 title=None,
@@ -4908,7 +4911,7 @@ def _register_callbacks_impl(app):
                 if vals:
                     max_live_value = max(max_live_value, max(vals))
 
-        yaxis_range = [0, 1] if max_live_value < 1 else [0, None]
+        yaxis_range = [0, 10] if max_live_value < 10 else [0, None]
 
         fig.update_layout(
             title=None,
@@ -5501,10 +5504,9 @@ def _register_callbacks_impl(app):
                     logger.warning(f"Failed to reset lab session: {exc}")
                 return True
             elif trigger == "stop-test-btn":
-                # End the test immediately when stop is clicked so dashboard
-                # totals match the generated report.
-                current_lab_filename = None
-                return False
+                # Do not end the test immediately; allow a 30s grace period
+                # so logging can continue before finalizing.
+                return True
 
         # Check if we should end the test based on the stop time
         if running and stop_time and (time.time() - stop_time >= 30):
@@ -5989,10 +5991,11 @@ def _register_callbacks_impl(app):
 
             log_mode = "Lab" if mode == "lab" else "Live"
             if mode == "lab":
-                # Clamp negative values when logging lab data
+                # Clamp negative or extremely small values when logging lab data
                 for key, value in metrics.items():
-                    if isinstance(value, (int, float)) and value < 0:
-                        metrics[key] = 0
+                    if isinstance(value, (int, float)):
+                        if value < 0 or abs(value) < SMALL_VALUE_THRESHOLD:
+                            metrics[key] = 0
                 append_metrics(
                     metrics,
                     machine_id=str(machine_id),

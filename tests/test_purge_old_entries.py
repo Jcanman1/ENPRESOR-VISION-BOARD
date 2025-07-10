@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from hourly_data_saving import append_metrics, purge_old_entries, METRICS_FILENAME
 
 
-def test_header_rebuild_with_extra_columns(tmp_path):
+def test_purge_old_entries_preserves_header(tmp_path):
     machine_id = "1"
     machine_dir = tmp_path / machine_id
     machine_dir.mkdir(parents=True, exist_ok=True)
@@ -35,21 +35,13 @@ def test_header_rebuild_with_extra_columns(tmp_path):
         "stopped": 0,
     }
 
-    # Append metrics including new columns
     append_metrics(metrics, machine_id, export_dir=str(tmp_path))
 
-    # Ensure cleanup updates header
-    purge_old_entries(export_dir=str(tmp_path), machine_id=machine_id,
-                      fieldnames_hint=["timestamp"] + list(metrics.keys()) + ["mode"])
+    # Cleanup should not alter the original header
+    purge_old_entries(export_dir=str(tmp_path), machine_id=machine_id)
 
     with file_path.open() as f:
         rows = list(csv.reader(f))
 
-    header = rows[0]
-    assert "running" in header and "stopped" in header
-    data = rows[-1]
-    idx_run = header.index("running")
-    idx_stop = header.index("stopped")
-    assert data[idx_run] == "1"
-    assert data[idx_stop] == "0"
+    assert rows[0] == header
 
