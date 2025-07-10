@@ -5484,8 +5484,7 @@ def _register_callbacks_impl(app):
          Input("mode-selector", "value"),
          Input("status-update-interval", "n_intervals")],
         [State("lab-test-running", "data"),
-         State("lab-test-stop-time", "data"),
-         State("lab-test-name", "value")],
+         State("lab-test-stop-time", "data")],
         prevent_initial_call=True,
     )
 
