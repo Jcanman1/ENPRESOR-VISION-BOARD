@@ -5528,9 +5528,14 @@ def _register_callbacks_impl(app):
 
             try:
                 if active_machine_id is not None:
+                    if not current_lab_filename:
+                        current_lab_filename = (
+                            f"Lab_Test_Auto_{datetime.now().strftime('%m_%d_%Y_%H_%M_%S')}.csv"
+                        )
+                        _create_empty_lab_log(active_machine_id, current_lab_filename)
                     _reset_lab_session(active_machine_id)
             except Exception as exc:
-                logger.warning(f"Failed to reset lab session: {exc}")
+                logger.warning(f"Failed to prepare auto lab log: {exc}")
             return True
 
         # Check if we should end the test based on the stop time
