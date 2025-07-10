@@ -204,3 +204,54 @@ def test_generate_report_disable_callback(monkeypatch):
 
     monkeypatch.setattr(callbacks.time, "time", lambda: 100.0)
     assert func.__wrapped__(0, False, 50) is False
+
+
+def test_lab_auto_start(monkeypatch):
+    """Lab mode should start automatically when any feeder is running."""
+    monkeypatch.setattr(autoconnect, "initialize_autoconnect", lambda: None)
+    app = dash.Dash(__name__)
+    callbacks.register_callbacks(app)
+
+    func = app.callback_map["lab-test-running.data"]["callback"]
+
+    tag = callbacks.TagData("Status.Feeders.1IsRunning")
+    tag.latest_value = True
+    callbacks.machine_connections = {
+        1: {"tags": {"Status.Feeders.1IsRunning": {"data": tag}}, "connected": True}
+    }
+    callbacks.active_machine_id = 1
+
+    class DummyCtx:
+        def __init__(self, prop_id):
+            self.triggered = [{"prop_id": prop_id}]
+            self.states = {"lab-test-name.value": "Auto"}
+
+    monkeypatch.setattr(callbacks, "callback_context", DummyCtx("status-update-interval.n_intervals"))
+    res = func.__wrapped__(None, None, "lab", 1, False, None)
+    assert res is True
+    assert callbacks.current_lab_filename and callbacks.current_lab_filename.endswith(".csv")
+
+
+def test_lab_auto_stop_sets_time(monkeypatch):
+    """Stop time should be recorded when all feeders stop running."""
+    monkeypatch.setattr(autoconnect, "initialize_autoconnect", lambda: None)
+    app = dash.Dash(__name__)
+    callbacks.register_callbacks(app)
+
+    func = app.callback_map["lab-test-stop-time.data"]["callback"]
+
+    tag = callbacks.TagData("Status.Feeders.1IsRunning")
+    tag.latest_value = False
+    callbacks.machine_connections = {
+        1: {"tags": {"Status.Feeders.1IsRunning": {"data": tag}}, "connected": True}
+    }
+    callbacks.active_machine_id = 1
+
+    class DummyCtx:
+        def __init__(self, prop_id):
+            self.triggered = [{"prop_id": prop_id}]
+
+    monkeypatch.setattr(callbacks, "callback_context", DummyCtx("status-update-interval.n_intervals"))
+    monkeypatch.setattr(callbacks.time, "time", lambda: 123.0)
+    res = func.__wrapped__(None, None, 1, True, None, {"mode": "lab"}, {"machine_id": 1})
+    assert res == 123.0
