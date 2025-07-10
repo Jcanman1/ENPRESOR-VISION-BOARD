@@ -61,7 +61,15 @@ is useful for troubleshooting discrepancies without running the full UI.
 python3 scripts/lab_mode_sim.py tests/Lab_Test_NEWTEST1_07_07_2025.csv
 ```
 
+
 As the code is refactored into modules, the entry point and command-line options will remain consistent so that users experience no change in behavior.
+
+## Logging Metrics
+
+During lab tests the application writes metric values to CSV files. Values whose
+absolute magnitude is below `SMALL_VALUE_THRESHOLD` (default `0.001`) are
+recorded as `0` to avoid noise from very small readings. Adjust the constant in
+`callbacks.py` if different behavior is desired.
 
 ## Running with Gunicorn
 
