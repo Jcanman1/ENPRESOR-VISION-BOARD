@@ -483,6 +483,7 @@ def draw_global_summary(
     
     # Aggregate global data
     total_capacity = total_accepts = total_rejects = 0
+    total_objects = total_removed = 0
     for m in machines:
         fp = os.path.join(csv_parent_dir, m, 'last_24h_metrics.csv')
         if os.path.isfile(fp):
@@ -495,6 +496,7 @@ def draw_global_summary(
                     values_in_kg=values_in_kg,
                 )
                 total_capacity += stats['total_capacity_lbs']
+
             ac = next((c for c in df.columns if c.lower()=='accepts'), None)
             rj = next((c for c in df.columns if c.lower()=='rejects'), None)
             if is_lab_mode:
@@ -512,6 +514,7 @@ def draw_global_summary(
                         is_lab_mode=True,
                     )
                     total_rejects += stats['total_objects'] * LAB_WEIGHT_MULTIPLIER
+
             else:
                 if ac:
                     stats = calculate_total_capacity_from_csv_rates(
@@ -529,6 +532,7 @@ def draw_global_summary(
                         values_in_kg=values_in_kg,
                     )
                     total_rejects += stats['total_capacity_lbs']
+
 
 
     # Section 1: Totals
@@ -1200,6 +1204,7 @@ def draw_machine_sections(
     machine_rejects = 0
 
     if is_lab_mode:
+
         if ac_col:
             a_stats = calculate_total_objects_from_csv_rates(
                 df[ac_col],
@@ -1214,6 +1219,7 @@ def draw_machine_sections(
                 is_lab_mode=True,
             )
             machine_rejects = r_stats["total_objects"] * LAB_WEIGHT_MULTIPLIER
+
     else:
         if ac_col:
             a_stats = calculate_total_capacity_from_csv_rates(
