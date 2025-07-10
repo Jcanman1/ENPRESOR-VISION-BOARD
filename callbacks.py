@@ -5483,14 +5483,21 @@ def _register_callbacks_impl(app):
          Input("stop-test-btn", "n_clicks"),
          Input("mode-selector", "value"),
          Input("status-update-interval", "n_intervals")],
+
+
         [State("lab-test-running", "data"),
+
+
          State("lab-test-stop-time", "data"),
          State("lab-test-name", "value")],
         prevent_initial_call=True,
     )
-    def update_lab_running(start_click, stop_click, mode, n_intervals,
-                           running, stop_time, test_name):
-        """Update lab running state based on start/stop actions."""
+
+
+    def update_lab_running(start_click, stop_click, mode, n_intervals, running, stop_time):
+
+        """Update lab running state based on start/stop actions or feeder status."""
+
         global current_lab_filename
         ctx = callback_context
 
@@ -5511,6 +5518,9 @@ def _register_callbacks_impl(app):
                 # so logging can continue before finalizing.
                 return True
 
+
+        # Auto-start when any feeder begins running
+
         feeders_running = False
         if (
             active_machine_id is not None
@@ -5524,15 +5534,9 @@ def _register_callbacks_impl(app):
                     break
 
         if feeders_running and not running:
-            if not current_lab_filename:
-                name = test_name or "Test"
-                filename = f"Lab_Test_{name}_{datetime.now().strftime('%m_%d_%Y')}.csv"
-                current_lab_filename = filename
-                try:
-                    if active_machine_id is not None:
-                        _create_empty_lab_log(active_machine_id, filename)
-                except Exception as exc:
-                    logger.warning(f"Failed to prepare new lab log: {exc}")
+
+
+
             try:
                 if active_machine_id is not None:
                     _reset_lab_session(active_machine_id)
@@ -5598,8 +5602,9 @@ def _register_callbacks_impl(app):
          State("active-machine-store", "data")],
         prevent_initial_call=True,
     )
-    def update_lab_test_stop_time(start_click, stop_click, n_intervals,
-                                  running, stop_time, mode, active_machine_data):
+
+    def update_lab_test_stop_time(start_click, stop_click, n_intervals, running, stop_time, mode, active_machine_data):
+
         ctx = callback_context
         if ctx.triggered:
             trigger = ctx.triggered[0]["prop_id"].split(".")[0]
@@ -5626,12 +5631,11 @@ def _register_callbacks_impl(app):
                 any_running = True
                 break
 
-        if any_running:
-            if stop_time is not None:
-                return None
-            return dash.no_update
 
-        if stop_time is None:
+
+        if not any_running and stop_time is None:
+
+
             return time.time()
 
         return dash.no_update
