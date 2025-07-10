@@ -5484,6 +5484,7 @@ def _register_callbacks_impl(app):
          Input("mode-selector", "value"),
          Input("status-update-interval", "n_intervals")],
         [State("lab-test-running", "data"),
+
          State("lab-test-stop-time", "data"),
          State("lab-test-name", "value")],
         prevent_initial_call=True,
@@ -5525,8 +5526,6 @@ def _register_callbacks_impl(app):
                     break
 
         if feeders_running and not running:
-
-
             try:
                 if active_machine_id is not None:
                     _reset_lab_session(active_machine_id)
