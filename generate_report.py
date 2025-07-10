@@ -500,6 +500,7 @@ def draw_global_summary(
 
 
 
+
             ac = next((c for c in df.columns if c.lower()=='accepts'), None)
             rj = next((c for c in df.columns if c.lower()=='rejects'), None)
             if is_lab_mode:
@@ -527,12 +528,14 @@ def draw_global_summary(
 
 
 
+
                         values_in_kg=values_in_kg,
                     )
                     total_accepts += stats['total_capacity_lbs']
                 if rj:
                     stats = calculate_total_capacity_from_csv_rates(
                         df[rj],
+
 
 
 
@@ -543,6 +546,7 @@ def draw_global_summary(
                         values_in_kg=values_in_kg,
                     )
                     total_rejects += stats['total_capacity_lbs']
+
 
 
 
@@ -1220,6 +1224,7 @@ def draw_machine_sections(
 
 
 
+
         if ac_col:
             a_stats = calculate_total_objects_from_csv_rates(
                 df[ac_col],
@@ -1234,6 +1239,7 @@ def draw_machine_sections(
                 is_lab_mode=True,
             )
             machine_rejects = r_stats["total_objects"] * LAB_WEIGHT_MULTIPLIER
+
 
 
 

@@ -34,6 +34,8 @@ class DummyCanvas:
         pass
     def setLineWidth(self, *args, **kwargs):
         pass
+    def drawRightString(self, *args):
+        self.strings.append(args[-1])
 
 
 def test_calculate_total_capacity_from_csv_rates():
@@ -200,8 +202,10 @@ def test_draw_machine_sections_lab_mode_decimals(tmp_path, monkeypatch):
     )
 
 
+
     expected_accepts = a_stats['total_objects'] * generate_report.LAB_WEIGHT_MULTIPLIER
     expected_rejects = r_stats['total_objects'] * generate_report.LAB_WEIGHT_MULTIPLIER
+
 
 
     assert f"{expected_accepts:.2f} lbs" in canvas.strings
@@ -546,11 +550,13 @@ def test_global_summary_lab_weights_from_objects(tmp_path, monkeypatch):
 
     expected_accepts = max(
 
+
         o_stats["total_objects"] - r_stats["total_objects"], 0
     ) * generate_report.LAB_WEIGHT_MULTIPLIER
     expected_rejects = (
         r_stats["total_objects"] * generate_report.LAB_WEIGHT_MULTIPLIER
     )
+
 
 
     assert f"{expected_accepts:.2f} lbs" in canvas.strings
