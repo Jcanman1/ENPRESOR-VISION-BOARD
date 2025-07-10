@@ -497,22 +497,38 @@ def draw_global_summary(
                 total_capacity += stats['total_capacity_lbs']
             ac = next((c for c in df.columns if c.lower()=='accepts'), None)
             rj = next((c for c in df.columns if c.lower()=='rejects'), None)
-            if ac:
-                stats = calculate_total_capacity_from_csv_rates(
-                    df[ac],
-                    timestamps=df['timestamp'] if is_lab_mode else None,
-                    is_lab_mode=is_lab_mode,
-                    values_in_kg=values_in_kg,
-                )
-                total_accepts += stats['total_capacity_lbs']
-            if rj:
-                stats = calculate_total_capacity_from_csv_rates(
-                    df[rj],
-                    timestamps=df['timestamp'] if is_lab_mode else None,
-                    is_lab_mode=is_lab_mode,
-                    values_in_kg=values_in_kg,
-                )
-                total_rejects += stats['total_capacity_lbs']
+            if is_lab_mode:
+                if ac:
+                    stats = calculate_total_objects_from_csv_rates(
+                        df[ac],
+                        timestamps=df['timestamp'],
+                        is_lab_mode=True,
+                    )
+                    total_accepts += stats['total_objects'] * LAB_WEIGHT_MULTIPLIER
+                if rj:
+                    stats = calculate_total_objects_from_csv_rates(
+                        df[rj],
+                        timestamps=df['timestamp'],
+                        is_lab_mode=True,
+                    )
+                    total_rejects += stats['total_objects'] * LAB_WEIGHT_MULTIPLIER
+            else:
+                if ac:
+                    stats = calculate_total_capacity_from_csv_rates(
+                        df[ac],
+                        timestamps=df['timestamp'] if is_lab_mode else None,
+                        is_lab_mode=is_lab_mode,
+                        values_in_kg=values_in_kg,
+                    )
+                    total_accepts += stats['total_capacity_lbs']
+                if rj:
+                    stats = calculate_total_capacity_from_csv_rates(
+                        df[rj],
+                        timestamps=df['timestamp'] if is_lab_mode else None,
+                        is_lab_mode=is_lab_mode,
+                        values_in_kg=values_in_kg,
+                    )
+                    total_rejects += stats['total_capacity_lbs']
 
     if is_lab_mode:
         total_accepts *= LAB_WEIGHT_MULTIPLIER
@@ -1184,28 +1200,40 @@ def draw_machine_sections(
     
 
     machine_accepts = 0
-    if ac_col:
-        a_stats = calculate_total_capacity_from_csv_rates(
-            df[ac_col],
-            timestamps=df['timestamp'] if is_lab_mode else None,
-            is_lab_mode=is_lab_mode,
-            values_in_kg=values_in_kg,
-        )
-        machine_accepts = a_stats["total_capacity_lbs"]
-
     machine_rejects = 0
-    if rj_col:
-        r_stats = calculate_total_capacity_from_csv_rates(
-            df[rj_col],
-            timestamps=df['timestamp'] if is_lab_mode else None,
-            is_lab_mode=is_lab_mode,
-            values_in_kg=values_in_kg,
-        )
-        machine_rejects = r_stats["total_capacity_lbs"]
 
     if is_lab_mode:
-        machine_accepts *= LAB_WEIGHT_MULTIPLIER
-        machine_rejects *= LAB_WEIGHT_MULTIPLIER
+        if ac_col:
+            a_stats = calculate_total_objects_from_csv_rates(
+                df[ac_col],
+                timestamps=df['timestamp'],
+                is_lab_mode=True,
+            )
+            machine_accepts = a_stats["total_objects"] * LAB_WEIGHT_MULTIPLIER
+        if rj_col:
+            r_stats = calculate_total_objects_from_csv_rates(
+                df[rj_col],
+                timestamps=df['timestamp'],
+                is_lab_mode=True,
+            )
+            machine_rejects = r_stats["total_objects"] * LAB_WEIGHT_MULTIPLIER
+    else:
+        if ac_col:
+            a_stats = calculate_total_capacity_from_csv_rates(
+                df[ac_col],
+                timestamps=df['timestamp'] if is_lab_mode else None,
+                is_lab_mode=is_lab_mode,
+                values_in_kg=values_in_kg,
+            )
+            machine_accepts = a_stats["total_capacity_lbs"]
+        if rj_col:
+            r_stats = calculate_total_capacity_from_csv_rates(
+                df[rj_col],
+                timestamps=df['timestamp'] if is_lab_mode else None,
+                is_lab_mode=is_lab_mode,
+                values_in_kg=values_in_kg,
+            )
+            machine_rejects = r_stats["total_capacity_lbs"]
 
     
     # Draw SMALLER blue counts section
