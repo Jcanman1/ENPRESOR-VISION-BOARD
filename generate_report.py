@@ -920,24 +920,11 @@ def load_machine_settings(csv_parent_dir, machine):
 
 
 
-def draw_machine_settings_section(cnv, x0, y0, total_w, section_h, settings, *, lang="en"):
-    """Draw a 6x6 grid of machine settings with merged cells.
 
-    Parameters
-    ----------
-    cnv : :class:`reportlab.pdfgen.canvas.Canvas`
-        Canvas to draw on.
-    x0, y0 : float
-        Bottom left coordinate of the grid.
-    total_w : float
-        Width of the entire grid.
-    section_h : float
-        Height of the entire grid.
-    settings : dict
-        Machine settings loaded from CSV/JSON.
-    lang : str, optional
-        Language for translated strings.
-    """
+
+def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, lang="en"):
+    """Draw a 6x6 grid of machine settings with merged cells."""
+
 
     cnv.saveState()
 
@@ -945,7 +932,6 @@ def draw_machine_settings_section(cnv, x0, y0, total_w, section_h, settings, *, 
     row_h = section_h / rows
     col_w = total_w / cols
 
-    # Helper to fetch nested settings while providing a fallback
     get = lambda key: _lookup_setting(settings, key)
 
     data = [
@@ -1000,30 +986,37 @@ def draw_machine_settings_section(cnv, x0, y0, total_w, section_h, settings, *, 
         (1, 4): (1, 2),  # "Background" header
     }
 
+
+
     # Map each cell to the start of its merge region
     merged_to = {}
-    for (r, col), (rs, cs) in merges.items():
+
+    for (r, c), (rs, cs) in merges.items():
         for rr in range(r, r + rs):
-            for cc in range(col, col + cs):
-                merged_to[(rr, cc)] = (r, col)
+            for cc in range(c, c + cs):
+                merged_to[(rr, cc)] = (r, c)
+
 
     # Draw base grid
-    cnv.setStrokeColor(colors.black)
+    c.setStrokeColor(colors.black)
     for i in range(rows + 1):
         cnv.line(x0, y0 + i * row_h, x0 + total_w, y0 + i * row_h)
     for j in range(cols + 1):
-        cnv.line(x0 + j * col_w, y0, x0 + j * col_w, y0 + section_h)
+
+        c.line(x0 + j * col_w, y0, x0 + j * col_w, y0 + section_h)
 
     # Overlay merged cell rectangles to hide interior lines
-    for (r, col), (rs, cs) in merges.items():
-        x = x0 + col * col_w
+
+    for (r, c), (rs, cs) in merges.items():
+        x = x0 + c * col_w
         y = y0 + section_h - (r + rs) * row_h
         w = cs * col_w
         h = rs * row_h
-        cnv.setFillColor(colors.white)
-        cnv.rect(x, y, w, h, fill=1, stroke=0)
-        cnv.setStrokeColor(colors.black)
-        cnv.rect(x, y, w, h, fill=0, stroke=1)
+        c.setFillColor(colors.white)
+        c.rect(x, y, w, h, fill=1, stroke=0)
+        c.setStrokeColor(colors.black)
+        c.rect(x, y, w, h, fill=0, stroke=1)
+
 
     # Draw cell text with optional blue background for missing values
     for r, row in enumerate(data):
@@ -1039,10 +1032,14 @@ def draw_machine_settings_section(cnv, x0, y0, total_w, section_h, settings, *, 
             text = str(cell)
 
             # Highlight missing OPC data
-            if text in {"N/A", "", "None", None}:
-                cnv.setFillColor(colors.lightblue)
-                cnv.rect(x, y, w, h, fill=1, stroke=0)
-                cnv.setFillColor(colors.black)
+
+            if text in {"N/A", "", "None"}:
+
+                c.setFillColor(colors.lightblue)
+                c.rect(x, y, w, h, fill=1, stroke=0)
+                c.setFillColor(colors.black)
+
+
             tx = x + 2
             ty = y + h - 8
             if r == 0 or j % 2 == 0:
@@ -1051,7 +1048,7 @@ def draw_machine_settings_section(cnv, x0, y0, total_w, section_h, settings, *, 
                 cnv.setFont(FONT_DEFAULT, 6)
             cnv.drawString(tx, ty, text)
 
-    cnv.restoreState()
+
 
 
 
