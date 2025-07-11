@@ -30,6 +30,28 @@ LAB_WEIGHT_MULTIPLIER = 1 / 1800
 
 from i18n import tr
 
+
+def _lookup_setting(data: dict, dotted_key: str, default="N/A"):
+    """Return a nested setting value using dotted notation.
+
+    Parameters
+    ----------
+    data : dict
+        Dictionary of settings loaded from JSON.
+    dotted_key : str
+        Dot separated path to the desired value.
+    default : any, optional
+        Value returned when the key path does not exist.
+    """
+
+    cur = data
+    for part in dotted_key.split("."):
+        if isinstance(cur, dict) and part in cur:
+            cur = cur[part]
+        else:
+            return default
+    return cur
+
 def _minutes_to_hm(minutes: float) -> str:
     """Return an "H:MM" string from a minute count."""
     try:
@@ -899,38 +921,111 @@ def load_machine_settings(csv_parent_dir, machine):
 
 
 def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, lang="en"):
-    """Draw a 6x6 grid of machine settings."""
-
+    """Draw a 6x6 grid of machine settings with merged cells."""
 
     rows, cols = 6, 6
     row_h = section_h / rows
     col_w = total_w / cols
+
+    get = lambda key: _lookup_setting(settings, key)
+
     data = [
-
-
-
         [tr('machine_settings_title', lang), "", "Calibration", "", "", ""],
-        ["Ejector Delay:", settings.get("Settings.Ejectors.PrimaryDelay", "N/A"), "Product Lights Target Values", "", "Background:", ""],
-        ["Ejector Dwell:", settings.get("Settings.Ejectors.PrimaryDwell", "N/A"), "R:", settings.get("Settings.Calibration.FrontProductRed", "N/A"), "R:", settings.get("Settings.Calibration.FrontBackgroundRed", "N/A")],
-        ["Pixel Overlap:", settings.get("Settings.Ejectors.PixelOverlap", "N/A"), "G:", settings.get("Settings.Calibration.FrontProductGreen", "N/A"), "G:", settings.get("Settings.Calibration.FrontBackgroundGreen", "N/A")],
-        ["Non Object Band:", settings.get("Settings.Calibration.NonObjectBand", "N/A"), "B:", settings.get("Settings.Calibration.FrontProductBlue", "N/A"), "B:", settings.get("Settings.Calibration.FrontBackgroundBlue", "N/A")],
-        ["Erosion:", settings.get("Settings.ColorSort.Config.Erosion", "N/A"), "LED Drive %:", settings.get("Settings.Calibration.LedDriveForGain", "N/A"), "", ""],
-
+        [
+            "Ejector Delay:",
+            get("Settings.Ejectors.PrimaryDelay"),
+            "Product Lights Target Values",
+            "",
+            "Background:",
+            "",
+        ],
+        [
+            "Ejector Dwell:",
+            get("Settings.Ejectors.PrimaryDwell"),
+            "R:",
+            get("Settings.Calibration.FrontProductRed"),
+            "R:",
+            get("Settings.Calibration.FrontBackgroundRed"),
+        ],
+        [
+            "Pixel Overlap:",
+            get("Settings.Ejectors.PixelOverlap"),
+            "G:",
+            get("Settings.Calibration.FrontProductGreen"),
+            "G:",
+            get("Settings.Calibration.FrontBackgroundGreen"),
+        ],
+        [
+            "Non Object Band:",
+            get("Settings.Calibration.NonObjectBand"),
+            "B:",
+            get("Settings.Calibration.FrontProductBlue"),
+            "B:",
+            get("Settings.Calibration.FrontBackgroundBlue"),
+        ],
+        [
+            "Erosion:",
+            get("Settings.ColorSort.Config.Erosion"),
+            "LED Drive %:",
+            get("Settings.Calibration.LedDriveForGain"),
+            "",
+            "",
+        ],
     ]
 
+    # Cell merge definitions: (row, col) -> (rowspan, colspan)
+    merges = {
+        (0, 0): (1, 2),  # "Machine Settings" spanning two columns
+        (0, 2): (1, 4),  # "Calibration" spanning remaining columns
+        (1, 2): (1, 2),  # "Product Lights Target Values" header
+        (1, 4): (1, 2),  # "Background" header
+    }
 
+    # Map each cell to the start of its merge region
+    merged_to = {}
+    for (r, c), (rs, cs) in merges.items():
+        for rr in range(r, r + rs):
+            for cc in range(c, c + cs):
+                merged_to[(rr, cc)] = (r, c)
 
+    # Draw base grid
     c.setStrokeColor(colors.black)
     for i in range(rows + 1):
         c.line(x0, y0 + i * row_h, x0 + total_w, y0 + i * row_h)
     for j in range(cols + 1):
         c.line(x0 + j * col_w, y0, x0 + j * col_w, y0 + section_h)
 
+    # Overlay merged cell rectangles to hide interior lines
+    for (r, c), (rs, cs) in merges.items():
+        x = x0 + c * col_w
+        y = y0 + section_h - (r + rs) * row_h
+        w = cs * col_w
+        h = rs * row_h
+        c.setFillColor(colors.white)
+        c.rect(x, y, w, h, fill=1, stroke=0)
+        c.setStrokeColor(colors.black)
+        c.rect(x, y, w, h, fill=0, stroke=1)
+
+    # Draw cell text with optional blue background for missing values
     for r, row in enumerate(data):
         for j, cell in enumerate(row):
+            if merged_to.get((r, j)) != (r, j):
+                # Skip cells that are part of a merge but not the top-left
+                continue
+            rs, cs = merges.get((r, j), (1, 1))
+            x = x0 + j * col_w
+            y = y0 + section_h - (r + rs) * row_h
+            w = cs * col_w
+            h = rs * row_h
             text = str(cell)
-            tx = x0 + j * col_w + 2
-            ty = y0 + section_h - (r + 1) * row_h + 2
+
+            # Highlight missing OPC data
+            if text in {"N/A", "", "None"}:
+                c.setFillColor(colors.lightblue)
+                c.rect(x, y, w, h, fill=1, stroke=0)
+                c.setFillColor(colors.black)
+            tx = x + 2
+            ty = y + h - 8
             if r == 0 or j % 2 == 0:
                 c.setFont(FONT_BOLD, 6)
             else:
