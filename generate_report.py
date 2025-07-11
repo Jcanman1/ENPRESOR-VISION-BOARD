@@ -884,27 +884,15 @@ def load_machine_settings(csv_parent_dir, machine):
     path = os.path.join(csv_parent_dir, str(machine), "settings.json")
     if os.path.isfile(path):
         try:
-            with open(path, "r", encoding="utf-8") as f:
+
+
+            with open(path) as f:
                 return json.load(f)
-        except Exception as exc:  # pragma: no cover - file may be corrupt
-            logger.warning(
-                f"Unable to read settings for machine {machine}: {exc}"
-            )
+        except Exception as exc:
+            logger.warning(f"Unable to read settings for machine {machine}: {exc}")
     return {}
 
 
-def _lookup_setting(data: dict, dotted_key: str, default="N/A"):
-    """Return nested ``dotted_key`` value from ``data`` or ``default``."""
-    if dotted_key in data:
-        return data.get(dotted_key, default)
-
-    current = data
-    for part in dotted_key.split("."):
-        if isinstance(current, dict) and part in current:
-            current = current[part]
-        else:
-            return default
-    return current
 
 
 def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, lang="en"):
@@ -915,68 +903,18 @@ def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, la
     col_w = total_w / cols
 
     data = [
-        [tr("machine_settings_title", lang), "", "Calibration", "", "", ""],
-        [
-            "Ejector Delay:",
-            _lookup_setting(settings, "Settings.Ejectors.PrimaryDelay"),
-            "Product Lights Target Values",
-            "",
-            "Background:",
-            "",
-        ],
-        [
-            "Ejector Dwell:",
-            _lookup_setting(settings, "Settings.Ejectors.PrimaryDwell"),
-            "R:",
-            _lookup_setting(settings, "Settings.Calibration.FrontProductRed"),
-            "R:",
-            _lookup_setting(settings, "Settings.Calibration.FrontBackgroundRed"),
-        ],
-        [
-            "Pixel Overlap:",
-            _lookup_setting(settings, "Settings.Ejectors.PixelOverlap"),
-            "G:",
-            _lookup_setting(settings, "Settings.Calibration.FrontProductGreen"),
-            "G:",
-            _lookup_setting(settings, "Settings.Calibration.FrontBackgroundGreen"),
-        ],
-        [
-            "Non Object Band:",
-            _lookup_setting(settings, "Settings.Calibration.NonObjectBand"),
-            "B:",
-            _lookup_setting(settings, "Settings.Calibration.FrontProductBlue"),
-            "B:",
-            _lookup_setting(settings, "Settings.Calibration.FrontBackgroundBlue"),
-        ],
-        [
-            "Erosion:",
-            _lookup_setting(settings, "Settings.ColorSort.Config.Erosion"),
-            "LED Drive %:",
-            _lookup_setting(settings, "Settings.Calibration.LedDriveForGain"),
-            "",
-            "",
-        ],
+
+
+        [tr('machine_settings_title', lang), "", "Calibration", "", "", ""],
+        ["Ejector Delay:", settings.get("Settings.Ejectors.PrimaryDelay", "N/A"), "Product Lights Target Values", "", "Background:", ""],
+        ["Ejector Dwell:", settings.get("Settings.Ejectors.PrimaryDwell", "N/A"), "R:", settings.get("Settings.Calibration.FrontProductRed", "N/A"), "R:", settings.get("Settings.Calibration.FrontBackgroundRed", "N/A")],
+        ["Pixel Overlap:", settings.get("Settings.Ejectors.PixelOverlap", "N/A"), "G:", settings.get("Settings.Calibration.FrontProductGreen", "N/A"), "G:", settings.get("Settings.Calibration.FrontBackgroundGreen", "N/A")],
+        ["Non Object Band:", settings.get("Settings.Calibration.NonObjectBand", "N/A"), "B:", settings.get("Settings.Calibration.FrontProductBlue", "N/A"), "B:", settings.get("Settings.Calibration.FrontBackgroundBlue", "N/A")],
+        ["Erosion:", settings.get("Settings.ColorSort.Config.Erosion", "N/A"), "LED Drive %:", settings.get("Settings.Calibration.LedDriveForGain", "N/A"), "", ""],
+
     ]
 
-    # Fill cells lacking OPC data with light grey
-    for r, row in enumerate(data):
-        if r == 0:
-            continue
-        for j, cell in enumerate(row):
-            if j % 2 == 1:
-                val = str(cell).strip()
-                if val == "" or val == "N/A":
-                    c.setFillColor(colors.lightgrey)
-                    c.rect(
-                        x0 + j * col_w,
-                        y0 + section_h - (r + 1) * row_h,
-                        col_w,
-                        row_h,
-                        stroke=0,
-                        fill=1,
-                    )
 
-    # Draw grid lines on top of any background fills
     c.setStrokeColor(colors.black)
     for i in range(rows + 1):
         c.line(x0, y0 + i * row_h, x0 + total_w, y0 + i * row_h)
