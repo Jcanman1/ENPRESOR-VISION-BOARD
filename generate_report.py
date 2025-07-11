@@ -878,6 +878,123 @@ def enhanced_calculate_stats_for_machine(csv_parent_dir, machine, *, is_lab_mode
         "stopped_mins": stopped_mins,
     }
 
+
+def load_machine_settings(csv_parent_dir, machine):
+    """Load machine settings from a JSON file if available."""
+    path = os.path.join(csv_parent_dir, str(machine), "settings.json")
+    if os.path.isfile(path):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as exc:  # pragma: no cover - file may be corrupt
+            logger.warning(
+                f"Unable to read settings for machine {machine}: {exc}"
+            )
+    return {}
+
+
+def _lookup_setting(data: dict, dotted_key: str, default="N/A"):
+    """Return nested ``dotted_key`` value from ``data`` or ``default``."""
+    if dotted_key in data:
+        return data.get(dotted_key, default)
+
+    current = data
+    for part in dotted_key.split("."):
+        if isinstance(current, dict) and part in current:
+            current = current[part]
+        else:
+            return default
+    return current
+
+
+def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, lang="en"):
+    """Draw a 6x6 grid of machine settings."""
+
+    rows, cols = 6, 6
+    row_h = section_h / rows
+    col_w = total_w / cols
+
+    data = [
+        [tr("machine_settings_title", lang), "", "Calibration", "", "", ""],
+        [
+            "Ejector Delay:",
+            _lookup_setting(settings, "Settings.Ejectors.PrimaryDelay"),
+            "Product Lights Target Values",
+            "",
+            "Background:",
+            "",
+        ],
+        [
+            "Ejector Dwell:",
+            _lookup_setting(settings, "Settings.Ejectors.PrimaryDwell"),
+            "R:",
+            _lookup_setting(settings, "Settings.Calibration.FrontProductRed"),
+            "R:",
+            _lookup_setting(settings, "Settings.Calibration.FrontBackgroundRed"),
+        ],
+        [
+            "Pixel Overlap:",
+            _lookup_setting(settings, "Settings.Ejectors.PixelOverlap"),
+            "G:",
+            _lookup_setting(settings, "Settings.Calibration.FrontProductGreen"),
+            "G:",
+            _lookup_setting(settings, "Settings.Calibration.FrontBackgroundGreen"),
+        ],
+        [
+            "Non Object Band:",
+            _lookup_setting(settings, "Settings.Calibration.NonObjectBand"),
+            "B:",
+            _lookup_setting(settings, "Settings.Calibration.FrontProductBlue"),
+            "B:",
+            _lookup_setting(settings, "Settings.Calibration.FrontBackgroundBlue"),
+        ],
+        [
+            "Erosion:",
+            _lookup_setting(settings, "Settings.ColorSort.Config.Erosion"),
+            "LED Drive %:",
+            _lookup_setting(settings, "Settings.Calibration.LedDriveForGain"),
+            "",
+            "",
+        ],
+    ]
+
+    # Fill cells lacking OPC data with light grey
+    for r, row in enumerate(data):
+        if r == 0:
+            continue
+        for j, cell in enumerate(row):
+            if j % 2 == 1:
+                val = str(cell).strip()
+                if val == "" or val == "N/A":
+                    c.setFillColor(colors.lightgrey)
+                    c.rect(
+                        x0 + j * col_w,
+                        y0 + section_h - (r + 1) * row_h,
+                        col_w,
+                        row_h,
+                        stroke=0,
+                        fill=1,
+                    )
+
+    # Draw grid lines on top of any background fills
+    c.setStrokeColor(colors.black)
+    for i in range(rows + 1):
+        c.line(x0, y0 + i * row_h, x0 + total_w, y0 + i * row_h)
+    for j in range(cols + 1):
+        c.line(x0 + j * col_w, y0, x0 + j * col_w, y0 + section_h)
+
+    for r, row in enumerate(data):
+        for j, cell in enumerate(row):
+            text = str(cell)
+            tx = x0 + j * col_w + 2
+            ty = y0 + section_h - (r + 1) * row_h + 2
+            if r == 0 or j % 2 == 0:
+                c.setFont(FONT_BOLD, 6)
+            else:
+                c.setFont(FONT_DEFAULT, 6)
+            c.drawString(tx, ty, text)
+
+
 def generate_report_filename(script_dir):
     """Generate date-stamped filename for the report"""
     # Get current date
@@ -1323,9 +1440,26 @@ def draw_machine_sections(
     c.setFillColor(colors.black)
     c.setStrokeColor(colors.black)
     c.rect(x0, y_counts, total_w, counts_height)
-    
+
+    next_y = y_counts - spacing
+
+    if is_lab_mode:
+        settings_data = load_machine_settings(csv_parent_dir, machine)
+        settings_height = 60
+        y_settings = next_y - settings_height
+        draw_machine_settings_section(
+            c,
+            x0,
+            y_settings,
+            total_w,
+            settings_height,
+            settings_data,
+            lang=lang,
+        )
+        next_y = y_settings - spacing
+
     # Return the Y position where the next content should start
-    return y_counts - spacing
+    return next_y
 
 
 def draw_layout_optimized(
