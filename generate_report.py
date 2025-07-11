@@ -885,11 +885,13 @@ def load_machine_settings(csv_parent_dir, machine):
     if os.path.isfile(path):
         try:
 
+
             with open(path) as f:
                 return json.load(f)
         except Exception as exc:
             logger.warning(f"Unable to read settings for machine {machine}: {exc}")
     return {}
+
 
 
 
@@ -902,6 +904,7 @@ def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, la
 
     data = [
 
+
         [tr('machine_settings_title', lang), "", "Calibration", "", "", ""],
         ["Ejector Delay:", settings.get("Settings.Ejectors.PrimaryDelay", "N/A"), "Product Lights Target Values", "", "Background:", ""],
         ["Ejector Dwell:", settings.get("Settings.Ejectors.PrimaryDwell", "N/A"), "R:", settings.get("Settings.Calibration.FrontProductRed", "N/A"), "R:", settings.get("Settings.Calibration.FrontBackgroundRed", "N/A")],
@@ -910,6 +913,7 @@ def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, la
         ["Erosion:", settings.get("Settings.ColorSort.Config.Erosion", "N/A"), "LED Drive %:", settings.get("Settings.Calibration.LedDriveForGain", "N/A"), "", ""],
 
     ]
+
 
     c.setStrokeColor(colors.black)
     for i in range(rows + 1):
