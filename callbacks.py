@@ -20,6 +20,7 @@ import hourly_data_saving
 import autoconnect
 import image_manager as img_utils
 import generate_report
+from report_tags import save_machine_settings
 try:
     import resource
 except ImportError:  # pragma: no cover - resource not available on Windows
@@ -878,6 +879,7 @@ def _register_callbacks_impl(app):
             temp_machine_dir = os.path.join(temp_dir, str(mid))
             os.makedirs(temp_machine_dir, exist_ok=True)
             shutil.copy(latest_file, os.path.join(temp_machine_dir, "last_24h_metrics.csv"))
+            save_machine_settings(mid, machine_connections, export_dir=temp_dir)
             export_dir = temp_dir
             data = {}
             is_lab_mode = True  # Set to True only for lab mode
