@@ -884,11 +884,13 @@ def load_machine_settings(csv_parent_dir, machine):
     path = os.path.join(csv_parent_dir, str(machine), "settings.json")
     if os.path.isfile(path):
         try:
+
             with open(path) as f:
                 return json.load(f)
         except Exception as exc:
             logger.warning(f"Unable to read settings for machine {machine}: {exc}")
     return {}
+
 
 
 def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, lang="en"):
@@ -899,12 +901,14 @@ def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, la
     col_w = total_w / cols
 
     data = [
+
         [tr('machine_settings_title', lang), "", "Calibration", "", "", ""],
         ["Ejector Delay:", settings.get("Settings.Ejectors.PrimaryDelay", "N/A"), "Product Lights Target Values", "", "Background:", ""],
         ["Ejector Dwell:", settings.get("Settings.Ejectors.PrimaryDwell", "N/A"), "R:", settings.get("Settings.Calibration.FrontProductRed", "N/A"), "R:", settings.get("Settings.Calibration.FrontBackgroundRed", "N/A")],
         ["Pixel Overlap:", settings.get("Settings.Ejectors.PixelOverlap", "N/A"), "G:", settings.get("Settings.Calibration.FrontProductGreen", "N/A"), "G:", settings.get("Settings.Calibration.FrontBackgroundGreen", "N/A")],
         ["Non Object Band:", settings.get("Settings.Calibration.NonObjectBand", "N/A"), "B:", settings.get("Settings.Calibration.FrontProductBlue", "N/A"), "B:", settings.get("Settings.Calibration.FrontBackgroundBlue", "N/A")],
         ["Erosion:", settings.get("Settings.ColorSort.Config.Erosion", "N/A"), "LED Drive %:", settings.get("Settings.Calibration.LedDriveForGain", "N/A"), "", ""],
+
     ]
 
     c.setStrokeColor(colors.black)
