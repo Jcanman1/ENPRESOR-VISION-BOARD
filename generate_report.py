@@ -920,8 +920,10 @@ def load_machine_settings(csv_parent_dir, machine):
 
 
 
+
 def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, lang="en"):
     """Draw a 6x6 grid of machine settings with merged cells."""
+
 
     rows, cols = 6, 6
     row_h = section_h / rows
@@ -981,6 +983,7 @@ def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, la
         (1, 4): (1, 2),  # "Background" header
     }
 
+
     # Map each cell to the start of its merge region
     merged_to = {}
 
@@ -993,8 +996,9 @@ def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, la
     # Draw base grid
     c.setStrokeColor(colors.black)
     for i in range(rows + 1):
-        c.line(x0, y0 + i * row_h, x0 + total_w, y0 + i * row_h)
+        cnv.line(x0, y0 + i * row_h, x0 + total_w, y0 + i * row_h)
     for j in range(cols + 1):
+
         c.line(x0 + j * col_w, y0, x0 + j * col_w, y0 + section_h)
 
     # Overlay merged cell rectangles to hide interior lines
@@ -1008,6 +1012,7 @@ def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, la
         c.rect(x, y, w, h, fill=1, stroke=0)
         c.setStrokeColor(colors.black)
         c.rect(x, y, w, h, fill=0, stroke=1)
+
 
     # Draw cell text with optional blue background for missing values
     for r, row in enumerate(data):
@@ -1024,16 +1029,18 @@ def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, la
 
             # Highlight missing OPC data
             if text in {"N/A", "", "None"}:
+
                 c.setFillColor(colors.lightblue)
                 c.rect(x, y, w, h, fill=1, stroke=0)
                 c.setFillColor(colors.black)
+
             tx = x + 2
             ty = y + h - 8
             if r == 0 or j % 2 == 0:
-                c.setFont(FONT_BOLD, 6)
+                cnv.setFont(FONT_BOLD, 6)
             else:
-                c.setFont(FONT_DEFAULT, 6)
-            c.drawString(tx, ty, text)
+                cnv.setFont(FONT_DEFAULT, 6)
+            cnv.drawString(tx, ty, text)
 
 
 
