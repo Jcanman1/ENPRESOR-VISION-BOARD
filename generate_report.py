@@ -884,108 +884,59 @@ def load_machine_settings(csv_parent_dir, machine):
     path = os.path.join(csv_parent_dir, str(machine), "settings.json")
     if os.path.isfile(path):
         try:
-            with open(path, "r", encoding="utf-8") as f:
+
+
+
+
+            with open(path) as f:
                 return json.load(f)
-        except Exception as exc:  # pragma: no cover - file may be corrupt
-            logger.warning(
-                f"Unable to read settings for machine {machine}: {exc}"
-            )
+        except Exception as exc:
+            logger.warning(f"Unable to read settings for machine {machine}: {exc}")
     return {}
 
 
-def _lookup_setting(data: dict, dotted_key: str, default="N/A"):
-    """Return nested ``dotted_key`` value from ``data`` or ``default``."""
-    if dotted_key in data:
-        return data.get(dotted_key, default)
 
-    current = data
-    for part in dotted_key.split("."):
-        if isinstance(current, dict) and part in current:
-            current = current[part]
-        else:
-            return default
-    return current
 
 
 def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, lang="en"):
-    """Draw a 6x6 grid of machine settings with merged header cells."""
+    """Draw a 6x6 grid of machine settings."""
+
 
     rows, cols = 6, 6
     row_h = section_h / rows
     col_w = total_w / cols
+    data = [
 
-    blue = colors.HexColor("#1f77b4")
 
-    # Cell definitions with optional colspan and value flag
-    grid = [
-        [
-            {"text": tr("machine_settings_title", lang), "span": 2},
-            {"text": "Calibration", "span": 4},
-        ],
-        [
-            {"text": "Ejector Delay:"},
-            {"text": _lookup_setting(settings, "Settings.Ejectors.PrimaryDelay"), "value": True},
-            {"text": "Product Lights Target Values", "span": 2},
-            {"text": "Background:", "span": 2},
-        ],
-        [
-            {"text": "Ejector Dwell:"},
-            {"text": _lookup_setting(settings, "Settings.Ejectors.PrimaryDwell"), "value": True},
-            {"text": "R:"},
-            {"text": _lookup_setting(settings, "Settings.Calibration.FrontProductRed"), "value": True},
-            {"text": "R:"},
-            {"text": _lookup_setting(settings, "Settings.Calibration.FrontBackgroundRed"), "value": True},
-        ],
-        [
-            {"text": "Pixel Overlap:"},
-            {"text": _lookup_setting(settings, "Settings.Ejectors.PixelOverlap"), "value": True},
-            {"text": "G:"},
-            {"text": _lookup_setting(settings, "Settings.Calibration.FrontProductGreen"), "value": True},
-            {"text": "G:"},
-            {"text": _lookup_setting(settings, "Settings.Calibration.FrontBackgroundGreen"), "value": True},
-        ],
-        [
-            {"text": "Non Object Band:"},
-            {"text": _lookup_setting(settings, "Settings.Calibration.NonObjectBand"), "value": True},
-            {"text": "B:"},
-            {"text": _lookup_setting(settings, "Settings.Calibration.FrontProductBlue"), "value": True},
-            {"text": "B:"},
-            {"text": _lookup_setting(settings, "Settings.Calibration.FrontBackgroundBlue"), "value": True},
-        ],
-        [
-            {"text": "Erosion:"},
-            {"text": _lookup_setting(settings, "Settings.ColorSort.Config.Erosion"), "value": True},
-            {"text": "LED Drive %:"},
-            {"text": _lookup_setting(settings, "Settings.Calibration.LedDriveForGain"), "value": True},
-            {"text": ""},
-            {"text": ""},
-        ],
+
+        [tr('machine_settings_title', lang), "", "Calibration", "", "", ""],
+        ["Ejector Delay:", settings.get("Settings.Ejectors.PrimaryDelay", "N/A"), "Product Lights Target Values", "", "Background:", ""],
+        ["Ejector Dwell:", settings.get("Settings.Ejectors.PrimaryDwell", "N/A"), "R:", settings.get("Settings.Calibration.FrontProductRed", "N/A"), "R:", settings.get("Settings.Calibration.FrontBackgroundRed", "N/A")],
+        ["Pixel Overlap:", settings.get("Settings.Ejectors.PixelOverlap", "N/A"), "G:", settings.get("Settings.Calibration.FrontProductGreen", "N/A"), "G:", settings.get("Settings.Calibration.FrontBackgroundGreen", "N/A")],
+        ["Non Object Band:", settings.get("Settings.Calibration.NonObjectBand", "N/A"), "B:", settings.get("Settings.Calibration.FrontProductBlue", "N/A"), "B:", settings.get("Settings.Calibration.FrontBackgroundBlue", "N/A")],
+        ["Erosion:", settings.get("Settings.ColorSort.Config.Erosion", "N/A"), "LED Drive %:", settings.get("Settings.Calibration.LedDriveForGain", "N/A"), "", ""],
+
     ]
 
-    for r, row in enumerate(grid):
-        x = x0
-        for cell in row:
-            span = cell.get("span", 1)
-            width = col_w * span
-            # Fill background for non-value cells
-            if not cell.get("value"):
-                c.setFillColor(blue)
-                c.rect(x, y0 + section_h - (r + 1) * row_h, width, row_h, stroke=0, fill=1)
 
-            # Border
-            c.setStrokeColor(colors.black)
-            c.rect(x, y0 + section_h - (r + 1) * row_h, width, row_h, stroke=1, fill=0)
 
-            # Text
-            tx = x + 2
+    c.setStrokeColor(colors.black)
+    for i in range(rows + 1):
+        c.line(x0, y0 + i * row_h, x0 + total_w, y0 + i * row_h)
+    for j in range(cols + 1):
+        c.line(x0 + j * col_w, y0, x0 + j * col_w, y0 + section_h)
+
+    for r, row in enumerate(data):
+        for j, cell in enumerate(row):
+            text = str(cell)
+            tx = x0 + j * col_w + 2
             ty = y0 + section_h - (r + 1) * row_h + 2
-            if r == 0 or not cell.get("value"):
+            if r == 0 or j % 2 == 0:
                 c.setFont(FONT_BOLD, 6)
             else:
                 c.setFont(FONT_DEFAULT, 6)
-            c.drawString(tx, ty, str(cell["text"]))
+            c.drawString(tx, ty, text)
 
-            x += width
 
 
 def generate_report_filename(script_dir):
