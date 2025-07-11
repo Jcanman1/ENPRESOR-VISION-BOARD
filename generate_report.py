@@ -887,6 +887,7 @@ def load_machine_settings(csv_parent_dir, machine):
 
 
 
+
             with open(path) as f:
                 return json.load(f)
         except Exception as exc:
@@ -900,10 +901,10 @@ def load_machine_settings(csv_parent_dir, machine):
 def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, lang="en"):
     """Draw a 6x6 grid of machine settings."""
 
+
     rows, cols = 6, 6
     row_h = section_h / rows
     col_w = total_w / cols
-
     data = [
 
 
@@ -935,6 +936,7 @@ def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, la
             else:
                 c.setFont(FONT_DEFAULT, 6)
             c.drawString(tx, ty, text)
+
 
 
 def generate_report_filename(script_dir):
