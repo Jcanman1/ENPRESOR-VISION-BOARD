@@ -878,6 +878,53 @@ def enhanced_calculate_stats_for_machine(csv_parent_dir, machine, *, is_lab_mode
         "stopped_mins": stopped_mins,
     }
 
+
+def load_machine_settings(csv_parent_dir, machine):
+    """Load machine settings from a JSON file if available."""
+    path = os.path.join(csv_parent_dir, str(machine), "settings.json")
+    if os.path.isfile(path):
+        try:
+            with open(path) as f:
+                return json.load(f)
+        except Exception as exc:
+            logger.warning(f"Unable to read settings for machine {machine}: {exc}")
+    return {}
+
+
+def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, lang="en"):
+    """Draw a 6x6 grid of machine settings."""
+
+    rows, cols = 6, 6
+    row_h = section_h / rows
+    col_w = total_w / cols
+
+    data = [
+        [tr('machine_settings_title', lang), "", "Calibration", "", "", ""],
+        ["Ejector Delay:", settings.get("Settings.Ejectors.PrimaryDelay", "N/A"), "Product Lights Target Values", "", "Background:", ""],
+        ["Ejector Dwell:", settings.get("Settings.Ejectors.PrimaryDwell", "N/A"), "R:", settings.get("Settings.Calibration.FrontProductRed", "N/A"), "R:", settings.get("Settings.Calibration.FrontBackgroundRed", "N/A")],
+        ["Pixel Overlap:", settings.get("Settings.Ejectors.PixelOverlap", "N/A"), "G:", settings.get("Settings.Calibration.FrontProductGreen", "N/A"), "G:", settings.get("Settings.Calibration.FrontBackgroundGreen", "N/A")],
+        ["Non Object Band:", settings.get("Settings.Calibration.NonObjectBand", "N/A"), "B:", settings.get("Settings.Calibration.FrontProductBlue", "N/A"), "B:", settings.get("Settings.Calibration.FrontBackgroundBlue", "N/A")],
+        ["Erosion:", settings.get("Settings.ColorSort.Config.Erosion", "N/A"), "LED Drive %:", settings.get("Settings.Calibration.LedDriveForGain", "N/A"), "", ""],
+    ]
+
+    c.setStrokeColor(colors.black)
+    for i in range(rows + 1):
+        c.line(x0, y0 + i * row_h, x0 + total_w, y0 + i * row_h)
+    for j in range(cols + 1):
+        c.line(x0 + j * col_w, y0, x0 + j * col_w, y0 + section_h)
+
+    for r, row in enumerate(data):
+        for j, cell in enumerate(row):
+            text = str(cell)
+            tx = x0 + j * col_w + 2
+            ty = y0 + section_h - (r + 1) * row_h + 2
+            if r == 0 or j % 2 == 0:
+                c.setFont(FONT_BOLD, 6)
+            else:
+                c.setFont(FONT_DEFAULT, 6)
+            c.drawString(tx, ty, text)
+
+
 def generate_report_filename(script_dir):
     """Generate date-stamped filename for the report"""
     # Get current date
@@ -1323,9 +1370,26 @@ def draw_machine_sections(
     c.setFillColor(colors.black)
     c.setStrokeColor(colors.black)
     c.rect(x0, y_counts, total_w, counts_height)
-    
+
+    next_y = y_counts - spacing
+
+    if is_lab_mode:
+        settings_data = load_machine_settings(csv_parent_dir, machine)
+        settings_height = 60
+        y_settings = next_y - settings_height
+        draw_machine_settings_section(
+            c,
+            x0,
+            y_settings,
+            total_w,
+            settings_height,
+            settings_data,
+            lang=lang,
+        )
+        next_y = y_settings - spacing
+
     # Return the Y position where the next content should start
-    return y_counts - spacing
+    return next_y
 
 
 def draw_layout_optimized(
