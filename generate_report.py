@@ -921,9 +921,12 @@ def load_machine_settings(csv_parent_dir, machine):
 
 
 
+
 def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, lang="en"):
     """Draw a 6x6 grid of machine settings with merged cells."""
 
+
+    cnv.saveState()
 
     rows, cols = 6, 6
     row_h = section_h / rows
@@ -984,6 +987,7 @@ def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, la
     }
 
 
+
     # Map each cell to the start of its merge region
     merged_to = {}
 
@@ -1028,11 +1032,13 @@ def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, la
             text = str(cell)
 
             # Highlight missing OPC data
+
             if text in {"N/A", "", "None"}:
 
                 c.setFillColor(colors.lightblue)
                 c.rect(x, y, w, h, fill=1, stroke=0)
                 c.setFillColor(colors.black)
+
 
             tx = x + 2
             ty = y + h - 8
@@ -1041,6 +1047,8 @@ def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, la
             else:
                 cnv.setFont(FONT_DEFAULT, 6)
             cnv.drawString(tx, ty, text)
+
+
 
 
 
