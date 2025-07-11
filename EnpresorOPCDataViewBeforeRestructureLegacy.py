@@ -32,6 +32,7 @@ import json
 import tempfile
 from pathlib import Path
 from collections import defaultdict
+from report_tags import REPORT_SETTINGS_TAGS
 import autoconnect
 try:
     import generate_report
@@ -162,9 +163,23 @@ KNOWN_TAGS = {
     
     # Environmental
     "Status.Environmental.AirPressurePsi": "ns=2;s=Status.Environmental.AirPressurePsi",
-    
+
     # Objects per minute
     "Status.ColorSort.Primary.ObjectPerMin": "ns=2;s=Status.ColorSort.Primary.ObjectPerMin",
+
+    # Tags used only for PDF reports
+    "Settings.Ejectors.PrimaryDelay": "ns=2;s=Settings.Ejectors.PrimaryDelay",
+    "Settings.Ejectors.PrimaryDwell": "ns=2;s=Settings.Ejectors.PrimaryDwell",
+    "Settings.Ejectors.PixelOverlap": "ns=2;s=Settings.Ejectors.PixelOverlap",
+    "Settings.Calibration.NonObjectBand": "ns=2;s=Settings.Calibration.NonObjectBand",
+    "Settings.ColorSort.Config.Erosion": "ns=2;s=Settings.ColorSort.Config.Erosion",
+    "Settings.Calibration.LedDriveForGain": "ns=2;s=Settings.Calibration.LedDriveForGain",
+    "Settings.Calibration.FrontProductRed": "ns=2;s=Settings.Calibration.FrontProductRed",
+    "Settings.Calibration.FrontProductGreen": "ns=2;s=Settings.Calibration.FrontProductGreen",
+    "Settings.Calibration.FrontProductBlue": "ns=2;s=Settings.Calibration.FrontProductBlue",
+    "Settings.Calibration.FrontBackgroundRed": "ns=2;s=Settings.Calibration.FrontBackgroundRed",
+    "Settings.Calibration.FrontBackgroundGreen": "ns=2;s=Settings.Calibration.FrontBackgroundGreen",
+    "Settings.Calibration.FrontBackgroundBlue": "ns=2;s=Settings.Calibration.FrontBackgroundBlue",
 }
 
 # Tags that are updated on every cycle in live mode. These names come from
@@ -1368,7 +1383,7 @@ async def discover_tags():
         # First, try to connect to all known tags explicitly
         logger.info("Attempting to connect to known tags...")
         for tag_name, node_id in KNOWN_TAGS.items():
-            if tag_name not in FAST_UPDATE_TAGS:
+            if tag_name not in FAST_UPDATE_TAGS and tag_name not in REPORT_SETTINGS_TAGS:
                 continue
             try:
                 node = app_state.client.get_node(node_id)
@@ -1404,8 +1419,8 @@ async def discover_tags():
                         # If it's a variable, add it to our tags (if not already added)
                         if node_class == ua.NodeClass.Variable:
                             try:
-                                # Skip if name already exists or is not in FAST_UPDATE_TAGS
-                                if name in app_state.tags or name not in FAST_UPDATE_TAGS:
+                                # Skip if name already exists or is not in a monitored set
+                                if name in app_state.tags or (name not in FAST_UPDATE_TAGS and name not in REPORT_SETTINGS_TAGS):
                                     continue
                                     
                                 value = child.get_value()
@@ -3313,7 +3328,7 @@ async def connect_and_discover_machine_tags(ip_address, machine_id, server_name=
         
         # First, try to connect to all known tags explicitly
         for tag_name, node_id in KNOWN_TAGS.items():
-            if tag_name not in FAST_UPDATE_TAGS:
+            if tag_name not in FAST_UPDATE_TAGS and tag_name not in REPORT_SETTINGS_TAGS:
                 continue
             try:
                 node = client.get_node(node_id)
@@ -3348,7 +3363,7 @@ async def connect_and_discover_machine_tags(ip_address, machine_id, server_name=
                         
                         if node_class == ua.NodeClass.Variable:
                             try:
-                                if name in machine_tags or name not in FAST_UPDATE_TAGS:
+                                if name in machine_tags or (name not in FAST_UPDATE_TAGS and name not in REPORT_SETTINGS_TAGS):
                                     continue
                                     
                                 value = child.get_value()
@@ -3411,7 +3426,7 @@ async def connect_and_monitor_machine(ip_address, machine_id, server_name=None):
         # First, try to connect to all known tags explicitly
         logger.info(f"Discovering tags on machine {machine_id}...")
         for tag_name, node_id in KNOWN_TAGS.items():
-            if tag_name not in FAST_UPDATE_TAGS:
+            if tag_name not in FAST_UPDATE_TAGS and tag_name not in REPORT_SETTINGS_TAGS:
                 continue
             try:
                 node = client.get_node(node_id)
@@ -3448,7 +3463,7 @@ async def connect_and_monitor_machine(ip_address, machine_id, server_name=None):
                         if node_class == ua.NodeClass.Variable:
                             try:
                                 # Skip if name already exists from known tags
-                                if name in machine_tags or name not in FAST_UPDATE_TAGS:
+                                if name in machine_tags or (name not in FAST_UPDATE_TAGS and name not in REPORT_SETTINGS_TAGS):
                                     continue
                                     
                                 value = child.get_value()
