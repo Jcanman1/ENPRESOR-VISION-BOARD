@@ -5484,11 +5484,12 @@ def _register_callbacks_impl(app):
          Input("mode-selector", "value"),
          Input("status-update-interval", "n_intervals")],
         [State("lab-test-running", "data"),
-         State("lab-test-stop-time", "data")],
+         State("lab-test-stop-time", "data"),
+         State("lab-test-name", "value")],
         prevent_initial_call=True,
     )
 
-    def update_lab_running(start_click, stop_click, mode, n_intervals, running, stop_time):
+    def update_lab_running(start_click, stop_click, mode, n_intervals, running, stop_time, test_name):
         """Update lab running state based on start/stop actions or feeder status."""
         global current_lab_filename
         ctx = callback_context
@@ -5529,8 +5530,9 @@ def _register_callbacks_impl(app):
             try:
                 if active_machine_id is not None:
                     if not current_lab_filename:
+                        name = test_name or "Test"
                         current_lab_filename = (
-                            f"Lab_Test_Auto_{datetime.now().strftime('%m_%d_%Y_%H_%M_%S')}.csv"
+                            f"Lab_Test_{name}_{datetime.now().strftime('%m_%d_%Y_%H_%M_%S')}.csv"
                         )
                         _create_empty_lab_log(active_machine_id, current_lab_filename)
                     _reset_lab_session(active_machine_id)
@@ -5623,8 +5625,12 @@ def _register_callbacks_impl(app):
                 any_running = True
                 break
 
-        if not any_running and stop_time is None:
-            return time.time()
+        if any_running:
+            if stop_time is not None:
+                return None
+        else:
+            if stop_time is None:
+                return time.time()
 
         return dash.no_update
 
