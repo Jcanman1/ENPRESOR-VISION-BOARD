@@ -1065,6 +1065,132 @@ def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, la
     c.restoreState()
 
 
+def _bool_from_setting(val):
+    """Return True if setting value represents a true value."""
+    if isinstance(val, str):
+        return val.strip().lower() in {"1", "true", "yes", "on"}
+    return bool(val)
+
+
+def draw_sensitivity_grid(c, x0, y0, total_w, section_h, settings, primary_num, *, lang="en"):
+    """Draw a 5x8 grid of settings for a single sensitivity."""
+
+    c.saveState()
+
+    rows, cols = 5, 8
+    row_h = section_h / rows
+    col_w = total_w / cols
+
+    get = lambda key: _lookup_setting(settings, key)
+
+    p = primary_num
+
+    data = [
+        [f"Sensitivity: {p}", get(f"Settings.ColorSort.Primary{p}.SampleImage"), "x", "y", "z", "And Mode:", get(f"Settings.ColorSort.Primary{p}.FrontAndRearLogic"), ""],
+        [
+            "Name:",
+            get(f"Settings.ColorSort.Primary{p}.Name"),
+            "Position:",
+            get(f"Settings.ColorSort.Primary{p}.EllipsoidCenterX"),
+            get(f"Settings.ColorSort.Primary{p}.EllipsoidCenterY"),
+            get(f"Settings.ColorSort.Primary{p}.EllipsoidCenterZ"),
+            "Ejector Delay Offset:",
+            get(f"Settings.ColorSort.Primary{p}.EjectorDelayOffset"),
+        ],
+        [
+            "Sensitivity:",
+            get(f"Settings.ColorSort.Primary{p}.Sensitivity"),
+            "Size:",
+            get(f"Settings.ColorSort.Primary{p}.EllipsoidAxisLengthX"),
+            get(f"Settings.ColorSort.Primary{p}.EllipsoidAxisLengthY"),
+            get(f"Settings.ColorSort.Primary{p}.EllipsoidAxisLengthZ"),
+            "Ejector Dwell Offset:",
+            get(f"Settings.ColorSort.Primary{p}.EjectorDwellOffset"),
+        ],
+        [
+            "Type:",
+            get(f"Settings.ColorSort.Primary{p}.TypeId"),
+            "Angle:",
+            get(f"Settings.ColorSort.Primary{p}.EllipsoidRotationX"),
+            get(f"Settings.ColorSort.Primary{p}.EllipsoidRotationY"),
+            get(f"Settings.ColorSort.Primary{p}.EllipsoidRotationZ"),
+            "",
+            "",
+        ],
+        [
+            "Size:",
+            get(f"Settings.ColorSort.Primary{p}.AreaSize"),
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+        ],
+    ]
+
+    merges = {}
+
+    merged_to = {}
+
+    for (r, c_idx), (rs, cs) in merges.items():
+        for rr in range(r, r + rs):
+            for cc in range(c_idx, c_idx + cs):
+                merged_to[(rr, cc)] = (r, c_idx)
+
+    c.setStrokeColor(colors.black)
+    for i in range(rows + 1):
+        c.line(x0, y0 + i * row_h, x0 + total_w, y0 + i * row_h)
+    for j in range(cols + 1):
+        c.line(x0 + j * col_w, y0, x0 + j * col_w, y0 + section_h)
+
+    for r, row in enumerate(data):
+        for j, cell in enumerate(row):
+            if merged_to.get((r, j), (r, j)) != (r, j):
+                continue
+            rs, cs = merges.get((r, j), (1, 1))
+            x = x0 + j * col_w
+            y = y0 + section_h - (r + rs) * row_h
+            w = cs * col_w
+            h = rs * row_h
+            text = str(cell)
+
+            is_data_cell = j % 2 == 1
+            fill_color = colors.white if is_data_cell else colors.lightblue
+            if is_data_cell and text in {"N/A", "", "None"}:
+                fill_color = colors.lightblue
+
+            c.setFillColor(fill_color)
+            c.rect(x, y, w, h, fill=1, stroke=0)
+            c.setStrokeColor(colors.black)
+            c.rect(x, y, w, h, fill=0, stroke=1)
+
+            c.setFillColor(colors.black)
+            tx = x + 2
+            ty = y + h - 8
+            if j % 2 == 0:
+                c.setFont(FONT_BOLD, 6)
+            else:
+                c.setFont(FONT_DEFAULT, 6)
+            c.drawString(tx, ty, text)
+
+    c.restoreState()
+
+
+def draw_sensitivity_sections(c, x0, y_start, total_w, section_h, settings, *, lang="en"):
+    """Draw grids for all active sensitivities and return new y position."""
+
+    spacing = 2
+    current_y = y_start
+    for i in range(1, 13):
+        active_val = _lookup_setting(settings, f"Settings.ColorSort.Primary{i}.IsActive", False)
+        if _bool_from_setting(active_val):
+            y_grid = current_y - section_h
+            draw_sensitivity_grid(c, x0, y_grid, total_w, section_h, settings, i, lang=lang)
+            current_y = y_grid - spacing
+    return current_y
+
+
 
 
 
@@ -1530,6 +1656,16 @@ def draw_machine_sections(
             lang=lang,
         )
         next_y = y_settings - spacing
+        grid_height = 50
+        next_y = draw_sensitivity_sections(
+            c,
+            x0,
+            next_y,
+            total_w,
+            grid_height,
+            settings_data,
+            lang=lang,
+        )
 
     # Return the Y position where the next content should start
     return next_y
