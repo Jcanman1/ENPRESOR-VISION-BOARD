@@ -991,10 +991,10 @@ def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, la
     # Map each cell to the start of its merge region
     merged_to = {}
 
-    for (r, c), (rs, cs) in merges.items():
+    for (r, c_idx), (rs, cs) in merges.items():
         for rr in range(r, r + rs):
-            for cc in range(c, c + cs):
-                merged_to[(rr, cc)] = (r, c)
+            for cc in range(c_idx, c_idx + cs):
+                merged_to[(rr, cc)] = (r, c_idx)
 
 
     # Draw base grid
@@ -1007,8 +1007,8 @@ def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, la
 
     # Overlay merged cell rectangles to hide interior lines
 
-    for (r, c), (rs, cs) in merges.items():
-        x = x0 + c * col_w
+    for (r, c_idx), (rs, cs) in merges.items():
+        x = x0 + c_idx * col_w
         y = y0 + section_h - (r + rs) * row_h
         w = cs * col_w
         h = rs * row_h
