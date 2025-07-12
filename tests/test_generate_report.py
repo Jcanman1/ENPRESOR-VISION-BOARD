@@ -66,3 +66,45 @@ def test_draw_sensitivity_sections_only_active(monkeypatch):
     assert calls == [1, 3]
     assert end_y == 100 - 2 * (10 + 10)
 
+
+def test_primary_typeid_label_lab_mode():
+    class DummyCanvas:
+        def __init__(self):
+            self.texts = []
+
+        def saveState(self):
+            pass
+
+        def restoreState(self):
+            pass
+
+        def setStrokeColor(self, *a, **k):
+            pass
+
+        def line(self, *a, **k):
+            pass
+
+        def rect(self, *a, **k):
+            pass
+
+        def setFillColor(self, *a, **k):
+            pass
+
+        def setFont(self, *a, **k):
+            pass
+
+        def drawString(self, x, y, text):
+            self.texts.append(text)
+
+    values = [0, "0", 0.0, "0.0", 1, "1", 1.0, "1.0"]
+    mapping = {0: "Ellipsoid", 1: "Grid"}
+    for raw in values:
+        expected = mapping[int(float(raw))]
+        for p in [1, 7]:
+            c = DummyCanvas()
+            settings = {"Settings": {"ColorSort": {f"Primary{p}": {"TypeId": raw}}}}
+            generate_report.draw_sensitivity_grid(
+                c, 0, 0, 100, 20, settings, p, is_lab_mode=True
+            )
+            assert expected in c.texts
+
