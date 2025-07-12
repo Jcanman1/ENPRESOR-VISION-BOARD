@@ -44,6 +44,13 @@ def _lookup_setting(data: dict, dotted_key: str, default="N/A"):
         Value returned when the key path does not exist.
     """
 
+    if not isinstance(data, dict):
+        return default
+
+    # First check for a flat key using dotted notation
+    if dotted_key in data:
+        return data[dotted_key]
+
     cur = data
     for part in dotted_key.split("."):
         if isinstance(cur, dict) and part in cur:
