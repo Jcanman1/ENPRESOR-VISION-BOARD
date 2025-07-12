@@ -68,7 +68,9 @@ def test_draw_sensitivity_sections_only_active(monkeypatch):
 
 
 
+
 def test_primary7_typeid_label_lab_mode():
+
     class DummyCanvas:
         def __init__(self):
             self.texts = []
@@ -97,6 +99,7 @@ def test_primary7_typeid_label_lab_mode():
         def drawString(self, x, y, text):
             self.texts.append(text)
 
+
     for value, expected in [(0, "Ellipsoid"), (1, "Grid")]:
 
         c = DummyCanvas()
@@ -105,5 +108,6 @@ def test_primary7_typeid_label_lab_mode():
             c, 0, 0, 100, 20, settings, 7, is_lab_mode=True
         )
         assert expected in c.texts
+
 
 
