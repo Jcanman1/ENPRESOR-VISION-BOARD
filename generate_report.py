@@ -1743,7 +1743,8 @@ def draw_machine_sections(
             settings_data,
             lang=lang,
         )
-        next_y = y_settings - spacing
+        settings_spacing = 10
+        next_y = y_settings - settings_spacing
 
     grid_height = 50
     next_y = draw_sensitivity_sections(
