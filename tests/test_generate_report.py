@@ -44,7 +44,7 @@ def test_bool_from_setting_case_insensitive():
 def test_draw_sensitivity_sections_only_active(monkeypatch):
     calls = []
 
-    def fake_grid(c, x0, y0, w, h, settings, primary_num, *, lang="en"):
+    def fake_grid(c, x0, y0, w, h, settings, primary_num, *, lang="en", **kwargs):
         calls.append(primary_num)
 
     monkeypatch.setattr(generate_report, "draw_sensitivity_grid", fake_grid)
