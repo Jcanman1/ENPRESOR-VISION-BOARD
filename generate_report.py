@@ -1021,7 +1021,7 @@ def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, la
     # Draw cell text with optional blue background for missing values
     for r, row in enumerate(data):
         for j, cell in enumerate(row):
-            if merged_to.get((r, j)) != (r, j):
+            if merged_to.get((r, j), (r, j)) != (r, j):
                 # Skip cells that are part of a merge but not the top-left
                 continue
             rs, cs = merges.get((r, j), (1, 1))
@@ -1047,6 +1047,8 @@ def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, la
             else:
                 c.setFont(FONT_DEFAULT, 6)
             c.drawString(tx, ty, text)
+
+    c.restoreState()
 
 
 
