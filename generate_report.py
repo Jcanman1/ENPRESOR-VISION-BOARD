@@ -1024,6 +1024,9 @@ def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, la
         c.setStrokeColor(colors.black)
         c.rect(x, y, w, h, fill=0, stroke=1)
 
+    # Ensure subsequent text renders in black
+    c.setFillColor(colors.black)
+
 
     # Draw cell text with optional blue background for missing values
     for r, row in enumerate(data):
