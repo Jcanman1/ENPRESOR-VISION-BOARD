@@ -67,6 +67,7 @@ def test_draw_sensitivity_sections_only_active(monkeypatch):
     assert end_y == 100 - 2 * (10 + 10)
 
 
+
 def test_primary7_typeid_label_lab_mode():
     class DummyCanvas:
         def __init__(self):
@@ -97,10 +98,12 @@ def test_primary7_typeid_label_lab_mode():
             self.texts.append(text)
 
     for value, expected in [(0, "Ellipsoid"), (1, "Grid")]:
+
         c = DummyCanvas()
         settings = {"Settings": {"ColorSort": {"Primary7": {"TypeId": value}}}}
         generate_report.draw_sensitivity_grid(
             c, 0, 0, 100, 20, settings, 7, is_lab_mode=True
         )
         assert expected in c.texts
+
 
