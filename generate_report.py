@@ -1068,7 +1068,7 @@ def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, la
 def _bool_from_setting(val):
     """Return True if setting value represents a true value."""
     if isinstance(val, str):
-        return val.strip().lower() in {"1", "TRUE", "yes", "on"}
+        return val.strip().lower() in {"1", "true", "yes", "on"}
     return bool(val)
 
 
@@ -1183,7 +1183,9 @@ def draw_sensitivity_sections(c, x0, y_start, total_w, section_h, settings, *, l
     spacing = 10
     current_y = y_start
     for i in range(1, 13):
-        active_val = _lookup_setting(settings, f"Settings.ColorSort.Primary{i}.IsAssigned", True)
+        active_val = _lookup_setting(
+            settings, f"Settings.ColorSort.Primary{i}.IsAssigned", False
+        )
         if _bool_from_setting(active_val):
             y_grid = current_y - section_h
             draw_sensitivity_grid(c, x0, y_grid, total_w, section_h, settings, i, lang=lang)
