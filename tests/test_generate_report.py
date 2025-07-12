@@ -35,3 +35,34 @@ def test_load_machine_settings(tmp_path):
     data = generate_report.load_machine_settings(tmp_path, "1")
     assert data == {"value": 1}
 
+
+def test_bool_from_setting_case_insensitive():
+    assert generate_report._bool_from_setting("TRUE") is True
+    assert generate_report._bool_from_setting("FALSE") is False
+
+
+def test_draw_sensitivity_sections_only_active(monkeypatch):
+    calls = []
+
+    def fake_grid(c, x0, y0, w, h, settings, primary_num, *, lang="en"):
+        calls.append(primary_num)
+
+    monkeypatch.setattr(generate_report, "draw_sensitivity_grid", fake_grid)
+
+    settings = {
+        "Settings": {
+            "ColorSort": {
+                "Primary1": {"IsAssigned": "TRUE"},
+                "Primary2": {"IsAssigned": "FALSE"},
+                "Primary3": {"IsAssigned": "TRUE"},
+            }
+        }
+    }
+
+    end_y = generate_report.draw_sensitivity_sections(
+        None, 0, 100, 50, 10, settings
+    )
+
+    assert calls == [1, 3]
+    assert end_y == 100 - 2 * (10 + 10)
+
