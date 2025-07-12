@@ -18,6 +18,9 @@ from reportlab.graphics.charts.lineplots import LinePlot
 from reportlab.graphics.charts.piecharts import Pie
 from reportlab.graphics import renderPDF
 from reportlab.lib import colors
+from reportlab.lib.utils import ImageReader
+import base64
+import io
 import math  # for label angle calculations
 # Default fonts used throughout the report
 FONT_DEFAULT = "Helvetica"
@@ -1072,12 +1075,30 @@ def _bool_from_setting(val):
     return bool(val)
 
 
-def draw_sensitivity_grid(c, x0, y0, total_w, section_h, settings, primary_num, *, lang="en"):
-    """Draw a 5x8 grid of settings for a single sensitivity."""
+def draw_sensitivity_grid(
+    c,
+    x0,
+    y0,
+    total_w,
+    section_h,
+    settings,
+    primary_num,
+    *,
+    lang="en",
+    is_lab_mode=False,
+):
+    """Draw a grid of settings for a single sensitivity.
+
+    When ``is_lab_mode`` is ``True`` a new column is added on the left that
+    spans all rows and displays the sample image for the sensitivity.
+    """
 
     c.saveState()
 
-    rows, cols = 5, 8
+    rows = 5
+    base_cols = 8
+    extra_col = 1 if is_lab_mode else 0
+    cols = base_cols + extra_col
     row_h = section_h / rows
     col_w = total_w / cols
 
@@ -1085,9 +1106,38 @@ def draw_sensitivity_grid(c, x0, y0, total_w, section_h, settings, primary_num, 
 
     p = primary_num
 
+    sample_image = get(f"Settings.ColorSort.Primary{p}.SampleImage")
+
+    if is_lab_mode:
+        first_row = [
+            {"image": sample_image},
+            f"Sensitivity: {p}",
+            "",
+            "x",
+            "y",
+            "z",
+            "And Mode:",
+            get(f"Settings.ColorSort.Primary{p}.FrontAndRearLogic"),
+            "",
+        ]
+    else:
+        first_row = [
+            f"Sensitivity: {p}",
+            sample_image,
+            "x",
+            "y",
+            "z",
+            "And Mode:",
+            get(f"Settings.ColorSort.Primary{p}.FrontAndRearLogic"),
+            "",
+        ]
+
+    row_prefix = [""] if is_lab_mode else []
+
     data = [
-        [f"Sensitivity: {p}", get(f"Settings.ColorSort.Primary{p}.SampleImage"), "x", "y", "z", "And Mode:", get(f"Settings.ColorSort.Primary{p}.FrontAndRearLogic"), ""],
+        first_row,
         [
+            *row_prefix,
             "Name:",
             get(f"Settings.ColorSort.Primary{p}.Name"),
             "Position:",
@@ -1098,6 +1148,7 @@ def draw_sensitivity_grid(c, x0, y0, total_w, section_h, settings, primary_num, 
             get(f"Settings.ColorSort.Primary{p}.EjectorDelayOffset"),
         ],
         [
+            *row_prefix,
             "Sensitivity:",
             get(f"Settings.ColorSort.Primary{p}.Sensitivity"),
             "Size:",
@@ -1108,6 +1159,7 @@ def draw_sensitivity_grid(c, x0, y0, total_w, section_h, settings, primary_num, 
             get(f"Settings.ColorSort.Primary{p}.EjectorDwellOffset"),
         ],
         [
+            *row_prefix,
             "Type:",
             get(f"Settings.ColorSort.Primary{p}.TypeId"),
             "Angle:",
@@ -1118,6 +1170,7 @@ def draw_sensitivity_grid(c, x0, y0, total_w, section_h, settings, primary_num, 
             "",
         ],
         [
+            *row_prefix,
             "Size:",
             get(f"Settings.ColorSort.Primary{p}.AreaSize"),
             "",
@@ -1129,7 +1182,7 @@ def draw_sensitivity_grid(c, x0, y0, total_w, section_h, settings, primary_num, 
         ],
     ]
 
-    merges = {}
+    merges = {(0, 0): (rows, 1)} if is_lab_mode else {}
 
     merged_to = {}
 
@@ -1155,8 +1208,10 @@ def draw_sensitivity_grid(c, x0, y0, total_w, section_h, settings, primary_num, 
             h = rs * row_h
             text = str(cell)
 
-            is_data_cell = j % 2 == 1
-            fill_color = colors.white if is_data_cell else colors.lightblue
+            offset = 1 if is_lab_mode else 0
+            is_image_cell = is_lab_mode and j == 0
+            is_data_cell = (j - offset) % 2 == 1 if j >= offset else False
+            fill_color = colors.white if is_data_cell or is_image_cell else colors.lightblue
             if is_data_cell and text in {"N/A", "", "None"}:
                 fill_color = colors.lightblue
 
@@ -1165,19 +1220,39 @@ def draw_sensitivity_grid(c, x0, y0, total_w, section_h, settings, primary_num, 
             c.setStrokeColor(colors.black)
             c.rect(x, y, w, h, fill=0, stroke=1)
 
-            c.setFillColor(colors.black)
-            tx = x + 2
-            ty = y + h - 8
-            if j % 2 == 0:
-                c.setFont(FONT_BOLD, 6)
+            if is_image_cell:
+                try:
+                    img_bytes = base64.b64decode(cell.get("image", ""))
+                    img_reader = ImageReader(io.BytesIO(img_bytes))
+                    c.drawImage(img_reader, x, y, width=w, height=h, preserveAspectRatio=True, anchor='c')
+                except Exception:
+                    c.setFillColor(colors.black)
+                    c.setFont(FONT_DEFAULT, 6)
+                    c.drawString(x + 2, y + h - 8, "Invalid image")
             else:
-                c.setFont(FONT_DEFAULT, 6)
-            c.drawString(tx, ty, text)
+                c.setFillColor(colors.black)
+                tx = x + 2
+                ty = y + h - 8
+                if (j - offset) % 2 == 0:
+                    c.setFont(FONT_BOLD, 6)
+                else:
+                    c.setFont(FONT_DEFAULT, 6)
+                c.drawString(tx, ty, text)
 
     c.restoreState()
 
 
-def draw_sensitivity_sections(c, x0, y_start, total_w, section_h, settings, *, lang="en"):
+def draw_sensitivity_sections(
+    c,
+    x0,
+    y_start,
+    total_w,
+    section_h,
+    settings,
+    *,
+    lang="en",
+    is_lab_mode=False,
+):
     """Draw grids for all active sensitivities and return new y position."""
 
     spacing = 10
@@ -1188,7 +1263,17 @@ def draw_sensitivity_sections(c, x0, y_start, total_w, section_h, settings, *, l
         )
         if _bool_from_setting(active_val):
             y_grid = current_y - section_h
-            draw_sensitivity_grid(c, x0, y_grid, total_w, section_h, settings, i, lang=lang)
+            draw_sensitivity_grid(
+                c,
+                x0,
+                y_grid,
+                total_w,
+                section_h,
+                settings,
+                i,
+                lang=lang,
+                is_lab_mode=is_lab_mode,
+            )
             current_y = y_grid - spacing
     return current_y
 
@@ -1669,6 +1754,7 @@ def draw_machine_sections(
         grid_height,
         settings_data,
         lang=lang,
+        is_lab_mode=is_lab_mode,
     )
 
     # Return the Y position where the next content should start
