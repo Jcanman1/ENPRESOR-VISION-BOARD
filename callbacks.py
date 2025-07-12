@@ -879,7 +879,12 @@ def _register_callbacks_impl(app):
             temp_machine_dir = os.path.join(temp_dir, str(mid))
             os.makedirs(temp_machine_dir, exist_ok=True)
             shutil.copy(latest_file, os.path.join(temp_machine_dir, "last_24h_metrics.csv"))
-            save_machine_settings(mid, machine_connections, export_dir=temp_dir)
+            save_machine_settings(
+                mid,
+                machine_connections,
+                export_dir=temp_dir,
+                active_only=True,
+            )
             export_dir = temp_dir
             data = {}
             is_lab_mode = True  # Set to True only for lab mode
