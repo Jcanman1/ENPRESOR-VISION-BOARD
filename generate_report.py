@@ -926,7 +926,7 @@ def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, la
     """Draw a 6x6 grid of machine settings with merged cells."""
 
 
-    cnv.saveState()
+    c.saveState()
 
     rows, cols = 6, 6
     row_h = section_h / rows
@@ -1000,7 +1000,7 @@ def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, la
     # Draw base grid
     c.setStrokeColor(colors.black)
     for i in range(rows + 1):
-        cnv.line(x0, y0 + i * row_h, x0 + total_w, y0 + i * row_h)
+        c.line(x0, y0 + i * row_h, x0 + total_w, y0 + i * row_h)
     for j in range(cols + 1):
 
         c.line(x0 + j * col_w, y0, x0 + j * col_w, y0 + section_h)
@@ -1043,10 +1043,10 @@ def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, la
             tx = x + 2
             ty = y + h - 8
             if r == 0 or j % 2 == 0:
-                cnv.setFont(FONT_BOLD, 6)
+                c.setFont(FONT_BOLD, 6)
             else:
-                cnv.setFont(FONT_DEFAULT, 6)
-            cnv.drawString(tx, ty, text)
+                c.setFont(FONT_DEFAULT, 6)
+            c.drawString(tx, ty, text)
 
 
 
