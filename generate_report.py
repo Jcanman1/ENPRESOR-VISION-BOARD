@@ -1012,7 +1012,25 @@ def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, la
 
         c.line(x0 + j * col_w, y0, x0 + j * col_w, y0 + section_h)
 
-    # Draw cell backgrounds and text
+
+    # Overlay merged cell rectangles to hide interior lines
+
+    for (r, c_idx), (rs, cs) in merges.items():
+        x = x0 + c_idx * col_w
+        y = y0 + section_h - (r + rs) * row_h
+        w = cs * col_w
+        h = rs * row_h
+        c.setFillColor(colors.white)
+        c.rect(x, y, w, h, fill=1, stroke=0)
+        c.setStrokeColor(colors.black)
+        c.rect(x, y, w, h, fill=0, stroke=1)
+
+    # Ensure subsequent text renders in black
+    c.setFillColor(colors.black)
+
+
+    # Draw cell text with optional blue background for missing values
+
     for r, row in enumerate(data):
         for j, cell in enumerate(row):
             if merged_to.get((r, j), (r, j)) != (r, j):
