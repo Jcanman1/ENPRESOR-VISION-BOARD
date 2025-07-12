@@ -1642,8 +1642,9 @@ def draw_machine_sections(
 
     next_y = y_counts - spacing
 
+    settings_data = load_machine_settings(csv_parent_dir, machine)
+
     if is_lab_mode:
-        settings_data = load_machine_settings(csv_parent_dir, machine)
         settings_height = 60
         y_settings = next_y - settings_height
         draw_machine_settings_section(
@@ -1666,6 +1667,17 @@ def draw_machine_sections(
             settings_data,
             lang=lang,
         )
+
+    grid_height = 50
+    next_y = draw_sensitivity_sections(
+        c,
+        x0,
+        next_y,
+        total_w,
+        grid_height,
+        settings_data,
+        lang=lang,
+    )
 
     # Return the Y position where the next content should start
     return next_y
