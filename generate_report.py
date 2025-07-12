@@ -1012,6 +1012,7 @@ def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, la
 
         c.line(x0 + j * col_w, y0, x0 + j * col_w, y0 + section_h)
 
+
     # Overlay merged cell rectangles to hide interior lines
 
     for (r, c_idx), (rs, cs) in merges.items():
@@ -1029,6 +1030,7 @@ def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, la
 
 
     # Draw cell text with optional blue background for missing values
+
     for r, row in enumerate(data):
         for j, cell in enumerate(row):
             if merged_to.get((r, j), (r, j)) != (r, j):
@@ -1041,15 +1043,17 @@ def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, la
             h = rs * row_h
             text = str(cell)
 
-            # Highlight missing OPC data
+            is_data_cell = r >= 1 and j % 2 == 1
+            fill_color = colors.white if is_data_cell else colors.HexColor('#1f77b4')
+            if is_data_cell and text in {"N/A", "", "None"}:
+                fill_color = colors.lightblue
 
-            if text in {"N/A", "", "None"}:
+            c.setFillColor(fill_color)
+            c.rect(x, y, w, h, fill=1, stroke=0)
+            c.setStrokeColor(colors.black)
+            c.rect(x, y, w, h, fill=0, stroke=1)
 
-                c.setFillColor(colors.lightblue)
-                c.rect(x, y, w, h, fill=1, stroke=0)
-                c.setFillColor(colors.black)
-
-
+            c.setFillColor(colors.black)
             tx = x + 2
             ty = y + h - 8
             if r == 0 or j % 2 == 0:
