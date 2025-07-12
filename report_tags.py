@@ -19,6 +19,55 @@ REPORT_SETTINGS_TAGS = {
     "Settings.Calibration.FrontBackgroundRed",
     "Settings.Calibration.FrontBackgroundGreen",
     "Settings.Calibration.FrontBackgroundBlue",
+    # Sensitivity specific tags for PDF reports
+    *{
+        f"Settings.ColorSort.Primary{i}.FrontAndRearLogic" for i in range(1, 13)
+    },
+    *{
+        f"Settings.ColorSort.Primary{i}.EllipsoidCenterX" for i in range(1, 13)
+    },
+    *{
+        f"Settings.ColorSort.Primary{i}.EllipsoidCenterY" for i in range(1, 13)
+    },
+    *{
+        f"Settings.ColorSort.Primary{i}.EllipsoidCenterZ" for i in range(1, 13)
+    },
+    *{
+        f"Settings.ColorSort.Primary{i}.EjectorDelayOffset" for i in range(1, 13)
+    },
+    *{
+        f"Settings.ColorSort.Primary{i}.Sensitivity" for i in range(1, 13)
+    },
+    *{
+        f"Settings.ColorSort.Primary{i}.EllipsoidAxisLengthX" for i in range(1, 13)
+    },
+    *{
+        f"Settings.ColorSort.Primary{i}.EllipsoidAxisLengthY" for i in range(1, 13)
+    },
+    *{
+        f"Settings.ColorSort.Primary{i}.EllipsoidAxisLengthZ" for i in range(1, 13)
+    },
+    *{
+        f"Settings.ColorSort.Primary{i}.EjectorDwellOffset" for i in range(1, 13)
+    },
+    *{
+        f"Settings.ColorSort.Primary{i}.TypeId" for i in range(1, 13)
+    },
+    *{
+        f"Settings.ColorSort.Primary{i}.EllipsoidRotationX" for i in range(1, 13)
+    },
+    *{
+        f"Settings.ColorSort.Primary{i}.EllipsoidRotationY" for i in range(1, 13)
+    },
+    *{
+        f"Settings.ColorSort.Primary{i}.EllipsoidRotationZ" for i in range(1, 13)
+    },
+    *{
+        f"Settings.ColorSort.Primary{i}.AreaSize" for i in range(1, 13)
+    },
+    *{
+        f"Settings.ColorSort.Primary{i}.IsActive" for i in range(1, 13)
+    },
 }
 
 

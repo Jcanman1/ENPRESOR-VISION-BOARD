@@ -180,6 +180,22 @@ KNOWN_TAGS = {
     "Settings.Calibration.FrontBackgroundRed": "ns=2;s=Settings.Calibration.FrontBackgroundRed",
     "Settings.Calibration.FrontBackgroundGreen": "ns=2;s=Settings.Calibration.FrontBackgroundGreen",
     "Settings.Calibration.FrontBackgroundBlue": "ns=2;s=Settings.Calibration.FrontBackgroundBlue",
+    # Sensitivity specific tags for PDF reports
+    **{f"Settings.ColorSort.Primary{i}.FrontAndRearLogic": f"ns=2;s=Settings.ColorSort.Primary{i}.FrontAndRearLogic" for i in range(1, 13)},
+    **{f"Settings.ColorSort.Primary{i}.EllipsoidCenterX": f"ns=2;s=Settings.ColorSort.Primary{i}.EllipsoidCenterX" for i in range(1, 13)},
+    **{f"Settings.ColorSort.Primary{i}.EllipsoidCenterY": f"ns=2;s=Settings.ColorSort.Primary{i}.EllipsoidCenterY" for i in range(1, 13)},
+    **{f"Settings.ColorSort.Primary{i}.EllipsoidCenterZ": f"ns=2;s=Settings.ColorSort.Primary{i}.EllipsoidCenterZ" for i in range(1, 13)},
+    **{f"Settings.ColorSort.Primary{i}.EjectorDelayOffset": f"ns=2;s=Settings.ColorSort.Primary{i}.EjectorDelayOffset" for i in range(1, 13)},
+    **{f"Settings.ColorSort.Primary{i}.Sensitivity": f"ns=2;s=Settings.ColorSort.Primary{i}.Sensitivity" for i in range(1, 13)},
+    **{f"Settings.ColorSort.Primary{i}.EllipsoidAxisLengthX": f"ns=2;s=Settings.ColorSort.Primary{i}.EllipsoidAxisLengthX" for i in range(1, 13)},
+    **{f"Settings.ColorSort.Primary{i}.EllipsoidAxisLengthY": f"ns=2;s=Settings.ColorSort.Primary{i}.EllipsoidAxisLengthY" for i in range(1, 13)},
+    **{f"Settings.ColorSort.Primary{i}.EllipsoidAxisLengthZ": f"ns=2;s=Settings.ColorSort.Primary{i}.EllipsoidAxisLengthZ" for i in range(1, 13)},
+    **{f"Settings.ColorSort.Primary{i}.EjectorDwellOffset": f"ns=2;s=Settings.ColorSort.Primary{i}.EjectorDwellOffset" for i in range(1, 13)},
+    **{f"Settings.ColorSort.Primary{i}.TypeId": f"ns=2;s=Settings.ColorSort.Primary{i}.TypeId" for i in range(1, 13)},
+    **{f"Settings.ColorSort.Primary{i}.EllipsoidRotationX": f"ns=2;s=Settings.ColorSort.Primary{i}.EllipsoidRotationX" for i in range(1, 13)},
+    **{f"Settings.ColorSort.Primary{i}.EllipsoidRotationY": f"ns=2;s=Settings.ColorSort.Primary{i}.EllipsoidRotationY" for i in range(1, 13)},
+    **{f"Settings.ColorSort.Primary{i}.EllipsoidRotationZ": f"ns=2;s=Settings.ColorSort.Primary{i}.EllipsoidRotationZ" for i in range(1, 13)},
+    **{f"Settings.ColorSort.Primary{i}.AreaSize": f"ns=2;s=Settings.ColorSort.Primary{i}.AreaSize" for i in range(1, 13)},
 }
 
 # Tags that are updated on every cycle in live mode. These names come from
