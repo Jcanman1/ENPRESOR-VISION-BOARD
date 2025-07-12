@@ -24,6 +24,12 @@ REPORT_SETTINGS_TAGS = {
         f"Settings.ColorSort.Primary{i}.FrontAndRearLogic" for i in range(1, 13)
     },
     *{
+        f"Settings.ColorSort.Primary{i}.SampleImage" for i in range(1, 13)
+    },
+    *{
+        f"Settings.ColorSort.Primary{i}.Name" for i in range(1, 13)
+    },
+    *{
         f"Settings.ColorSort.Primary{i}.EllipsoidCenterX" for i in range(1, 13)
     },
     *{
