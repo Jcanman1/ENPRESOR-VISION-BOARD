@@ -1044,7 +1044,7 @@ def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, la
             text = str(cell)
 
             is_data_cell = r >= 1 and j % 2 == 1
-            fill_color = colors.white if is_data_cell else colors.HexColor('#1f77b4')
+            fill_color = colors.white if is_data_cell else colors.lightblue
             if is_data_cell and text in {"N/A", "", "None"}:
                 fill_color = colors.lightblue
 
