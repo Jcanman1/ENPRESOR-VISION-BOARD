@@ -20,6 +20,12 @@ def test_lookup_setting_nested():
     assert generate_report._lookup_setting(data, "Missing.Key") == "N/A"
 
 
+def test_lookup_setting_flat_keys():
+    flat = {"Settings.Ejectors.PrimaryDelay": 10}
+    assert generate_report._lookup_setting(flat, "Settings.Ejectors.PrimaryDelay") == 10
+    assert generate_report._lookup_setting(flat, "Missing.Key") == "N/A"
+
+
 def test_load_machine_settings(tmp_path):
     machine_dir = tmp_path / "1"
     machine_dir.mkdir()
