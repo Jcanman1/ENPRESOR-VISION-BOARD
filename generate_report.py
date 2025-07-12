@@ -1134,6 +1134,13 @@ def draw_sensitivity_grid(
 
     row_prefix = [""] if is_lab_mode else []
 
+    type_val = get(f"Settings.ColorSort.Primary{p}.TypeId")
+    type_display = (
+        {"0": "Ellipsoid", "1": "Grid"}.get(str(type_val), type_val)
+        if is_lab_mode
+        else type_val
+    )
+
     data = [
         first_row,
         [
@@ -1161,7 +1168,7 @@ def draw_sensitivity_grid(
         [
             *row_prefix,
             "Type:",
-            get(f"Settings.ColorSort.Primary{p}.TypeId"),
+            type_display,
             "Angle:",
             get(f"Settings.ColorSort.Primary{p}.EllipsoidRotationX"),
             get(f"Settings.ColorSort.Primary{p}.EllipsoidRotationY"),
