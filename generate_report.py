@@ -20,6 +20,7 @@ from reportlab.graphics import renderPDF
 from reportlab.lib import colors
 from reportlab.lib.utils import ImageReader
 import base64
+from PIL import Image
 import io
 import math  # for label angle calculations
 # Default fonts used throughout the report
@@ -1075,6 +1076,7 @@ def _bool_from_setting(val):
     return bool(val)
 
 
+
 def draw_sensitivity_grid(
     c,
     x0,
@@ -1093,163 +1095,247 @@ def draw_sensitivity_grid(
     spans all rows and displays the sample image for the sensitivity.
     """
 
-    c.saveState()
+    try:
+        c.saveState()
 
-    rows = 5
-    base_cols = 8
-    extra_col = 1 if is_lab_mode else 0
-    cols = base_cols + extra_col
-    row_h = section_h / rows
-    col_w = total_w / cols
+        rows = 5
+        base_cols = 8
+        extra_col = 1 if is_lab_mode else 0
+        cols = base_cols + extra_col
+        row_h = section_h / rows
+        col_w = total_w / cols
 
-    get = lambda key: _lookup_setting(settings, key)
+        get = lambda key: _lookup_setting(settings, key)
+        #print(f"DEBUG Primary{p}: Full settings dump = {settings}")
+        p = primary_num
 
-    p = primary_num
+        sample_image = get(f"Settings.ColorSort.Primary{p}.SampleImage")
+        
+        # Get the type value to check if it's "Grid"
+        type_val = get(f"Settings.ColorSort.Primary{p}.TypeId")
+        is_grid_type = str(type_val) != "0"  # 0 = Ellipsoid, anything else = Grid
+        
+        # Get axis wave values for position text logic
+        position_text = "Location:"  # Default
+        try:
+            x_axis_wave = get(f"Settings.ColorSort.Primary{p}.XAxisWave")
+            y_axis_wave = get(f"Settings.ColorSort.Primary{p}.YAxisWave") 
+            z_axis_wave = get(f"Settings.ColorSort.Primary{p}.ZAxisWave")
+            print(f"DEBUG Primary{p}: x_axis_wave={x_axis_wave} (type: {type(x_axis_wave)})")
+            print(f"DEBUG Primary{p}: y_axis_wave={y_axis_wave} (type: {type(y_axis_wave)})")  
+            print(f"DEBUG Primary{p}: z_axis_wave={z_axis_wave} (type: {type(z_axis_wave)})")
+            print(f"DEBUG Primary{p}: is_grid_type={is_grid_type}, type_val={type_val}")
+            
+            # Determine position text based on axis wave values
+            if x_axis_wave is not None and y_axis_wave is not None and z_axis_wave is not None:
+                x_val = int(x_axis_wave)
+                y_val = int(y_axis_wave)
+                z_val = int(z_axis_wave)
+                
+                if x_val == 9 and y_val == 7 and z_val == 8:
+                    position_text = "Top Right"
+                elif x_val == 8 and y_val == 7 and z_val == 9:
+                    position_text = "Top Left"
+                elif x_val == 8 and y_val == 9 and z_val == 7:
+                    position_text = "Bottom Left"
+        except (ValueError, TypeError, Exception):
+            # If anything fails, keep default "Position:"
+            pass
 
-    sample_image = get(f"Settings.ColorSort.Primary{p}.SampleImage")
+        if is_lab_mode:
+            # Modify labels based on Grid type
+            x_label = "" if is_grid_type else "X"
+            y_label = "" if is_grid_type else "Y" 
+            z_label = "" if is_grid_type else "Z"
+            
+            first_row = [
+                {"image": sample_image},
+                f"Sensitivity: {p}",
+                "",
+                "",
+                x_label,
+                y_label,
+                z_label,
+                "And Mode:",
+                get(f"Settings.ColorSort.Primary{p}.FrontAndRearLogic"),
+            ]
+        else:
+            # Modify labels based on Grid type (lowercase for non-lab mode)
+            x_label = "" if is_grid_type else "x"
+            y_label = "" if is_grid_type else "y"
+            z_label = "" if is_grid_type else "z"
+            
+            first_row = [
+                f"Sensitivity: {p}",
+                sample_image,
+                "",
+                x_label,
+                y_label,
+                z_label,
+                "And Mode:",
+                get(f"Settings.ColorSort.Primary{p}.FrontAndRearLogic"),
+            ]
 
-    if is_lab_mode:
-        first_row = [
-            {"image": sample_image},
-            f"Sensitivity: {p}",
-            "",
-            "x",
-            "y",
-            "z",
-            "And Mode:",
-            get(f"Settings.ColorSort.Primary{p}.FrontAndRearLogic"),
-            "",
+        row_prefix = [""] if is_lab_mode else []
+
+        data = [
+            first_row,
+            [
+                *row_prefix,
+                "Name:",
+                get(f"Settings.ColorSort.Primary{p}.Name"),
+                "Position:",
+                position_text if is_grid_type else get(f"Settings.ColorSort.Primary{p}.EllipsoidCenterX"),  # Grid position text or X center
+                "" if is_grid_type else get(f"Settings.ColorSort.Primary{p}.EllipsoidCenterY"),  # Blank if Grid or Y center
+                "" if is_grid_type else get(f"Settings.ColorSort.Primary{p}.EllipsoidCenterZ"),  # Blank if Grid or Z center
+                "Ejector Delay Offset:",
+                get(f"Settings.ColorSort.Primary{p}.EjectorDelayOffset"),
+            ],
+            [
+                *row_prefix,
+                "Area/Spot Size:",
+                get(f"Settings.ColorSort.Primary{p}.AreaSize"),
+                "" if is_grid_type else "Size:",  # Blank if Grid type
+                "" if is_grid_type else get(f"Settings.ColorSort.Primary{p}.EllipsoidAxisLengthX"),  # Blank if Grid
+                "" if is_grid_type else get(f"Settings.ColorSort.Primary{p}.EllipsoidAxisLengthY"),  # Blank if Grid
+                "" if is_grid_type else get(f"Settings.ColorSort.Primary{p}.EllipsoidAxisLengthZ"),  # Blank if Grid
+                "Ejector Dwell Offset:",
+                get(f"Settings.ColorSort.Primary{p}.EjectorDwellOffset"),
+            ],
+            [
+                *row_prefix,
+                "Type:",
+                ("Ellipsoid" if str(type_val) == "0" else "Grid"),
+                "Angle:",
+                get(f"Settings.ColorSort.Primary{p}.PlaneAngle") if is_grid_type else get(f"Settings.ColorSort.Primary{p}.EllipsoidRotationX"),  # PlaneAngle for Grid, RotationX for Ellipsoid
+                "" if is_grid_type else get(f"Settings.ColorSort.Primary{p}.EllipsoidRotationY"),  # Blank if Grid
+                "" if is_grid_type else get(f"Settings.ColorSort.Primary{p}.EllipsoidRotationZ"),  # Blank if Grid
+                "",
+                "",
+            ],
+            [
+                *row_prefix,
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+            ],
         ]
-    else:
-        first_row = [
-            f"Sensitivity: {p}",
-            sample_image,
-            "x",
-            "y",
-            "z",
-            "And Mode:",
-            get(f"Settings.ColorSort.Primary{p}.FrontAndRearLogic"),
-            "",
-        ]
 
-    row_prefix = [""] if is_lab_mode else []
+        merges = {(0, 0): (rows, 1)} if is_lab_mode else {}
 
-    type_val = get(f"Settings.ColorSort.Primary{p}.TypeId")
+        merged_to = {}
 
+        for (r, c_idx), (rs, cs) in merges.items():
+            for rr in range(r, r + rs):
+                for cc in range(c_idx, c_idx + cs):
+                    merged_to[(rr, cc)] = (r, c_idx)
 
-    data = [
-        first_row,
-        [
-            *row_prefix,
-            "Name:",
-            get(f"Settings.ColorSort.Primary{p}.Name"),
-            "Position:",
-            get(f"Settings.ColorSort.Primary{p}.EllipsoidCenterX"),
-            get(f"Settings.ColorSort.Primary{p}.EllipsoidCenterY"),
-            get(f"Settings.ColorSort.Primary{p}.EllipsoidCenterZ"),
-            "Ejector Delay Offset:",
-            get(f"Settings.ColorSort.Primary{p}.EjectorDelayOffset"),
-        ],
-        [
-            *row_prefix,
-            "Sensitivity:",
-            get(f"Settings.ColorSort.Primary{p}.Sensitivity"),
-            "Size:",
-            get(f"Settings.ColorSort.Primary{p}.EllipsoidAxisLengthX"),
-            get(f"Settings.ColorSort.Primary{p}.EllipsoidAxisLengthY"),
-            get(f"Settings.ColorSort.Primary{p}.EllipsoidAxisLengthZ"),
-            "Ejector Dwell Offset:",
-            get(f"Settings.ColorSort.Primary{p}.EjectorDwellOffset"),
-        ],
-        [
-            *row_prefix,
-            "Type:",
+        c.setStrokeColor(colors.black)
+        for i in range(rows + 1):
+            c.line(x0, y0 + i * row_h, x0 + total_w, y0 + i * row_h)
+        for j in range(cols + 1):
+            c.line(x0 + j * col_w, y0, x0 + j * col_w, y0 + section_h)
 
+        for r, row in enumerate(data):
+            for j, cell in enumerate(row):
+                if merged_to.get((r, j), (r, j)) != (r, j):
+                    continue
+                rs, cs = merges.get((r, j), (1, 1))
+                x = x0 + j * col_w
+                y = y0 + section_h - (r + rs) * row_h
+                w = cs * col_w
+                h = rs * row_h
+                text = str(cell)
 
-            (
-                ("Ellipsoid" if str(type_val) == "0" else "Grid")
-                if is_lab_mode and p == 7
-                else type_val
-            ),
-          
-            "Angle:",
-            get(f"Settings.ColorSort.Primary{p}.EllipsoidRotationX"),
-            get(f"Settings.ColorSort.Primary{p}.EllipsoidRotationY"),
-            get(f"Settings.ColorSort.Primary{p}.EllipsoidRotationZ"),
-            "",
-            "",
-        ],
-        [
-            *row_prefix,
-            "Size:",
-            get(f"Settings.ColorSort.Primary{p}.AreaSize"),
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-        ],
-    ]
+                offset = 1 if is_lab_mode else 0
+                is_image_cell = is_lab_mode and j == 0
 
-    merges = {(0, 0): (rows, 1)} if is_lab_mode else {}
-
-    merged_to = {}
-
-    for (r, c_idx), (rs, cs) in merges.items():
-        for rr in range(r, r + rs):
-            for cc in range(c_idx, c_idx + cs):
-                merged_to[(rr, cc)] = (r, c_idx)
-
-    c.setStrokeColor(colors.black)
-    for i in range(rows + 1):
-        c.line(x0, y0 + i * row_h, x0 + total_w, y0 + i * row_h)
-    for j in range(cols + 1):
-        c.line(x0 + j * col_w, y0, x0 + j * col_w, y0 + section_h)
-
-    for r, row in enumerate(data):
-        for j, cell in enumerate(row):
-            if merged_to.get((r, j), (r, j)) != (r, j):
-                continue
-            rs, cs = merges.get((r, j), (1, 1))
-            x = x0 + j * col_w
-            y = y0 + section_h - (r + rs) * row_h
-            w = cs * col_w
-            h = rs * row_h
-            text = str(cell)
-
-            offset = 1 if is_lab_mode else 0
-            is_image_cell = is_lab_mode and j == 0
-            is_data_cell = (j - offset) % 2 == 1 if j >= offset else False
-            fill_color = colors.white if is_data_cell or is_image_cell else colors.lightblue
-            if is_data_cell and text in {"N/A", "", "None"}:
-                fill_color = colors.lightblue
-
-            c.setFillColor(fill_color)
-            c.rect(x, y, w, h, fill=1, stroke=0)
-            c.setStrokeColor(colors.black)
-            c.rect(x, y, w, h, fill=0, stroke=1)
-
-            if is_image_cell:
-                try:
-                    img_bytes = base64.b64decode(cell.get("image", ""))
-                    img_reader = ImageReader(io.BytesIO(img_bytes))
-                    c.drawImage(img_reader, x, y, width=w, height=h, preserveAspectRatio=True, anchor='c')
-                except Exception:
-                    c.setFillColor(colors.black)
-                    c.setFont(FONT_DEFAULT, 6)
-                    c.drawString(x + 2, y + h - 8, "Invalid image")
-            else:
-                c.setFillColor(colors.black)
-                tx = x + 2
-                ty = y + h - 8
-                if (j - offset) % 2 == 0:
-                    c.setFont(FONT_BOLD, 6)
+                # Define which cells contain tag data for lab mode
+                if is_lab_mode:
+                    # Check if this cell contains tag data (should be white)
+                    is_data_cell = False
+                    if r == 0 and j == 8:  # FrontAndRearLogic
+                        is_data_cell = True
+                    elif r == 1 and j in [2, 8]:  # Name, EjectorDelayOffset
+                        is_data_cell = True
+                    elif r == 1 and j == 4 and is_grid_type:  # Position text for Grid
+                        is_data_cell = True
+                    elif r == 1 and not is_grid_type and j in [4, 5, 6]:  # CenterX/Y/Z for Ellipsoid
+                        is_data_cell = True
+                    elif r == 2 and j in [2, 8]:  # AreaSize, EjectorDwellOffset
+                        is_data_cell = True
+                    elif r == 2 and not is_grid_type and j in [4, 5, 6]:  # AxisLengthX/Y/Z for Ellipsoid
+                        is_data_cell = True
+                    elif r == 3 and j == 2:  # Type value
+                        is_data_cell = True
+                    elif r == 3 and j == 4:  # PlaneAngle for Grid OR RotationX for Ellipsoid
+                        is_data_cell = True
+                    elif r == 3 and not is_grid_type and j in [5, 6]:  # RotationY/Z for Ellipsoid only
+                        is_data_cell = True
                 else:
-                    c.setFont(FONT_DEFAULT, 6)
-                c.drawString(tx, ty, text)
+                    # Original logic for non-lab mode
+                    is_data_cell = (j - offset) % 2 == 1 if j >= offset else False
 
-    c.restoreState()
+                fill_color = colors.white if is_data_cell or is_image_cell else colors.lightblue
+                
+                if is_data_cell and text in {"N/A", "", "None"}:
+                    fill_color = colors.lightblue
+
+                c.setFillColor(fill_color)
+                c.rect(x, y, w, h, fill=1, stroke=0)
+                c.setStrokeColor(colors.black)
+                c.rect(x, y, w, h, fill=0, stroke=1)
+
+                if is_image_cell and isinstance(cell, dict) and "image" in cell:
+                    image_data = cell["image"]
+                    try:
+                        img_bytes = base64.b64decode(image_data)
+                        pil_image = Image.open(io.BytesIO(img_bytes))
+                        
+                        # Handle transparency by creating white background
+                        if pil_image.mode in ('RGBA', 'LA'):
+                            white_bg = Image.new('RGBA', pil_image.size, (255, 255, 255, 255))
+                            final_image = Image.alpha_composite(white_bg, pil_image)
+                            final_image = final_image.convert('RGB')
+                        else:
+                            final_image = pil_image
+                        
+                        # Save the processed image to bytes
+                        processed_bytes = io.BytesIO()
+                        final_image.save(processed_bytes, format='PNG')
+                        processed_bytes.seek(0)
+                        
+                        img_reader = ImageReader(processed_bytes)
+                        c.drawImage(img_reader, x, y, width=w, height=h, preserveAspectRatio=True, anchor='c')
+                    except Exception:
+                        c.setFillColor(colors.black)
+                        c.setFont(FONT_DEFAULT, 6)
+                        c.drawString(x + 2, y + h - 8, "No Image")
+                else:
+                    c.setFillColor(colors.black)
+                    tx = x + 2
+                    ty = y + h - 8
+                    if (j - offset) % 2 == 0:
+                        c.setFont(FONT_BOLD, 6)
+                    else:
+                        c.setFont(FONT_DEFAULT, 6)
+                    c.drawString(tx, ty, text)
+
+    except Exception as e:
+        # Log the error but don't let it crash the report generation
+        print(f"Error in draw_sensitivity_grid: {e}")
+    finally:
+        # Always restore state even if there was an error
+        try:
+            c.restoreState()
+        except:
+            # If restoreState fails, there's not much we can do
+            pass
 
 
 def draw_sensitivity_sections(
