@@ -1119,27 +1119,27 @@ def draw_sensitivity_grid(
         position_text = "Location:"  # Default
         try:
             x_axis_wave = get(f"Settings.ColorSort.Primary{p}.XAxisWave")
-            y_axis_wave = get(f"Settings.ColorSort.Primary{p}.YAxisWave") 
+            y_axis_wave = get(f"Settings.ColorSort.Primary{p}.YAxisWave")
             z_axis_wave = get(f"Settings.ColorSort.Primary{p}.ZAxisWave")
             print(f"DEBUG Primary{p}: x_axis_wave={x_axis_wave} (type: {type(x_axis_wave)})")
-            print(f"DEBUG Primary{p}: y_axis_wave={y_axis_wave} (type: {type(y_axis_wave)})")  
+            print(f"DEBUG Primary{p}: y_axis_wave={y_axis_wave} (type: {type(y_axis_wave)})")
             print(f"DEBUG Primary{p}: z_axis_wave={z_axis_wave} (type: {type(z_axis_wave)})")
             print(f"DEBUG Primary{p}: is_grid_type={is_grid_type}, type_val={type_val}")
-            
+
             # Determine position text based on axis wave values
             if x_axis_wave is not None and y_axis_wave is not None and z_axis_wave is not None:
-                x_val = int(x_axis_wave)
-                y_val = int(y_axis_wave)
-                z_val = int(z_axis_wave)
-                
+                x_val = int(float(x_axis_wave))
+                y_val = int(float(y_axis_wave))
+                z_val = int(float(z_axis_wave))
+
                 if x_val == 9 and y_val == 7 and z_val == 8:
                     position_text = "Top Right"
                 elif x_val == 8 and y_val == 7 and z_val == 9:
                     position_text = "Top Left"
                 elif x_val == 8 and y_val == 9 and z_val == 7:
-                    position_text = "Bottom Left"
+                    position_text = "Bottom"
         except (ValueError, TypeError, Exception):
-            # If anything fails, keep default "Position:"
+            # If anything fails, keep default "Location:"
             pass
 
         if is_lab_mode:
