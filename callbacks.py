@@ -16,6 +16,9 @@ import shutil
 import tempfile
 import time
 import csv
+import logging
+
+logger = logging.getLogger(__name__)
 import hourly_data_saving
 import autoconnect
 import image_manager as img_utils
@@ -847,7 +850,8 @@ def _register_callbacks_impl(app):
 
     @app.callback(
 
-        [Output("report-progress-modal", "is_open"), Output("report-progress-interval", "disabled")],
+        [Output("report-progress-modal", "is_open", allow_duplicate=True),
+         Output("report-progress-interval", "disabled", allow_duplicate=True)],
         Input("generate-report-btn", "n_clicks"),
         [State("app-mode", "data"), State("active-machine-store", "data"), State("language-preference-store", "data")],
         prevent_initial_call=True,
@@ -856,6 +860,7 @@ def _register_callbacks_impl(app):
         if not n_clicks or _report_state["running"]:
 
             raise PreventUpdate
+        ctx = dash.callback_context
         trigger = ctx.triggered[0]["prop_id"].split(".")[0]
 
 
@@ -863,86 +868,92 @@ def _register_callbacks_impl(app):
             _report_state["progress"] = msg
 
         def run():
-            export_dir = generate_report.METRIC_EXPORT_DIR
-            lang = lang_store or load_language_preference()
-            machines = None
-            include_global = True
-            temp_dir = None
+            try:
+                export_dir = generate_report.METRIC_EXPORT_DIR
+                lang = lang_store or load_language_preference()
+                machines = None
+                include_global = True
+                temp_dir = None
 
-            if app_mode and isinstance(app_mode, dict) and app_mode.get("mode") == "lab":
-                progress_cb("Reading OPC tags")
-                mid = active_machine_data.get("machine_id") if active_machine_data else None
-                if not mid:
-                    _report_state["running"] = False
-                    return
-                machines = [str(mid)]
-                include_global = False
+                if app_mode and isinstance(app_mode, dict) and app_mode.get("mode") == "lab":
+                    progress_cb("Reading OPC tags")
+                    mid = active_machine_data.get("machine_id") if active_machine_data else None
+                    if not mid:
+                        _report_state["running"] = False
+                        return
+                    machines = [str(mid)]
+                    include_global = False
 
-                machine_dir = os.path.join(export_dir, str(mid))
-                lab_files = glob.glob(os.path.join(machine_dir, "Lab_Test_*.csv"))
-                if not lab_files:
-                    _report_state["running"] = False
-                    return
-                latest_file = max(lab_files, key=os.path.getmtime)
+                    machine_dir = os.path.join(export_dir, str(mid))
+                    lab_files = glob.glob(os.path.join(machine_dir, "Lab_Test_*.csv"))
+                    if not lab_files:
+                        _report_state["running"] = False
+                        return
+                    latest_file = max(lab_files, key=os.path.getmtime)
 
-                temp_dir = tempfile.mkdtemp()
-                temp_machine_dir = os.path.join(temp_dir, str(mid))
-                os.makedirs(temp_machine_dir, exist_ok=True)
-                shutil.copy(latest_file, os.path.join(temp_machine_dir, "last_24h_metrics.csv"))
-                save_machine_settings(
-                    mid,
-                    machine_connections,
-                    export_dir=temp_dir,
-                    active_only=True,
-                )
-                export_dir = temp_dir
-                data = {}
-                is_lab_mode = True
-            else:
-                progress_cb("Reading OPC tags")
-                data = generate_report.fetch_last_24h_metrics()
-                is_lab_mode = False
+                    temp_dir = tempfile.mkdtemp()
+                    temp_machine_dir = os.path.join(temp_dir, str(mid))
+                    os.makedirs(temp_machine_dir, exist_ok=True)
+                    shutil.copy(latest_file, os.path.join(temp_machine_dir, "last_24h_metrics.csv"))
+                    save_machine_settings(
+                        mid,
+                        machine_connections,
+                        export_dir=temp_dir,
+                        active_only=True,
+                    )
+                    export_dir = temp_dir
+                    data = {}
+                    is_lab_mode = True
+                else:
+                    progress_cb("Reading OPC tags")
+                    data = generate_report.fetch_last_24h_metrics()
+                    is_lab_mode = False
 
-            progress_cb("Creating machine sections")
-            with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
-                generate_report.build_report(
-                    data,
-                    tmp.name,
-                    export_dir=export_dir,
-                    machines=machines,
-                    include_global=include_global,
-                    is_lab_mode=is_lab_mode,
-                    lang=lang,
-                    progress_callback=progress_cb,
-                )
-                with open(tmp.name, "rb") as f:
-                    pdf_bytes = f.read()
+                progress_cb("Creating machine sections")
+                with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+                    generate_report.build_report(
+                        data,
+                        tmp.name,
+                        export_dir=export_dir,
+                        machines=machines,
+                        include_global=include_global,
+                        is_lab_mode=is_lab_mode,
+                        lang=lang,
+                        progress_callback=progress_cb,
+                    )
+                    with open(tmp.name, "rb") as f:
+                        pdf_bytes = f.read()
 
-            if temp_dir:
-                shutil.rmtree(temp_dir, ignore_errors=True)
+                if temp_dir:
+                    shutil.rmtree(temp_dir, ignore_errors=True)
 
-            progress_cb("Finalizing report")
-            pdf_b64 = base64.b64encode(pdf_bytes).decode()
-            timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
-            _report_state["result"] = {
-                "content": pdf_b64,
-                "filename": f"production_report_{timestamp_str}.pdf",
-                "type": "application/pdf",
-                "base64": True,
-            }
-            _report_state["running"] = False
+                progress_cb("Finalizing report")
+                pdf_b64 = base64.b64encode(pdf_bytes).decode()
+                timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+                _report_state["result"] = {
+                    "content": pdf_b64,
+                    "filename": f"production_report_{timestamp_str}.pdf",
+                    "type": "application/pdf",
+                    "base64": True,
+                }
+                _report_state["running"] = False
+            except Exception as exc:  # pragma: no cover - runtime safeguard
+                logger.exception("Error generating report: %s", exc)
+                _report_state["progress"] = "Error generating report"
+                _report_state["result"] = None
+                _report_state["running"] = False
 
         _report_state["running"] = True
         _report_state["progress"] = "Starting..."
         _report_state["result"] = None
-        threading.Thread(target=run).start()
+        threading.Thread(target=run, daemon=True).start()
         return True, False
 
     @app.callback(
         [Output("report-progress-message", "children"),
          Output("report-download", "data"),
-         Output("report-progress-modal", "is_open"),
-         Output("report-progress-interval", "disabled")],
+         Output("report-progress-modal", "is_open", allow_duplicate=True),
+         Output("report-progress-interval", "disabled", allow_duplicate=True)],
         Input("report-progress-interval", "n_intervals"),
         prevent_initial_call=True,
     )
@@ -953,6 +964,10 @@ def _register_callbacks_impl(app):
             res = _report_state["result"]
             _report_state["result"] = None
             return "Report complete", res, False, True
+        if _report_state["progress"].startswith("Error"):
+            msg = _report_state["progress"]
+            _report_state["progress"] = ""
+            return msg, dash.no_update, False, True
         return dash.no_update, dash.no_update, False, True
 
     @app.callback(
