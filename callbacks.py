@@ -860,6 +860,7 @@ def _register_callbacks_impl(app):
         if not n_clicks or _report_state["running"]:
 
             raise PreventUpdate
+
         ctx = callback_context
         trigger = ctx.triggered[0]["prop_id"].split(".")[0]
 
@@ -946,7 +947,7 @@ def _register_callbacks_impl(app):
         _report_state["running"] = True
         _report_state["progress"] = "Starting..."
         _report_state["result"] = None
-        threading.Thread(target=run).start()
+        threading.Thread(target=run, daemon=True).start()
         return True, False
 
     @app.callback(
