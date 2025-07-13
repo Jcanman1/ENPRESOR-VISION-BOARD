@@ -86,6 +86,9 @@ REPORT_SETTINGS_TAGS = {
     *{
         f"Settings.ColorSort.Primary{i}.IsAssigned" for i in range(1, 13)
     },
+    *{
+        f"Settings.ColorSort.Primary{i}.PlaneAngle" for i in range(1, 13)
+    },
 }
 
 
