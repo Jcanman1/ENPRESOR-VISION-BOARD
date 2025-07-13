@@ -2624,6 +2624,15 @@ update_counts_modal = dbc.Modal([
         dbc.Button(tr("close"), id="close-update-counts", color="secondary")
     ])
 ], id="update-counts-modal", size="lg", is_open=False)
+
+# Modal displayed while a report is being generated
+report_progress_modal = dbc.Modal([
+    dbc.ModalHeader(html.Span(tr("generating_report_title"), id="report-progress-header")),
+    dbc.ModalBody([
+        html.Div(html.I(className="fas fa-sync-alt fa-spin fa-2x"), className="text-center mb-2"),
+        html.Div(id="report-progress-message", className="text-center")
+    ])
+], id="report-progress-modal", is_open=False, backdrop="static", keyboard=False)
 # Load saved IP addresses
 initial_ip_addresses = load_ip_addresses()
 logger.info(f"Initial IP addresses: {initial_ip_addresses}")
@@ -2927,6 +2936,7 @@ app.layout = html.Div([
     # ─── CRITICAL: Add status-update-interval at the TOP LEVEL so it's ALWAYS available ───
     dcc.Interval(id="status-update-interval", interval=1000, n_intervals=0),
     dcc.Interval(id="metric-logging-interval", interval=60*1000, n_intervals=0),
+    dcc.Interval(id="report-progress-interval", interval=500, n_intervals=0, disabled=True),
 
     # ─── Hidden state stores ───────────────────────────────────────────────
     dcc.Store(id="current-dashboard",       data="new"),
@@ -3027,6 +3037,7 @@ app.layout = html.Div([
     units_modal,        # id="production-rate-units-modal"
     settings_modal,     # id="settings-modal"
     update_counts_modal, # id="update-counts-modal"
+    report_progress_modal, # id="report-progress-modal"
     
     # ─── NEW: Delete Confirmation Modal ────────────────────────────────────
     dbc.Modal([
