@@ -808,6 +808,9 @@ def calculate_global_max_firing_average(csv_parent_dir, machines=None, *, is_lab
     global_max = 0
 
     for machine in machines:
+
+        if progress_callback:
+            progress_callback(f"Creating machine section {machine}")
         fp = os.path.join(csv_parent_dir, machine, 'last_24h_metrics.csv')
         if os.path.isfile(fp):
             try:
@@ -1447,6 +1450,7 @@ def build_report(
     is_lab_mode: bool = False,
     values_in_kg: bool = False,
     lang: str = "en",
+    progress_callback=None,
 ) -> None:
     """Generate a PDF report and write it to ``pdf_path``.
 
@@ -1455,6 +1459,8 @@ def build_report(
     """
 
     if use_optimized:
+        if progress_callback:
+            progress_callback("Creating machine sections")
         draw_layout_optimized(
             pdf_path,
             export_dir,
@@ -1463,8 +1469,11 @@ def build_report(
             lang=lang,
             is_lab_mode=is_lab_mode,
             values_in_kg=values_in_kg,
+            progress_callback=progress_callback,
         )
     else:
+        if progress_callback:
+            progress_callback("Creating machine sections")
         draw_layout_standard(
             pdf_path,
             export_dir,
@@ -1473,6 +1482,7 @@ def build_report(
             lang=lang,
             is_lab_mode=is_lab_mode,
             values_in_kg=values_in_kg,
+            progress_callback=progress_callback,
         )
 
 def draw_machine_sections(
@@ -1894,6 +1904,7 @@ def draw_layout_optimized(
     lang="en",
     is_lab_mode: bool = False,
     values_in_kg: bool = False,
+    progress_callback=None,
 ):
     """Optimized version - CONSISTENT SIZING, 2 machines per page"""
     
@@ -1952,6 +1963,8 @@ def draw_layout_optimized(
         current_y = content_start_y
         
         for machine_idx, machine in enumerate(machine_batch):
+            if progress_callback:
+                progress_callback(f"Creating machine section {machine}")
             
             current_y = draw_machine_sections(
                 c,
@@ -1985,6 +1998,7 @@ def draw_layout_standard(
     lang="en",
     is_lab_mode: bool = False,
     values_in_kg: bool = False,
+    progress_callback=None,
 ):
     """Standard layout - CONSISTENT SIZING with dynamic page breaks"""
   
