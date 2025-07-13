@@ -196,6 +196,9 @@ KNOWN_TAGS = {
     **{f"Settings.ColorSort.Primary{i}.EllipsoidRotationY": f"ns=2;s=Settings.ColorSort.Primary{i}.EllipsoidRotationY" for i in range(1, 13)},
     **{f"Settings.ColorSort.Primary{i}.EllipsoidRotationZ": f"ns=2;s=Settings.ColorSort.Primary{i}.EllipsoidRotationZ" for i in range(1, 13)},
     **{f"Settings.ColorSort.Primary{i}.AreaSize": f"ns=2;s=Settings.ColorSort.Primary{i}.AreaSize" for i in range(1, 13)},
+    **{f"Settings.ColorSort.Primary{i}.XAxisWave": f"ns=2;s=Settings.ColorSort.Primary{i}.XAxisWave" for i in range(1, 13)},
+    **{f"Settings.ColorSort.Primary{i}.YAxisWave": f"ns=2;s=Settings.ColorSort.Primary{i}.YAxisWave" for i in range(1, 13)},
+    **{f"Settings.ColorSort.Primary{i}.ZAxisWave": f"ns=2;s=Settings.ColorSort.Primary{i}.ZAxisWave" for i in range(1, 13)},
 }
 
 # Tags that are updated on every cycle in live mode. These names come from
@@ -306,10 +309,10 @@ def save_uploaded_image(image_data):
         with open('data/custom_image.txt', 'w') as f:
             f.write(image_data)
             
-        logger.info("Custom image saved successfully")
+        #logger.info("Custom image saved successfully")
         return True
     except Exception as e:
-        logger.error(f"Error saving custom image: {e}")
+        #logger.error(f"Error saving custom image: {e}")
         return False
 
 def load_saved_image():
@@ -319,14 +322,14 @@ def load_saved_image():
             with open('data/custom_image.txt', 'r') as f:
                 image_data = f.read()
                 
-            logger.info("Custom image loaded successfully")
+            #logger.info("Custom image loaded successfully")
             # Return the data in the exact format needed by the Store
             return {"image": image_data}
         else:
-            logger.info("No saved custom image found")
+            #logger.info("No saved custom image found")
             return {}
     except Exception as e:
-        logger.error(f"Error loading custom image: {e}")
+        #logger.error(f"Error loading custom image: {e}")
         return {}
 
 
@@ -364,10 +367,10 @@ def save_email_settings(settings):
     try:
         with open(EMAIL_SETTINGS_PATH, "w") as f:
             json.dump(settings, f, indent=4)
-        logger.info("Email settings saved successfully")
+        #logger.info("Email settings saved successfully")
         return True
     except Exception as e:
-        logger.error(f"Error saving email settings: {e}")
+        #logger.error(f"Error saving email settings: {e}")
         return False
 
 
@@ -400,7 +403,7 @@ def send_threshold_email(sensitivity_num, is_high=True):
         msg.attach(MIMEText(body, 'plain'))
         
         # Log the email (for debugging)
-        logger.info(f"Sending email to {email_address}: {body}")
+        #logger.info(f"Sending email to {email_address}: {body}")
         
         # Configure SMTP server and send email using stored credentials
         server_addr = email_settings.get('smtp_server', DEFAULT_EMAIL_SETTINGS['smtp_server'])
@@ -429,7 +432,7 @@ def load_threshold_settings():
     try:
         # Log the current working directory to help debug file access issues
         current_dir = os.getcwd()
-        logger.info(f"Loading threshold settings from '{current_dir}/threshold_settings.json'")
+        #logger.info(f"Loading threshold settings from '{current_dir}/threshold_settings.json'")
         
         if os.path.exists('threshold_settings.json'):
             with open('threshold_settings.json', 'r') as f:
@@ -444,13 +447,13 @@ def load_threshold_settings():
                         settings[int(key)] = value
                 
                 # Log what was loaded
-                logger.info(f"Loaded threshold settings: {settings.keys()}")
+                #logger.info(f"Loaded threshold settings: {settings.keys()}")
                 return settings
         else:
-            logger.warning("No threshold_settings.json file found")
+            #logger.warning("No threshold_settings.json file found")
             return None
     except Exception as e:
-        logger.error(f"Error loading threshold settings: {e}")
+        #logger.error(f"Error loading threshold settings: {e}")
         return None
 
 def save_theme_preference(theme):
@@ -463,7 +466,7 @@ def save_theme_preference(theme):
                 try:
                     settings = json.load(f)
                 except json.JSONDecodeError:
-                    logger.warning("display_settings.json is corrupted, creating new file")
+                    #logger.warning("display_settings.json is corrupted, creating new file")
                     settings = {}
         
         # Update the theme setting
@@ -472,11 +475,11 @@ def save_theme_preference(theme):
         # Save back to file
         with open('display_settings.json', 'w') as f:
             json.dump(settings, f, indent=4)
-        logger.info(f"Successfully saved theme preference: {theme} to display_settings.json")
+        #logger.info(f"Successfully saved theme preference: {theme} to display_settings.json")
         return True
         
     except Exception as e:
-        logger.error(f"Error saving theme preference: {e}")
+        #logger.error(f"Error saving theme preference: {e}")
         return False
 
 def save_threshold_settings(settings):
@@ -484,7 +487,7 @@ def save_threshold_settings(settings):
     try:
         # Log the current working directory to help debug file access issues
         current_dir = os.getcwd()
-        logger.info(f"Saving threshold settings to '{current_dir}/threshold_settings.json'")
+        #logger.info(f"Saving threshold settings to '{current_dir}/threshold_settings.json'")
         
         # Convert integer keys to strings for JSON serialization
         json_settings = {}
@@ -503,7 +506,7 @@ def save_threshold_settings(settings):
         logger.info("Threshold settings saved successfully")
         return True
     except Exception as e:
-        logger.error(f"Error saving threshold settings: {e}")
+        #logger.error(f"Error saving threshold settings: {e}")
         
         return False
 
@@ -516,7 +519,7 @@ try:
         # Update settings with loaded values
         for key, value in loaded_settings.items():
             threshold_settings[key] = value
-        logger.info(f"Applied loaded threshold settings: {list(loaded_settings.keys())}")
+        #logger.info(f"Applied loaded threshold settings: {list(loaded_settings.keys())}")
     else:
         logger.info("No saved settings found, using defaults")
 except Exception as e:
@@ -527,7 +530,7 @@ except Exception as e:
 try:
     from opcua import Client, ua
 except Exception as e:  # pragma: no cover - optional dependency
-    logger.warning(f"OPC UA modules not available: {e}")
+    #logger.warning(f"OPC UA modules not available: {e}")
     Client = ua = None
 
 try:
@@ -537,7 +540,7 @@ try:
     import dash_bootstrap_components as dbc
     from i18n import tr
 except Exception as e:  # pragma: no cover - optional dependency
-    logger.warning(f"Dash modules not available: {e}")
+    #logger.warning(f"Dash modules not available: {e}")
     dash = dcc = html = no_update = callback_context = None
     Input = Output = State = ALL = None
     dbc = None
@@ -550,7 +553,7 @@ try:
     import pandas as pd
     import numpy as np
 except Exception as e:  # pragma: no cover - optional dependency
-    logger.warning(f"Plotly modules not available: {e}")
+    #logger.warning(f"Plotly modules not available: {e}")
     go = make_subplots = px = pd = np = None
 
 
@@ -784,7 +787,7 @@ try:
     loaded_display_settings = load_display_settings()
     if loaded_display_settings is not None:
         display_settings.update(loaded_display_settings)
-        logger.info("Loaded display settings from file")
+        #logger.info("Loaded display settings from file")
     else:
         logger.info("No display settings file found, using defaults")
 except Exception as e:
@@ -833,18 +836,18 @@ def load_ip_addresses():
             
             if valid_addresses:
                 addresses["addresses"] = valid_addresses
-                logger.info(f"Loaded IP addresses: {addresses}")
+                #logger.info(f"Loaded IP addresses: {addresses}")
                 return addresses
             else:
-                logger.warning("No valid addresses found, using default")
+                #logger.warning("No valid addresses found, using default")
                 return default_data
         else:
-            logger.info(f"No IP addresses file found, using default: {default_data}")
+            #logger.info(f"No IP addresses file found, using default: {default_data}")
             return default_data
     except Exception as e:
         logger.error(f"Error loading IP addresses: {e}")
         default_data = {"addresses": [{"ip": "192.168.0.125", "label": "Default"}]}
-        logger.info(f"Error loading IP addresses, using default: {default_data}")
+        #logger.info(f"Error loading IP addresses, using default: {default_data}")
         return default_data
 
 def generate_csv_string(tags_data):
@@ -1025,7 +1028,7 @@ def get_event_loop():
 # Background thread for OPC UA updates
 def opc_update_thread():
     """Enhanced OPC update thread with better error handling and connection validation"""
-    logger.info("OPC update thread started")
+    #logger.info("OPC update thread started")
     consecutive_failures = 0
     max_failures = 5
     stalled_cycles = 0
@@ -1058,25 +1061,25 @@ def opc_update_thread():
 
             # Only update if we have an active, connected machine
             if not app_state.connected or not app_state.client:
-                logger.debug("No connected machine in update thread - sleeping")
+                #logger.debug("No connected machine in update thread - sleeping")
                 time.sleep(1)
                 consecutive_failures = 0  # Reset failure count when not connected
                 continue
                 
             # Ensure a machine is selected before attempting updates
             if active_machine_id is None:
-                logger.debug("No active machine selected in update thread - sleeping")
+                #logger.debug("No active machine selected in update thread - sleeping")
                 time.sleep(1)
                 consecutive_failures = 0
                 continue
 
             # Verify the active machine is still in machine_connections
             if active_machine_id not in machine_connections:
-                logger.warning(f"Active machine {active_machine_id} no longer in connections - stopping thread")
+                #logger.warning(f"Active machine {active_machine_id} no longer in connections - stopping thread")
                 break
                 
             if not machine_connections[active_machine_id].get('connected', False):
-                logger.warning(f"Active machine {active_machine_id} is no longer connected - stopping thread")
+                #logger.warning(f"Active machine {active_machine_id} is no longer connected - stopping thread")
                 break
             
             # Verify we have tags to read
@@ -1097,14 +1100,14 @@ def opc_update_thread():
                     test_successful = True
                     break
                 except Exception as e:
-                    logger.debug(f"Failed to read test tag {tag_name}: {e}")
+                    #logger.debug(f"Failed to read test tag {tag_name}: {e}")
                     continue
             
             if not test_successful:
-                logger.warning("Failed to read any test tags")
+                #logger.warning("Failed to read any test tags")
                 consecutive_failures += 1
                 if consecutive_failures >= max_failures:
-                    logger.error("Too many consecutive read failures - stopping thread")
+                    #logger.error("Too many consecutive read failures - stopping thread")
                     break
                 time.sleep(2)
                 continue
@@ -1120,7 +1123,7 @@ def opc_update_thread():
                     current_value = tag_info['node'].get_value()
                     tag_info['data'].add_value(current_value)
                 except Exception as e:
-                    logger.debug(f"Error reading tag {tag_name}: {e}")
+                    #logger.debug(f"Error reading tag {tag_name}: {e}")
                     failure_counts[tag_name] += 1
                     continue
 
@@ -1128,11 +1131,11 @@ def opc_update_thread():
                 failure_msg = ", ".join(
                     f"{name}={count}" for name, count in failure_counts.items()
                 )
-                logger.info("Read failures: %s", failure_msg)
+                #logger.info("Read failures: %s", failure_msg)
             
             # Update last update time
             app_state.last_update_time = datetime.now()
-            logger.info("last_update_time updated to %s", app_state.last_update_time)
+            #logger.info("last_update_time updated to %s", app_state.last_update_time)
 
             machine_connections[active_machine_id]['last_update'] = app_state.last_update_time
 
@@ -1149,14 +1152,14 @@ def opc_update_thread():
             time.sleep(1)
             
         except Exception as e:
-            logger.error(f"Error in OPC update thread: {e}")
+            #logger.error(f"Error in OPC update thread: {e}")
             consecutive_failures += 1
             if consecutive_failures >= max_failures:
-                logger.error("Too many consecutive errors - stopping thread")
+                #logger.error("Too many consecutive errors - stopping thread")
                 break
             time.sleep(2)  # Wait before retrying
             
-    logger.info("OPC update thread stopped")
+    #logger.info("OPC update thread stopped")
 
 # Run async function in the event loop
 def run_async(coro):
@@ -1198,7 +1201,7 @@ def resume_background_processes():
 async def connect_to_server(server_url, server_name=None):
     """Connect to the OPC UA server"""
     try:
-        logger.info(f"Connecting to OPC UA server at {server_url}...")
+        #logger.info(f"Connecting to OPC UA server at {server_url}...")
         
         # Create client
         app_state.client = Client(server_url)
@@ -1206,11 +1209,11 @@ async def connect_to_server(server_url, server_name=None):
         # Set application name
         if server_name:
             app_state.client.application_uri = f"urn:{server_name}"
-            logger.info(f"Setting application URI to: {app_state.client.application_uri}")
+            #logger.info(f"Setting application URI to: {app_state.client.application_uri}")
         
         # Connect to server
         app_state.client.connect()
-        logger.info("Connected to server")
+        #logger.info("Connected to server")
         
         # Discover tags
         await discover_tags()
@@ -1222,14 +1225,14 @@ async def connect_to_server(server_url, server_name=None):
             app_state.update_thread = Thread(target=opc_update_thread)
             app_state.update_thread.daemon = True
             app_state.update_thread.start()
-            logger.info("Started background update thread")
+            #logger.info("Started background update thread")
             
         app_state.connected = True
         app_state.last_update_time = datetime.now()
         return True
         
     except Exception as e:
-        logger.error(f"Connection error: {e}")
+        #logger.error(f"Connection error: {e}")
         app_state.connected = False
         return False
 
@@ -1378,7 +1381,7 @@ try:
     loaded_settings = load_threshold_settings()
     if loaded_settings:
         threshold_settings.update(loaded_settings)
-        logger.info("Threshold settings loaded and applied")
+        #logger.info("Threshold settings loaded and applied")
 except Exception as e:
     logger.error(f"Error loading threshold settings: {e}")
 
@@ -1389,7 +1392,7 @@ async def discover_tags():
         return False
         
     try:
-        logger.info("Discovering tags...")
+        #logger.info("Discovering tags...")
         root = app_state.client.get_root_node()
         objects = app_state.client.get_objects_node()
         
@@ -1397,7 +1400,7 @@ async def discover_tags():
         app_state.tags = {}
         
         # First, try to connect to all known tags explicitly
-        logger.info("Attempting to connect to known tags...")
+        #logger.info("Attempting to connect to known tags...")
         for tag_name, node_id in KNOWN_TAGS.items():
             if tag_name not in FAST_UPDATE_TAGS and tag_name not in REPORT_SETTINGS_TAGS:
                 continue
@@ -1405,7 +1408,7 @@ async def discover_tags():
                 node = app_state.client.get_node(node_id)
                 value = node.get_value()
                 
-                logger.info(f"Successfully connected to known tag: {tag_name} = {value}")
+                #logger.info(f"Successfully connected to known tag: {tag_name} = {value}")
                 
                 # Add to tags
                 tag_data = TagData(tag_name)
@@ -1418,7 +1421,7 @@ async def discover_tags():
                 logger.warning(f"Could not connect to known tag {tag_name} ({node_id}): {e}")
         
         # Then do the existing discovery process for any additional tags
-        logger.info("Performing additional tag discovery...")
+        #logger.info("Performing additional tag discovery...")
         
         # Function to recursively browse nodes
         async def browse_nodes(node, level=0, max_level=3):
@@ -1440,7 +1443,7 @@ async def discover_tags():
                                     continue
                                     
                                 value = child.get_value()
-                                logger.debug(f"Found additional tag: {name} = {value}")
+                                #logger.debug(f"Found additional tag: {name} = {value}")
                                 
                                 tag_data = TagData(name)
                                 tag_data.add_value(value)
@@ -1461,12 +1464,12 @@ async def discover_tags():
         # Start browsing from objects node with limited depth
         await browse_nodes(objects, 0, 2)
         
-        logger.info(f"Total tags discovered: {len(app_state.tags)}")
+        #logger.info(f"Total tags discovered: {len(app_state.tags)}")
         
         # Log specifically if our test weight tags were found
         if "Settings.ColorSort.TestWeightValue" in app_state.tags:
             weight_value = app_state.tags["Settings.ColorSort.TestWeightValue"]["data"].latest_value
-            logger.info(f"✓ TestWeightValue tag found with value: {weight_value}")
+            #logger.info(f"✓ TestWeightValue tag found with value: {weight_value}")
         else:
             logger.warning("✗ TestWeightValue tag NOT found")
             
@@ -1479,13 +1482,13 @@ async def discover_tags():
         return True
         
     except Exception as e:
-        logger.error(f"Error discovering tags: {e}")
+        #logger.error(f"Error discovering tags: {e}")
         return False
 
 # Disconnect from OPC UA server
 async def disconnect_from_server():
     try:
-        logger.info("Disconnecting from server...")
+        #logger.info("Disconnecting from server...")
         
         # Stop background thread
         if app_state.update_thread and app_state.update_thread.is_alive():
@@ -1497,11 +1500,11 @@ async def disconnect_from_server():
             app_state.client.disconnect()
             
         app_state.connected = False
-        logger.info("Disconnected from server")
+        #logger.info("Disconnected from server")
         return True
         
     except Exception as e:
-        logger.error(f"Disconnection error: {e}")
+        #logger.error(f"Disconnection error: {e}")
         return False
 
 def debug_discovered_tags():
@@ -1510,7 +1513,7 @@ def debug_discovered_tags():
     
     # Use absolute path so we know exactly where it goes
     file_path = os.path.abspath('discovered_tags.txt')
-    logger.info(f"Writing {len(app_state.tags)} discovered tags to: {file_path}")
+    #logger.info(f"Writing {len(app_state.tags)} discovered tags to: {file_path}")
     
     try:
         with open(file_path, 'w') as f:
@@ -1556,7 +1559,7 @@ def debug_discovered_tags():
                 if len(tags) > 50:
                     f.write(f"... and {len(tags) - 50} more tags in this category\n\n")
         
-        logger.info(f"SUCCESS: Tag discovery results written to: {file_path}")
+        #logger.info(f"SUCCESS: Tag discovery results written to: {file_path}")
         
     except Exception as e:
         logger.error(f"ERROR writing file: {e}")
@@ -1594,7 +1597,7 @@ async def discover_all_tags(client):
                 pass
 
         await browse_nodes(objects, 0, 2)
-        logger.info(f"Full tag discovery found {len(tags)} tags")
+        #logger.info(f"Full tag discovery found {len(tags)} tags")
     except Exception as e:
         logger.error(f"Error during full tag discovery: {e}")
 
@@ -1658,10 +1661,10 @@ def save_weight_preference(unit, label="", value=1.0):
 
         with open(DISPLAY_SETTINGS_PATH, 'w') as f:
             json.dump(settings, f, indent=4)
-        logger.info(f"Saved capacity unit preference: {unit}")
+        #logger.info(f"Saved capacity unit preference: {unit}")
         return True
     except Exception as e:
-        logger.error(f"Error saving capacity unit preference: {e}")
+        #logger.error(f"Error saving capacity unit preference: {e}")
         return False
 
 
