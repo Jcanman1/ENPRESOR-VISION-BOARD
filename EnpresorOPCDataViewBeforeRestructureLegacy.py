@@ -2627,7 +2627,7 @@ update_counts_modal = dbc.Modal([
 
 # Modal displayed while a report is being generated
 report_progress_modal = dbc.Modal([
-    dbc.ModalHeader(dbc.ModalTitle(tr("generating_report_title"), id="report-progress-header")),
+    dbc.ModalHeader(html.Span(tr("generating_report_title"), id="report-progress-header")),
     dbc.ModalBody([
         html.Div(html.I(className="fas fa-sync-alt fa-spin fa-2x"), className="text-center mb-2"),
         html.Div(id="report-progress-message", className="text-center")
