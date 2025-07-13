@@ -947,7 +947,6 @@ def _register_callbacks_impl(app):
         prevent_initial_call=True,
     )
     def update_report_progress(n):
-
         if _report_state["running"]:
             return _report_state["progress"], dash.no_update, True, False
         if _report_state["result"] is not None:
