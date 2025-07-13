@@ -1348,29 +1348,50 @@ def draw_sensitivity_sections(
     *,
     lang="en",
     is_lab_mode=False,
+    width=None,
+    height=None,
 ):
     """Draw grids for all active sensitivities and return new y position."""
-
     spacing = 10
     current_y = y_start
+    width = width or (c._pagesize[0] if c else letter[0])
+    height = height or (c._pagesize[1] if c else letter[1])
+
+    active_indices = []
     for i in range(1, 13):
         active_val = _lookup_setting(
             settings, f"Settings.ColorSort.Primary{i}.IsAssigned", False
         )
         if _bool_from_setting(active_val):
-            y_grid = current_y - section_h
-            draw_sensitivity_grid(
-                c,
-                x0,
-                y_grid,
-                total_w,
-                section_h,
-                settings,
-                i,
-                lang=lang,
-                is_lab_mode=is_lab_mode,
-            )
-            current_y = y_grid - spacing
+            active_indices.append(i)
+
+    for idx, i in enumerate(active_indices):
+        if (
+            is_lab_mode
+            and idx == 5
+            and len(active_indices) > 5
+            and c is not None
+        ):
+            # Start a new page after the first five sections in lab mode
+            c.showPage()
+            page_number = c.getPageNumber()
+            content_start_y = draw_header(c, width, height, page_number, lang=lang)
+            current_y = content_start_y
+
+        y_grid = current_y - section_h
+        draw_sensitivity_grid(
+            c,
+            x0,
+            y_grid,
+            total_w,
+            section_h,
+            settings,
+            i,
+            lang=lang,
+            is_lab_mode=is_lab_mode,
+        )
+        current_y = y_grid - spacing
+
     return current_y
 
 
@@ -1467,8 +1488,12 @@ def draw_machine_sections(
     is_lab_mode=False,
     lang="en",
     values_in_kg=False,
+    width=None,
+    height=None,
     
 ):
+    width = width or (c._pagesize[0] if c else letter[0])
+    height = height or (c._pagesize[1] if c else letter[1])
    
     logger.warning(f"DEBUG MACHINE SECTIONS: machine={machine}, is_lab_mode={is_lab_mode}")
 
@@ -1852,6 +1877,8 @@ def draw_machine_sections(
         settings_data,
         lang=lang,
         is_lab_mode=is_lab_mode,
+        width=width,
+        height=height,
     )
 
     # Return the Y position where the next content should start
@@ -1938,6 +1965,8 @@ def draw_layout_optimized(
                 is_lab_mode=is_lab_mode,
                 lang=lang,
                 values_in_kg=values_in_kg,
+                width=width,
+                height=height,
             )
                 
             # FIXED spacing between machines
@@ -2025,6 +2054,8 @@ def draw_layout_standard(
             is_lab_mode=is_lab_mode,
             lang=lang,
             values_in_kg=values_in_kg,
+            width=width,
+            height=height,
         )
         
         machines_processed += 1
