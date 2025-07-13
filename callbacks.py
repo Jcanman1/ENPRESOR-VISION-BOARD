@@ -847,7 +847,8 @@ def _register_callbacks_impl(app):
 
     @app.callback(
 
-        [Output("report-progress-modal", "is_open"), Output("report-progress-interval", "disabled")],
+        [Output("report-progress-modal", "is_open", allow_duplicate=True),
+         Output("report-progress-interval", "disabled", allow_duplicate=True)],
         Input("generate-report-btn", "n_clicks"),
         [State("app-mode", "data"), State("active-machine-store", "data"), State("language-preference-store", "data")],
         prevent_initial_call=True,
@@ -856,6 +857,7 @@ def _register_callbacks_impl(app):
         if not n_clicks or _report_state["running"]:
 
             raise PreventUpdate
+        ctx = callback_context
         trigger = ctx.triggered[0]["prop_id"].split(".")[0]
 
 
@@ -941,8 +943,8 @@ def _register_callbacks_impl(app):
     @app.callback(
         [Output("report-progress-message", "children"),
          Output("report-download", "data"),
-         Output("report-progress-modal", "is_open"),
-         Output("report-progress-interval", "disabled")],
+         Output("report-progress-modal", "is_open", allow_duplicate=True),
+         Output("report-progress-interval", "disabled", allow_duplicate=True)],
         Input("report-progress-interval", "n_intervals"),
         prevent_initial_call=True,
     )
