@@ -110,4 +110,46 @@ def test_primary7_typeid_label_lab_mode():
         assert expected in c.texts
 
 
+def test_position_text_from_axis_wave_lab_mode():
+    class DummyCanvas:
+        def __init__(self):
+            self.texts = []
+
+        def saveState(self):
+            pass
+
+        def restoreState(self):
+            pass
+
+        def setStrokeColor(self, *a, **k):
+            pass
+
+        def line(self, *a, **k):
+            pass
+
+        def rect(self, *a, **k):
+            pass
+
+        def setFillColor(self, *a, **k):
+            pass
+
+        def setFont(self, *a, **k):
+            pass
+
+        def drawString(self, x, y, text):
+            self.texts.append(text)
+
+    cases = [
+        ({"XAxisWave": "9", "YAxisWave": "7", "ZAxisWave": "8"}, "Top Right"),
+        ({"XAxisWave": "8", "YAxisWave": "7", "ZAxisWave": "9"}, "Top Left"),
+        ({"XAxisWave": "8", "YAxisWave": "9", "ZAxisWave": "7"}, "Bottom"),
+    ]
+
+    for waves, expected in cases:
+        c = DummyCanvas()
+        settings = {"Settings": {"ColorSort": {"Primary1": {"TypeId": 1, **waves}}}}
+        generate_report.draw_sensitivity_grid(c, 0, 0, 100, 20, settings, 1, is_lab_mode=True)
+        assert expected in c.texts
+
+
 
