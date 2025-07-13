@@ -5248,13 +5248,13 @@ def _register_callbacks_impl(app):
                         if opc_tag in app_state.tags:
                             new_val = app_state.tags[opc_tag]["data"].latest_value
                             prev_val = machine_prev_active.get(opc_tag)
-                            logger.info(f"Sensitivity {sens_num} Tag {opc_tag}: new_val={new_val}, prev_val={prev_val}")
+                            #logger.info(f"Sensitivity {sens_num} Tag {opc_tag}: new_val={new_val}, prev_val={prev_val}")
                             
                             if prev_val is not None and new_val is not None and bool(new_val) != bool(prev_val):
-                                logger.info(f"SENSITIVITY CHANGE DETECTED! Sens {sens_num}: {bool(prev_val)} -> {bool(new_val)}")
+                                #logger.info(f"SENSITIVITY CHANGE DETECTED! Sens {sens_num}: {bool(prev_val)} -> {bool(new_val)}")
                                 try:
                                     add_activation_log_entry(sens_num, bool(new_val), machine_id=machine_id)
-                                    logger.info(f"SENSITIVITY LOG ENTRY ADDED for Sensitivity {sens_num}")
+                                    #logger.info(f"SENSITIVITY LOG ENTRY ADDED for Sensitivity {sens_num}")
                                 except Exception as e:
                                     logger.error(f"ERROR adding sensitivity log entry: {e}")
                                     
