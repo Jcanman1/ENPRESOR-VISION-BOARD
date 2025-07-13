@@ -861,12 +861,15 @@ def _register_callbacks_impl(app):
 
             raise PreventUpdate
 
+
         ctx = callback_context
         trigger = ctx.triggered[0]["prop_id"].split(".")[0]
 
 
+
         def progress_cb(msg):
             _report_state["progress"] = msg
+
 
         def run():
             try:
@@ -909,6 +912,7 @@ def _register_callbacks_impl(app):
                     progress_cb("Reading OPC tags")
                     data = generate_report.fetch_last_24h_metrics()
                     is_lab_mode = False
+
 
                 progress_cb("Creating machine sections")
                 with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
