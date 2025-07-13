@@ -792,7 +792,13 @@ def draw_global_summary(
     # Return the Y position where the next content should start
     return y_sec4 - spacing_gap
 
-def calculate_global_max_firing_average(csv_parent_dir, machines=None, *, is_lab_mode: bool = False):
+def calculate_global_max_firing_average(
+    csv_parent_dir,
+    machines=None,
+    *,
+    is_lab_mode: bool = False,
+    progress_callback=None,
+):
     """Calculate the global maximum firing value.
 
     When ``machines`` is provided, only those machine IDs are considered.
@@ -1909,7 +1915,12 @@ def draw_layout_optimized(
     """Optimized version - CONSISTENT SIZING, 2 machines per page"""
     
     # Calculate global maximum firing average first
-    global_max_firing = calculate_global_max_firing_average(csv_parent_dir, machines, is_lab_mode=is_lab_mode)
+    global_max_firing = calculate_global_max_firing_average(
+        csv_parent_dir,
+        machines,
+        is_lab_mode=is_lab_mode,
+        progress_callback=progress_callback,
+    )
     
     c = canvas.Canvas(pdf_path, pagesize=letter)
     width, height = letter
@@ -2004,7 +2015,12 @@ def draw_layout_standard(
   
     
     # Calculate global maximum firing average first
-    global_max_firing = calculate_global_max_firing_average(csv_parent_dir, machines, is_lab_mode=is_lab_mode)
+    global_max_firing = calculate_global_max_firing_average(
+        csv_parent_dir,
+        machines,
+        is_lab_mode=is_lab_mode,
+        progress_callback=progress_callback,
+    )
     
     c = canvas.Canvas(pdf_path, pagesize=letter)
     width, height = letter
