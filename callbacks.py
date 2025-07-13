@@ -883,6 +883,7 @@ def _register_callbacks_impl(app):
                     progress_cb("Reading OPC tags")
                     mid = active_machine_data.get("machine_id") if active_machine_data else None
                     if not mid:
+                        progress_cb("Error: no machine selected")
                         _report_state["running"] = False
                         return
                     machines = [str(mid)]
@@ -891,6 +892,7 @@ def _register_callbacks_impl(app):
                     machine_dir = os.path.join(export_dir, str(mid))
                     lab_files = glob.glob(os.path.join(machine_dir, "Lab_Test_*.csv"))
                     if not lab_files:
+                        progress_cb("Error: lab log not found")
                         _report_state["running"] = False
                         return
                     latest_file = max(lab_files, key=os.path.getmtime)
