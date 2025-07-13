@@ -857,6 +857,7 @@ def _register_callbacks_impl(app):
         if not n_clicks or _report_state["running"]:
 
             raise PreventUpdate
+        ctx = callback_context
         trigger = ctx.triggered[0]["prop_id"].split(".")[0]
 
 
