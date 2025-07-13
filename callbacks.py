@@ -861,51 +861,59 @@ def _register_callbacks_impl(app):
 
             raise PreventUpdate
 
+
+        ctx = callback_context
+        trigger = ctx.triggered[0]["prop_id"].split(".")[0]
+
+
+
         def progress_cb(msg):
             _report_state["progress"] = msg
 
-        export_dir = generate_report.METRIC_EXPORT_DIR
-        lang = lang_store or load_language_preference()
-        machines = None
-        include_global = True
-        temp_dir = None
-        data = {}
-        is_lab_mode = False
 
-        if app_mode and isinstance(app_mode, dict) and app_mode.get("mode") == "lab":
-            progress_cb("Reading OPC tags")
-            mid = active_machine_data.get("machine_id") if active_machine_data else None
-            if not mid:
-                raise PreventUpdate
-            machines = [str(mid)]
-            include_global = False
-
-            machine_dir = os.path.join(export_dir, str(mid))
-            lab_files = glob.glob(os.path.join(machine_dir, "Lab_Test_*.csv"))
-            if not lab_files:
-                raise PreventUpdate
-            latest_file = max(lab_files, key=os.path.getmtime)
-
-            temp_dir = tempfile.mkdtemp()
-            temp_machine_dir = os.path.join(temp_dir, str(mid))
-            os.makedirs(temp_machine_dir, exist_ok=True)
-            shutil.copy(latest_file, os.path.join(temp_machine_dir, "last_24h_metrics.csv"))
-            # Save machine settings using the main thread to avoid OPC threading issues
-            save_machine_settings(
-                mid,
-                machine_connections,
-                export_dir=temp_dir,
-                active_only=True,
-            )
-            export_dir = temp_dir
-            is_lab_mode = True
-            data = {}
-        else:
-            progress_cb("Reading OPC tags")
-            data = generate_report.fetch_last_24h_metrics()
-
-        def run(export_dir=export_dir, machines=machines, include_global=include_global, is_lab_mode=is_lab_mode, lang=lang, temp_dir=temp_dir, data=data):
+        def run():
             try:
+                export_dir = generate_report.METRIC_EXPORT_DIR
+                lang = lang_store or load_language_preference()
+                machines = None
+                include_global = True
+                temp_dir = None
+
+                if app_mode and isinstance(app_mode, dict) and app_mode.get("mode") == "lab":
+                    progress_cb("Reading OPC tags")
+                    mid = active_machine_data.get("machine_id") if active_machine_data else None
+                    if not mid:
+                        _report_state["running"] = False
+                        return
+                    machines = [str(mid)]
+                    include_global = False
+
+                    machine_dir = os.path.join(export_dir, str(mid))
+                    lab_files = glob.glob(os.path.join(machine_dir, "Lab_Test_*.csv"))
+                    if not lab_files:
+                        _report_state["running"] = False
+                        return
+                    latest_file = max(lab_files, key=os.path.getmtime)
+
+                    temp_dir = tempfile.mkdtemp()
+                    temp_machine_dir = os.path.join(temp_dir, str(mid))
+                    os.makedirs(temp_machine_dir, exist_ok=True)
+                    shutil.copy(latest_file, os.path.join(temp_machine_dir, "last_24h_metrics.csv"))
+                    save_machine_settings(
+                        mid,
+                        machine_connections,
+                        export_dir=temp_dir,
+                        active_only=True,
+                    )
+                    export_dir = temp_dir
+                    data = {}
+                    is_lab_mode = True
+                else:
+                    progress_cb("Reading OPC tags")
+                    data = generate_report.fetch_last_24h_metrics()
+                    is_lab_mode = False
+
+
                 progress_cb("Creating machine sections")
                 with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
                     generate_report.build_report(
