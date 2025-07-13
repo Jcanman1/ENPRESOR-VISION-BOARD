@@ -39,6 +39,15 @@ REPORT_SETTINGS_TAGS = {
         f"Settings.ColorSort.Primary{i}.EllipsoidCenterZ" for i in range(1, 13)
     },
     *{
+        f"Settings.ColorSort.Primary{i}.XAxisWave" for i in range(1, 13)
+    },
+    *{
+        f"Settings.ColorSort.Primary{i}.YAxisWave" for i in range(1, 13)
+    },
+    *{
+        f"Settings.ColorSort.Primary{i}.ZAxisWave" for i in range(1, 13)
+    },
+    *{
         f"Settings.ColorSort.Primary{i}.EjectorDelayOffset" for i in range(1, 13)
     },
     *{
