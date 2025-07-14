@@ -1410,12 +1410,12 @@ def draw_sensitivity_sections(
 
 
 def generate_report_filename(script_dir):
-    """Generate date-stamped filename for the report"""
-    # Get current date
-    current_date = datetime.datetime.now()
-    
-    # Format: EnpresorReport_M_D_YYYY.pdf
-    date_stamp = current_date.strftime('%m_%d_%Y')
+    """Generate a time-stamped filename for the report."""
+    # Include time in the filename to avoid overwriting previous reports
+    current_time = datetime.datetime.now()
+
+    # Format: EnpresorReport_MM_DD_YYYY_HH_MM_SS.pdf
+    date_stamp = current_time.strftime('%m_%d_%Y_%H_%M_%S')
     filename = f"EnpresorReport_{date_stamp}.pdf"
     
     # Create full path
