@@ -2885,6 +2885,10 @@ def render_main_dashboard(lang=_initial_lang):
 
             ], className="g-2"),  # Added g-2 for smaller gutters
         ], className="container-fluid px-2"),  # Added px-2 to reduce container padding
+
+        # Hidden placeholder so callbacks referencing this ID don't warn when
+        # the main dashboard is active
+        html.Button(id="add-floor-btn", style={"display": "none"}),
     ],
     style={
         'backgroundColor': '#f0f0f0',
