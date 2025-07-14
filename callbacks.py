@@ -872,6 +872,7 @@ def _register_callbacks_impl(app):
 
 
         def run():
+            print("[debug] report generation thread started")
             try:
                 export_dir = generate_report.METRIC_EXPORT_DIR
                 lang = lang_store or load_language_preference()
@@ -917,7 +918,11 @@ def _register_callbacks_impl(app):
 
 
                 progress_cb("Creating machine sections")
-                with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+                tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+                tmp.close()
+                print(f"[debug] is_lab_mode={is_lab_mode} export_dir={export_dir} machines={machines} tmp={tmp.name}")
+
+                try:
                     generate_report.build_report(
                         data,
                         tmp.name,
@@ -928,13 +933,19 @@ def _register_callbacks_impl(app):
                         lang=lang,
                         progress_callback=progress_cb,
                     )
+                    print(f"[debug] build_report finished for {tmp.name}")
+
                     with open(tmp.name, "rb") as f:
                         pdf_bytes = f.read()
+                        print(f"[debug] read {len(pdf_bytes)} bytes from {tmp.name}")
+                finally:
+                    os.unlink(tmp.name)
 
                 if temp_dir:
                     shutil.rmtree(temp_dir, ignore_errors=True)
 
                 progress_cb("Finalizing report")
+                print("[debug] finalizing, encoding PDF")
                 pdf_b64 = base64.b64encode(pdf_bytes).decode()
                 timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
                 _report_state["result"] = {
@@ -946,6 +957,7 @@ def _register_callbacks_impl(app):
                 _report_state["running"] = False
             except Exception as exc:  # pragma: no cover - runtime safeguard
                 logger.exception("Error generating report: %s", exc)
+                print(f"[debug] exception occurred: {exc}")
                 _report_state["progress"] = "Error generating report"
                 _report_state["result"] = None
                 _report_state["running"] = False
