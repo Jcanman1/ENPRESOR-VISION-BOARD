@@ -2972,7 +2972,7 @@ app.layout = html.Div([
             children=(
                 [
                     title_parts[0],
-                    html.Span("Enpresor", className="enpresor-font", style={"color": "red"}),
+                    html.Span("ENPRESOR", className="enpresor-font", style={"color": "red"}),
                     title_parts[1],
                 ]
                 if len((title_parts := tr("dashboard_title").split("Enpresor"))) == 2
