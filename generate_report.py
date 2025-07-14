@@ -376,7 +376,8 @@ def draw_header(c, width, height, page_number=None, *, lang="en"):
 
             if os.path.isfile(font_path):
                 try:
-                    pdfmetrics.registerFont(TTFont('Audiowide', font_path))
+                    if 'Audiowide' not in pdfmetrics.getRegisteredFontNames():
+                        pdfmetrics.registerFont(TTFont('Audiowide', font_path))
                     font_enpresor = 'Audiowide'
                     chosen_path = font_path
                     logger.info(f"Audiowide font loaded from: {font_path}")
@@ -393,7 +394,8 @@ def draw_header(c, width, height, page_number=None, *, lang="en"):
             logger.debug(f"Trying JP font file: {jp_path}")
             if os.path.isfile(jp_path):
                 try:
-                    pdfmetrics.registerFont(TTFont('NotoSansJP', jp_path))
+                    if 'NotoSansJP' not in pdfmetrics.getRegisteredFontNames():
+                        pdfmetrics.registerFont(TTFont('NotoSansJP', jp_path))
                     jp_font_path = jp_path
                     logger.info(f"Japanese font loaded from: {jp_path}")
                     break
