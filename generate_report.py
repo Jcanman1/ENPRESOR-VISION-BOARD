@@ -1195,7 +1195,7 @@ def draw_sensitivity_grid(
                 position_text if is_grid_type else get(f"Settings.ColorSort.Primary{p}.EllipsoidCenterX"),  # Grid position text or X center
                 "" if is_grid_type else get(f"Settings.ColorSort.Primary{p}.EllipsoidCenterY"),  # Blank if Grid or Y center
                 "" if is_grid_type else get(f"Settings.ColorSort.Primary{p}.EllipsoidCenterZ"),  # Blank if Grid or Z center
-                "Ejector Delay Offset:",
+                "Ej. Delay Offset:",
                 get(f"Settings.ColorSort.Primary{p}.EjectorDelayOffset"),
             ],
             [
@@ -1206,7 +1206,7 @@ def draw_sensitivity_grid(
                 "" if is_grid_type else get(f"Settings.ColorSort.Primary{p}.EllipsoidAxisLengthX"),  # Blank if Grid
                 "" if is_grid_type else get(f"Settings.ColorSort.Primary{p}.EllipsoidAxisLengthY"),  # Blank if Grid
                 "" if is_grid_type else get(f"Settings.ColorSort.Primary{p}.EllipsoidAxisLengthZ"),  # Blank if Grid
-                "Ejector Dwell Offset:",
+                "Ej. Offset:",
                 get(f"Settings.ColorSort.Primary{p}.EjectorDwellOffset"),
             ],
             [
