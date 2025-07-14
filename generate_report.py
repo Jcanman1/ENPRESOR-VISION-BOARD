@@ -376,8 +376,7 @@ def draw_header(c, width, height, page_number=None, *, lang="en"):
 
             if os.path.isfile(font_path):
                 try:
-                    if 'Audiowide' not in pdfmetrics.getRegisteredFontNames():
-                        pdfmetrics.registerFont(TTFont('Audiowide', font_path))
+                    pdfmetrics.registerFont(TTFont('Audiowide', font_path))
                     font_enpresor = 'Audiowide'
                     chosen_path = font_path
                     logger.info(f"Audiowide font loaded from: {font_path}")
@@ -394,8 +393,7 @@ def draw_header(c, width, height, page_number=None, *, lang="en"):
             logger.debug(f"Trying JP font file: {jp_path}")
             if os.path.isfile(jp_path):
                 try:
-                    if 'NotoSansJP' not in pdfmetrics.getRegisteredFontNames():
-                        pdfmetrics.registerFont(TTFont('NotoSansJP', jp_path))
+                    pdfmetrics.registerFont(TTFont('NotoSansJP', jp_path))
                     jp_font_path = jp_path
                     logger.info(f"Japanese font loaded from: {jp_path}")
                     break
@@ -794,13 +792,7 @@ def draw_global_summary(
     # Return the Y position where the next content should start
     return y_sec4 - spacing_gap
 
-def calculate_global_max_firing_average(
-    csv_parent_dir,
-    machines=None,
-    *,
-    is_lab_mode: bool = False,
-    progress_callback=None,
-):
+def calculate_global_max_firing_average(csv_parent_dir, machines=None, *, is_lab_mode: bool = False):
     """Calculate the global maximum firing value.
 
     When ``machines`` is provided, only those machine IDs are considered.
@@ -816,9 +808,6 @@ def calculate_global_max_firing_average(
     global_max = 0
 
     for machine in machines:
-
-        if progress_callback:
-            progress_callback(f"Creating machine section {machine}")
         fp = os.path.join(csv_parent_dir, machine, 'last_24h_metrics.csv')
         if os.path.isfile(fp):
             try:
@@ -1410,12 +1399,12 @@ def draw_sensitivity_sections(
 
 
 def generate_report_filename(script_dir):
-    """Generate a time-stamped filename for the report."""
-    # Include time in the filename to avoid overwriting previous reports
-    current_time = datetime.datetime.now()
-
-    # Format: EnpresorReport_MM_DD_YYYY_HH_MM_SS.pdf
-    date_stamp = current_time.strftime('%m_%d_%Y_%H_%M_%S')
+    """Generate date-stamped filename for the report"""
+    # Get current date
+    current_date = datetime.datetime.now()
+    
+    # Format: EnpresorReport_M_D_YYYY.pdf
+    date_stamp = current_date.strftime('%m_%d_%Y')
     filename = f"EnpresorReport_{date_stamp}.pdf"
     
     # Create full path
@@ -1458,7 +1447,6 @@ def build_report(
     is_lab_mode: bool = False,
     values_in_kg: bool = False,
     lang: str = "en",
-    progress_callback=None,
 ) -> None:
     """Generate a PDF report and write it to ``pdf_path``.
 
@@ -1467,8 +1455,6 @@ def build_report(
     """
 
     if use_optimized:
-        if progress_callback:
-            progress_callback("Creating machine sections")
         draw_layout_optimized(
             pdf_path,
             export_dir,
@@ -1477,11 +1463,8 @@ def build_report(
             lang=lang,
             is_lab_mode=is_lab_mode,
             values_in_kg=values_in_kg,
-            progress_callback=progress_callback,
         )
     else:
-        if progress_callback:
-            progress_callback("Creating machine sections")
         draw_layout_standard(
             pdf_path,
             export_dir,
@@ -1490,7 +1473,6 @@ def build_report(
             lang=lang,
             is_lab_mode=is_lab_mode,
             values_in_kg=values_in_kg,
-            progress_callback=progress_callback,
         )
 
 def draw_machine_sections(
@@ -1912,17 +1894,11 @@ def draw_layout_optimized(
     lang="en",
     is_lab_mode: bool = False,
     values_in_kg: bool = False,
-    progress_callback=None,
 ):
     """Optimized version - CONSISTENT SIZING, 2 machines per page"""
     
     # Calculate global maximum firing average first
-    global_max_firing = calculate_global_max_firing_average(
-        csv_parent_dir,
-        machines,
-        is_lab_mode=is_lab_mode,
-        progress_callback=progress_callback,
-    )
+    global_max_firing = calculate_global_max_firing_average(csv_parent_dir, machines, is_lab_mode=is_lab_mode)
     
     c = canvas.Canvas(pdf_path, pagesize=letter)
     width, height = letter
@@ -1976,8 +1952,6 @@ def draw_layout_optimized(
         current_y = content_start_y
         
         for machine_idx, machine in enumerate(machine_batch):
-            if progress_callback:
-                progress_callback(f"Creating machine section {machine}")
             
             current_y = draw_machine_sections(
                 c,
@@ -2011,18 +1985,12 @@ def draw_layout_standard(
     lang="en",
     is_lab_mode: bool = False,
     values_in_kg: bool = False,
-    progress_callback=None,
 ):
     """Standard layout - CONSISTENT SIZING with dynamic page breaks"""
   
     
     # Calculate global maximum firing average first
-    global_max_firing = calculate_global_max_firing_average(
-        csv_parent_dir,
-        machines,
-        is_lab_mode=is_lab_mode,
-        progress_callback=progress_callback,
-    )
+    global_max_firing = calculate_global_max_firing_average(csv_parent_dir, machines, is_lab_mode=is_lab_mode)
     
     c = canvas.Canvas(pdf_path, pagesize=letter)
     width, height = letter
