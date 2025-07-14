@@ -2804,7 +2804,7 @@ def _register_callbacks_impl(app):
             f"{accepts_count:,.0f}" if accepts_count is not None else None
         )
         reject_count_fmt = (
-            f"{reject_count:,.0f}" if reject_count is not None else None
+            f"{reject_count:,.0f}" if reject_count is not None and mode != "live" else None
         )
 
         cap_display = (
