@@ -917,10 +917,13 @@ def _register_callbacks_impl(app):
 
 
                 progress_cb("Creating machine sections")
-                fd, tmp_path = tempfile.mkstemp(suffix=".pdf")
-                os.close(fd)
 
+
+                tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
                 try:
+                    tmp_path = tmp.name
+                    tmp.close()
+
                     generate_report.build_report(
                         data,
                         tmp_path,
@@ -931,6 +934,7 @@ def _register_callbacks_impl(app):
                         lang=lang,
                         progress_callback=progress_cb,
                     )
+
 
                     with open(tmp_path, "rb") as f:
                         pdf_bytes = f.read()
