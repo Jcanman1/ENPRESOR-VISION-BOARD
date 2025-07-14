@@ -643,7 +643,7 @@ def _register_callbacks_impl(app):
         if len(parts) == 2:
             return [
                 parts[0],
-                html.Span("ENPRESOR", className="enpresor-font", style={"color": "red"}),
+                html.Span("Enpresor", className="enpresor-font", style={"color": "red"}),
                 parts[1],
             ]
         return text
