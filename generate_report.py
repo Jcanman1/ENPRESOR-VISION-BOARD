@@ -1045,7 +1045,14 @@ def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, la
             y = y0 + section_h - (r + rs) * row_h
             w = cs * col_w
             h = rs * row_h
-            text = str(cell)
+            if r == 2 and j == 1:  # Ejector Dwell cell (PrimaryDwell)
+                try:
+                    # Format the Ejector Dwell to 1 decimal place
+                    text = f"{float(cell):.1f}" if cell not in {"N/A", "", "None", None} else str(cell)
+                except (ValueError, TypeError):
+                    text = str(cell)
+            else:
+                text = str(cell)
 
             is_data_cell = r >= 1 and j % 2 == 1
             fill_color = colors.white if is_data_cell else colors.lightblue
