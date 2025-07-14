@@ -917,6 +917,7 @@ def _register_callbacks_impl(app):
 
 
                 progress_cb("Creating machine sections")
+
                 tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
                 try:
                     tmp_path = tmp.name
