@@ -919,13 +919,14 @@ def _register_callbacks_impl(app):
 
 
                 progress_cb("Creating machine sections")
-                with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp_file:
-                    tmp_path = tmp_file.name
-                print(
-                    f"[debug] is_lab_mode={is_lab_mode} export_dir={export_dir} machines={machines} tmp={tmp_path}"
-                )
 
+
+                tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
                 try:
+                    tmp_path = tmp.name
+                    tmp.close()
+
+
                     generate_report.build_report(
                         data,
                         tmp_path,
@@ -936,12 +937,18 @@ def _register_callbacks_impl(app):
                         lang=lang,
                         progress_callback=progress_cb,
                     )
-                    print(f"[debug] build_report finished for {tmp_path}")
 
-                    pdf_bytes = Path(tmp_path).read_bytes()
-                    print(
-                        f"[debug] read {len(pdf_bytes)} bytes from {tmp_path}"
-                    )
+
+                    with open(tmp_path, "rb") as f:
+                        pdf_bytes = f.read()
+                        print(
+                            f"[debug] read {len(pdf_bytes)} bytes from {tmp_path}"
+                        )
+                finally:
+                    os.unlink(tmp_path)
+
+
+
                 finally:
                     os.unlink(tmp_path)
 
