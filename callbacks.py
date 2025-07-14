@@ -899,12 +899,22 @@ def _register_callbacks_impl(app):
                     include_global = False
 
                     machine_dir = os.path.join(export_dir, str(mid))
-                    lab_files = glob.glob(os.path.join(machine_dir, "Lab_Test_*.csv"))
-                    if not lab_files:
-                        progress_cb("Error: lab log not found")
-                        _report_state["running"] = False
-                        return
-                    latest_file = max(lab_files, key=os.path.getmtime)
+
+                    lab_file = None
+                    if current_lab_filename:
+                        candidate = os.path.join(machine_dir, current_lab_filename)
+                        if os.path.exists(candidate):
+                            lab_file = candidate
+
+                    if lab_file is None:
+                        lab_files = glob.glob(os.path.join(machine_dir, "Lab_Test_*.csv"))
+                        if not lab_files:
+                            progress_cb("Error: lab log not found")
+                            _report_state["running"] = False
+                            return
+                        lab_file = max(lab_files, key=os.path.getmtime)
+
+                    latest_file = lab_file
 
                     temp_dir = tempfile.mkdtemp()
                     temp_machine_dir = os.path.join(temp_dir, str(mid))
