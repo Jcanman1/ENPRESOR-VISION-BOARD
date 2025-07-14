@@ -923,10 +923,12 @@ def _register_callbacks_impl(app):
 
 
 
+
                 tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
                 try:
                     tmp_path = tmp.name
                     tmp.close()
+
 
 
                     generate_report.build_report(
@@ -941,9 +943,13 @@ def _register_callbacks_impl(app):
                     )
 
 
-
                     with open(tmp_path, "rb") as f:
                         pdf_bytes = f.read()
+                        print(
+                            f"[debug] read {len(pdf_bytes)} bytes from {tmp_path}"
+                        )
+                finally:
+                    os.unlink(tmp_path)
 
                 finally:
                     os.unlink(tmp_path)
