@@ -40,6 +40,7 @@ import counter_manager as counter_utils
 
 # Simple state holder for report generation progress
 _report_state = {"running": False, "progress": "", "result": None}
+_report_thread = None
 
 
 
@@ -858,9 +859,14 @@ def _register_callbacks_impl(app):
         prevent_initial_call=True,
     )
     def start_report_generation(n_clicks, app_mode, active_machine_data, lang_store):
-        if not n_clicks or _report_state["running"]:
-
+        global _report_thread
+        if not n_clicks:
             raise PreventUpdate
+        if _report_state["running"]:
+            if _report_thread is None or not _report_thread.is_alive():
+                _report_state["running"] = False
+            else:
+                raise PreventUpdate
 
 
         ctx = callback_context
@@ -873,6 +879,7 @@ def _register_callbacks_impl(app):
 
 
         def run():
+            global _report_thread
             print("[debug] report generation thread started")
             try:
                 export_dir = generate_report.METRIC_EXPORT_DIR
@@ -962,17 +969,20 @@ def _register_callbacks_impl(app):
                     "base64": True,
                 }
                 _report_state["running"] = False
+                _report_thread = None
             except Exception as exc:  # pragma: no cover - runtime safeguard
                 logger.exception("Error generating report: %s", exc)
                 print(f"[debug] exception occurred: {exc}")
                 _report_state["progress"] = "Error generating report"
                 _report_state["result"] = None
                 _report_state["running"] = False
+                _report_thread = None
 
         _report_state["running"] = True
         _report_state["progress"] = "Starting..."
         _report_state["result"] = None
-        threading.Thread(target=run, daemon=True).start()
+        _report_thread = threading.Thread(target=run, daemon=True)
+        _report_thread.start()
         return True, False
 
     @app.callback(
