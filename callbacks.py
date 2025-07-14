@@ -5665,7 +5665,7 @@ def _register_callbacks_impl(app):
         if trigger == "start-test-btn":
             test_name = name or "Test"
             filename = (
-                f"Lab_Test_{test_name}_{datetime.now().strftime('%m_%d_%Y')}.csv"
+                f"Lab_Test_{test_name}_{datetime.now().strftime('%m_%d_%Y_%H_%M_%S')}.csv"
             )
             current_lab_filename = filename
             try:
