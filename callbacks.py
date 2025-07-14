@@ -14,6 +14,7 @@ import os
 import glob
 import shutil
 import tempfile
+from pathlib import Path
 import time
 import csv
 import logging
@@ -919,17 +920,10 @@ def _register_callbacks_impl(app):
 
                 progress_cb("Creating machine sections")
 
-
-
-
-
-
                 tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
                 try:
                     tmp_path = tmp.name
                     tmp.close()
-
-
 
                     generate_report.build_report(
                         data,
@@ -942,7 +936,6 @@ def _register_callbacks_impl(app):
                         progress_callback=progress_cb,
                     )
 
-
                     with open(tmp_path, "rb") as f:
                         pdf_bytes = f.read()
                         print(
@@ -950,6 +943,7 @@ def _register_callbacks_impl(app):
                         )
                 finally:
                     os.unlink(tmp_path)
+
 
                 finally:
                     os.unlink(tmp_path)
