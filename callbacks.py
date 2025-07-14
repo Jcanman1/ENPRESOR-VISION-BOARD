@@ -918,18 +918,23 @@ def _register_callbacks_impl(app):
 
                 progress_cb("Creating machine sections")
                 with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
-                    generate_report.build_report(
-                        data,
-                        tmp.name,
-                        export_dir=export_dir,
-                        machines=machines,
-                        include_global=include_global,
-                        is_lab_mode=is_lab_mode,
-                        lang=lang,
-                        progress_callback=progress_cb,
-                    )
-                    with open(tmp.name, "rb") as f:
-                        pdf_bytes = f.read()
+                    tmp_path = tmp.name
+
+                generate_report.build_report(
+                    data,
+                    tmp_path,
+                    export_dir=export_dir,
+                    machines=machines,
+                    include_global=include_global,
+                    is_lab_mode=is_lab_mode,
+                    lang=lang,
+                    progress_callback=progress_cb,
+                )
+
+                with open(tmp_path, "rb") as f:
+                    pdf_bytes = f.read()
+
+                os.unlink(tmp_path)
 
                 if temp_dir:
                     shutil.rmtree(temp_dir, ignore_errors=True)
