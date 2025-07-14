@@ -944,10 +944,6 @@ def _register_callbacks_impl(app):
                         print(
                             f"[debug] read {len(pdf_bytes)} bytes from {tmp_path}"
                         )
-                finally:
-                    os.unlink(tmp_path)
-
-
 
                 finally:
                     os.unlink(tmp_path)
