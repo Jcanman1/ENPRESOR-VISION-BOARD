@@ -879,6 +879,7 @@ def _register_callbacks_impl(app):
 
 
         def run():
+            global _report_thread
             print("[debug] report generation thread started")
             try:
                 export_dir = generate_report.METRIC_EXPORT_DIR
