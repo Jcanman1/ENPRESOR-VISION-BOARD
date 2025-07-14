@@ -994,8 +994,12 @@ def _register_callbacks_impl(app):
         prevent_initial_call=True,
     )
     def update_report_progress(n):
+        global _report_thread
         if _report_state["running"]:
-            return _report_state["progress"], dash.no_update, True, False
+            if _report_thread is None or not _report_thread.is_alive():
+                _report_state["running"] = False
+            else:
+                return _report_state["progress"], dash.no_update, True, False
         if _report_state["result"] is not None:
             res = _report_state["result"]
             _report_state["result"] = None
