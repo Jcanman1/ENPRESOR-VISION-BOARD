@@ -872,6 +872,7 @@ def _register_callbacks_impl(app):
 
 
         def run():
+            print("[debug] report generation thread started")
             try:
                 export_dir = generate_report.METRIC_EXPORT_DIR
                 lang = lang_store or load_language_preference()
@@ -920,11 +921,11 @@ def _register_callbacks_impl(app):
 
 
 
+
                 tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
                 try:
                     tmp_path = tmp.name
                     tmp.close()
-
 
                     generate_report.build_report(
                         data,
@@ -938,17 +939,16 @@ def _register_callbacks_impl(app):
                     )
 
 
-
                     with open(tmp_path, "rb") as f:
                         pdf_bytes = f.read()
                 finally:
                     os.unlink(tmp_path)
 
-
                 if temp_dir:
                     shutil.rmtree(temp_dir, ignore_errors=True)
 
                 progress_cb("Finalizing report")
+                print("[debug] finalizing, encoding PDF")
                 pdf_b64 = base64.b64encode(pdf_bytes).decode()
                 timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
                 _report_state["result"] = {
@@ -960,6 +960,7 @@ def _register_callbacks_impl(app):
                 _report_state["running"] = False
             except Exception as exc:  # pragma: no cover - runtime safeguard
                 logger.exception("Error generating report: %s", exc)
+                print(f"[debug] exception occurred: {exc}")
                 _report_state["progress"] = "Error generating report"
                 _report_state["result"] = None
                 _report_state["running"] = False
