@@ -22,8 +22,8 @@ def test_threshold_form_translations(monkeypatch):
     mod = importlib.import_module(module_name)
     rows_en = mod.create_threshold_settings_form("en")
     rows_es = mod.create_threshold_settings_form("es")
-    assert _get_label_text(rows_en[0]) == "Sensitivity 1:"
-    assert "Sensibilidad" in _get_label_text(rows_es[0])
+    assert _get_label_text(rows_en[1]) == "Sensitivity 1:"
+    assert "Sensibilidad" in _get_label_text(rows_es[1])
     assert "Notificación" in _get_label_text(rows_es[-1])
 
 
