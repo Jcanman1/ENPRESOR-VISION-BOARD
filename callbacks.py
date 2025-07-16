@@ -4689,17 +4689,27 @@ def _register_callbacks_impl(app):
                         ),
                     )
         
-        # Calculate max value for y-axis scaling (with 10% headroom)
-        # Include enabled thresholds in calculation
+        # Calculate max value for y-axis scaling
+        # Include enabled thresholds in the calculation
         all_values = new_counter_values.copy()
         for counter_num, settings in threshold_settings.items():
             # Only process if counter_num is an integer and settings is a dictionary
             if isinstance(counter_num, int) and isinstance(settings, dict):
                 if 'max_enabled' in settings and settings['max_enabled']:
                     all_values.append(settings['max_value'])
-        
+
         max_value = max(all_values) if all_values else 100
-        y_max = max(100, max_value * 1.1)  # At least 100, or 10% higher than max value
+
+        if counter_mode == "percent":
+            if max_value > 5:
+                # Add headroom of at least 5 units or 10%
+                y_max = max(max_value + 5, max_value * 1.1)
+                y_max = min(y_max, 100)
+            else:
+                y_max = 100
+        else:
+            # Counts view - minimum 100 with 10% headroom
+            y_max = max(100, max_value * 1.1)
         
         # Update layout
         fig.update_layout(
