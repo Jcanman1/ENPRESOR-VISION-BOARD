@@ -580,6 +580,47 @@ def draw_global_summary(
                     )
                     total_rejects += stats['total_capacity_lbs']
 
+            # Aggregate total objects processed and impurities removed
+            machine_objects = 0
+            if 'objects_per_min' in df.columns:
+                obj_stats = calculate_total_objects_from_csv_rates(
+                    df['objects_per_min'],
+                    timestamps=df['timestamp'] if is_lab_mode else None,
+                    is_lab_mode=is_lab_mode,
+                )
+                machine_objects = obj_stats['total_objects']
+            elif is_lab_mode:
+                ac_tot = rj_tot = 0
+                if ac:
+                    a_stats = calculate_total_objects_from_csv_rates(
+                        df[ac],
+                        timestamps=df['timestamp'],
+                        is_lab_mode=True,
+                    )
+                    ac_tot = a_stats['total_objects']
+                if rj:
+                    r_stats = calculate_total_objects_from_csv_rates(
+                        df[rj],
+                        timestamps=df['timestamp'],
+                        is_lab_mode=True,
+                    )
+                    rj_tot = r_stats['total_objects']
+                machine_objects = ac_tot + rj_tot
+
+            machine_removed = 0
+            for i in range(1, 13):
+                col = next((c for c in df.columns if c.lower() == f'counter_{i}'), None)
+                if col:
+                    c_stats = calculate_total_objects_from_csv_rates(
+                        df[col],
+                        timestamps=df['timestamp'] if is_lab_mode else None,
+                        is_lab_mode=is_lab_mode,
+                    )
+                    machine_removed += c_stats['total_objects']
+
+            total_objects += machine_objects
+            total_removed += machine_removed
+
 
 
 
