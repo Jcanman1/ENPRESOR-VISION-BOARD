@@ -4504,10 +4504,11 @@ def _register_callbacks_impl(app):
          Input("language-preference-store", "data")],
         [State("app-state", "data"),
          State("app-mode", "data"),
-         State("active-machine-store", "data")],
+         State("active-machine-store", "data"),
+         State("counter-view-mode", "data")],
         prevent_initial_call=True
     )
-    def update_section_5_2(n_intervals, which, state_data, historical_data, lang, app_state_data, app_mode, active_machine_data):
+    def update_section_5_2(n_intervals, which, state_data, historical_data, lang, app_state_data, app_mode, active_machine_data, counter_mode):
         """Update section 5-2 with bar chart for counter values and update alarm data"""
         
         # only run when we’re in the “main” dashboard
@@ -4523,8 +4524,11 @@ def _register_callbacks_impl(app):
         # Define title for the section
         section_title = tr("sensitivity_rates_title", lang)
         
-        # Define pattern for tag names in live mode
-        TAG_PATTERN = "Status.ColorSort.Sort1.DefectCount{}.Rate.Current"
+        # Define pattern for tag names in live mode based on selected view mode
+        if counter_mode == "percent":
+            TAG_PATTERN = "Status.ColorSort.Sort1.DefectCount{}.Percentage.Current"
+        else:
+            TAG_PATTERN = "Status.ColorSort.Sort1.DefectCount{}.Rate.Current"
         
         # Define colors for each primary/counter number
         counter_colors = {
@@ -5849,12 +5853,13 @@ def _register_callbacks_impl(app):
          State({"type": "threshold-max-value", "index": ALL}, "value"),
          State("threshold-email-address", "value"),
          State("threshold-email-minutes", "value"),
-         State("threshold-email-enabled", "value")],
+         State("threshold-email-enabled", "value"),
+         State("counter-view-mode", "data")],
         prevent_initial_call=True
     )
     def toggle_threshold_modal(open_clicks, close_clicks, save_clicks, is_open,
                               min_enabled_values, max_enabled_values, min_values, max_values,
-                              email_address, email_minutes, email_enabled):
+                              email_address, email_minutes, email_enabled, mode):
         """Handle opening/closing the threshold settings modal and saving settings"""
         global threshold_settings
         
@@ -5897,6 +5902,7 @@ def _register_callbacks_impl(app):
                 threshold_settings['email_enabled'] = email_enabled
                 threshold_settings['email_address'] = email_address
                 threshold_settings['email_minutes'] = int(email_minutes) if email_minutes is not None else 2
+                threshold_settings['counter_mode'] = mode
                 
                 # Save settings to file
                 save_success = save_threshold_settings(threshold_settings)
@@ -5914,10 +5920,11 @@ def _register_callbacks_impl(app):
     @app.callback(
         Output("threshold-form-container", "children"),
         [Input({"type": "open-threshold", "index": ALL}, "n_clicks"),
-         Input("language-preference-store", "data")],
+         Input("language-preference-store", "data"),
+         Input("counter-view-mode", "data")],
         prevent_initial_call=True,
     )
-    def refresh_threshold_form(open_clicks, lang):
+    def refresh_threshold_form(open_clicks, lang, mode):
         ctx = callback_context
         if not ctx.triggered:
             raise PreventUpdate
@@ -5925,10 +5932,18 @@ def _register_callbacks_impl(app):
         trigger = ctx.triggered[0]["prop_id"]
         if '"type":"open-threshold"' in trigger:
             if any(click is not None for click in open_clicks):
-                return create_threshold_settings_form(lang)
-        if trigger == "language-preference-store.data":
-            return create_threshold_settings_form(lang)
+                return create_threshold_settings_form(lang, mode)
+        if trigger == "language-preference-store.data" or trigger == "counter-view-mode.data":
+            return create_threshold_settings_form(lang, mode)
         raise PreventUpdate
+
+    @app.callback(
+        Output("counter-view-mode", "data"),
+        Input("counter-mode-toggle", "value"),
+        prevent_initial_call=True,
+    )
+    def set_counter_view_mode(value):
+        return value
 
     @app.callback(
         Output("metric-logging-store", "data"),

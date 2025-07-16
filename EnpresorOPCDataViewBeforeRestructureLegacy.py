@@ -289,6 +289,7 @@ DEFAULT_THRESHOLD_SETTINGS['email_enabled'] = False
 threshold_settings = DEFAULT_THRESHOLD_SETTINGS.copy()
 DEFAULT_THRESHOLD_SETTINGS['email_address'] = ''
 DEFAULT_THRESHOLD_SETTINGS['email_minutes'] = 2  # Default 2 minutes
+DEFAULT_THRESHOLD_SETTINGS['counter_mode'] = 'counts'
 threshold_violation_state = {
     i: {
         'is_violating': False,
@@ -441,7 +442,7 @@ def load_threshold_settings():
                 # Convert string keys back to integers for internal use (except special keys)
                 settings = {}
                 for key, value in loaded_settings.items():
-                    if key in ['email_enabled', 'email_address', 'email_minutes']:
+                    if key in ['email_enabled', 'email_address', 'email_minutes', 'counter_mode']:
                         settings[key] = value
                     else:
                         settings[int(key)] = value
@@ -1236,10 +1237,12 @@ async def connect_to_server(server_url, server_name=None):
         app_state.connected = False
         return False
 
-def create_threshold_settings_form(lang=None):
+def create_threshold_settings_form(lang=None, mode=None):
     """Create a form for threshold settings."""
     if lang is None:
         lang = load_language_preference()
+    if mode is None:
+        mode = threshold_settings.get('counter_mode', 'counts')
     form_rows = []
 
     counter_colors = {
@@ -1256,6 +1259,27 @@ def create_threshold_settings_form(lang=None):
         11: "gray",
         12: "lightblue",
     }
+
+    max_limit = 5000 if mode == 'counts' else 100
+
+    # Mode toggle row
+    form_rows.append(
+        dbc.Row([
+            dbc.Col(html.Div("Display:", className="fw-bold"), width=2),
+            dbc.Col(
+                dbc.RadioItems(
+                    id="counter-mode-toggle",
+                    options=[
+                        {"label": "Counts", "value": "counts"},
+                        {"label": "Percent", "value": "percent"},
+                    ],
+                    value=mode,
+                    inline=True,
+                ),
+                width=4,
+            ),
+        ], className="mb-3")
+    )
 
     # Create row for each counter
     for i in range(1, 13):
@@ -1306,7 +1330,7 @@ def create_threshold_settings_form(lang=None):
                         type="number",
                         value=settings['max_value'],
                         min=0,
-                        max=200,
+                        max=max_limit,
                         step=1,
                         size="sm"
                     ),
@@ -1789,7 +1813,7 @@ else:  # pragma: no cover - optional dependency
 threshold_modal = dbc.Modal([
     dbc.ModalHeader(html.Span(tr("threshold_settings_title"), id="threshold-modal-header")),
     dbc.ModalBody([
-        html.Div(id="threshold-form-container", children=create_threshold_settings_form(load_language_preference()))
+        html.Div(id="threshold-form-container", children=create_threshold_settings_form(load_language_preference(), threshold_settings.get('counter_mode', 'counts')))
     ]),
     dbc.ModalFooter([
         dbc.Button(tr("close"), id="close-threshold-settings", color="secondary", className="me-2"),
@@ -2957,6 +2981,8 @@ app.layout = html.Div([
     dcc.Store(id="weight-preference-store", data=load_weight_preference()),
     dcc.Store(id="language-preference-store", data=load_language_preference()),
     dcc.Store(id="email-settings-store",   data=load_email_settings()),
+    # Store to toggle counter display between counts and percent
+    dcc.Store(id="counter-view-mode",       data="counts"),
     # Store selection for production rate units (objects or capacity)
     dcc.Store(id="production-rate-unit",    data="objects"),
     dcc.Store(id="floors-data", data=initial_floors_data),
