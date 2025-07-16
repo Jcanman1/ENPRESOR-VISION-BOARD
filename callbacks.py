@@ -4690,25 +4690,24 @@ def _register_callbacks_impl(app):
                     )
         
         # Calculate max value for y-axis scaling
-        # Include enabled thresholds in the calculation
-        all_values = new_counter_values.copy()
-        for counter_num, settings in threshold_settings.items():
-            # Only process if counter_num is an integer and settings is a dictionary
-            if isinstance(counter_num, int) and isinstance(settings, dict):
-                if 'max_enabled' in settings and settings['max_enabled']:
-                    all_values.append(settings['max_value'])
-
-        max_value = max(all_values) if all_values else 100
-
         if counter_mode == "percent":
-            if max_value > 5:
-                # Add headroom of at least 5 units or 10%
-                y_max = max(max_value + 5, max_value * 1.1)
-                y_max = min(y_max, 100)
-            else:
-                y_max = 100
+            # In percent mode use only the counter values to avoid
+            # count-based thresholds artificially inflating the scale
+            max_value = max(new_counter_values) if new_counter_values else 0
+            y_max = min(max_value * 1.1, 100)
+            # Ensure a sensible minimum headroom
+            if y_max < 5:
+                y_max = 5
         else:
-            # Counts view - minimum 100 with 10% headroom
+            # Counts view - include enabled thresholds in the calculation
+            all_values = new_counter_values.copy()
+            for counter_num, settings in threshold_settings.items():
+                if isinstance(counter_num, int) and isinstance(settings, dict):
+                    if 'max_enabled' in settings and settings['max_enabled']:
+                        all_values.append(settings['max_value'])
+
+            max_value = max(all_values) if all_values else 100
+            # Minimum 100 with 10% headroom
             y_max = max(100, max_value * 1.1)
         
         # Update layout
