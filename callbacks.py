@@ -2794,8 +2794,8 @@ def _register_callbacks_impl(app):
             total_capacity_formatted = f"{total_capacity:,.0f}"
         accepts_formatted = f"{accepts:,.2f}"
         rejects_formatted = f"{rejects:,.2f}"
-        accepts_percent_formatted = f"{accepts_percent:.1f}"
-        rejects_percent_formatted = f"{rejects_percent:.1f}"
+        accepts_percent_formatted = f"{accepts_percent:.2f}"
+        rejects_percent_formatted = f"{rejects_percent:.2f}"
 
         capacity_count_fmt = (
             f"{capacity_count:,.0f}" if capacity_count is not None else None
