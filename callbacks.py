@@ -3252,15 +3252,19 @@ def _register_callbacks_impl(app):
          Input("status-update-interval", "n_intervals"),
          Input("current-dashboard", "data"),
          Input("historical-time-index", "data"),
-         Input("historical-data-cache", "data")],
+         Input("historical-data-cache", "data"),
+         Input("counter-view-mode", "data")],
         [State("app-state", "data"),
          State("app-mode", "data")],
         prevent_initial_call=True
     )
-    def update_section_1_2(production_data, n_intervals, which, state_data, historical_data, app_state_data, app_mode):
-    
-        """Update section 1-2 with side-by-side pie charts for accepts/rejects and reject breakdown
-        using production data from section 1-1 and counter data from section 5-2"""
+    def update_section_1_2(production_data, n_intervals, which, state_data, historical_data, counter_mode, app_state_data, app_mode):
+
+        """Update section 1-2 with side-by-side pie charts for accepts/rejects and reject breakdown.
+
+        The first pie chart normally uses accepts/rejects from the production data. When the
+        counter display mode is set to "percent" (via the section 5-2 threshold settings) the
+        reject percentage is instead derived from the sum of all 12 counter percentages."""
         
         # Only run when we're in the "main" dashboard
         if which != "main":
@@ -3287,11 +3291,17 @@ def _register_callbacks_impl(app):
         total_capacity = production_data.get("capacity", 50000)
         accepts = production_data.get("accepts", 47500)
         rejects = production_data.get("rejects", 2500)
-        
-        # Calculate percentages for the first pie chart - exact same calculation as section 1-1
-        total = accepts + rejects
-        accepts_percent = (accepts / total * 100) if total > 0 else 0
-        rejects_percent = (rejects / total * 100) if total > 0 else 0
+
+        # Determine accepts/rejects percentages for the first pie chart
+        if counter_mode == "percent":
+            # Sum the percentage values from section 5-2 counters as the reject percentage
+            rejects_percent = sum(previous_counter_values)
+            # Accept percentage is the remainder out of 100
+            accepts_percent = max(0, 100 - rejects_percent)
+        else:
+            total = accepts + rejects
+            accepts_percent = (accepts / total * 100) if total > 0 else 0
+            rejects_percent = (rejects / total * 100) if total > 0 else 0
         
         # Second chart data - Use the counter values for the reject breakdown
         # Ensure previous_counter_values has a predictable baseline
