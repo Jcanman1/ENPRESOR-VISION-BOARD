@@ -155,6 +155,8 @@ KNOWN_TAGS = {
     
     # Counter rates (1-12)
     **{f"Status.ColorSort.Sort1.DefectCount{i}.Rate.Current": f"ns=2;s=Status.ColorSort.Sort1.DefectCount{i}.Rate.Current" for i in range(1, 13)},
+    # Counter percentages (1-12) - required when displaying percent mode
+    **{f"Status.ColorSort.Sort1.DefectCount{i}.Percentage.Current": f"ns=2;s=Status.ColorSort.Sort1.DefectCount{i}.Percentage.Current" for i in range(1, 13)},
     
     # Primary color sort settings (1-12)
     **{f"Settings.ColorSort.Primary{i}.IsAssigned": f"ns=2;s=Settings.ColorSort.Primary{i}.IsAssigned" for i in range(1, 13)},
@@ -267,7 +269,8 @@ FAST_UPDATE_TAGS = {
     "Settings.ColorSort.Primary12.IsActive",
 } | {f"Status.Feeders.{i}IsRunning" for i in range(1, 5)} \
   | {f"Status.Feeders.{i}Rate" for i in range(1, 5)} \
-  | {f"Status.ColorSort.Sort1.DefectCount{i}.Rate.Current" for i in range(1, 13)}
+  | {f"Status.ColorSort.Sort1.DefectCount{i}.Rate.Current" for i in range(1, 13)} \
+  | {f"Status.ColorSort.Sort1.DefectCount{i}.Percentage.Current" for i in range(1, 13)}
 
 # How often non fast-update tags should be polled when not in live mode.
 SLOW_UPDATE_EVERY = 10
