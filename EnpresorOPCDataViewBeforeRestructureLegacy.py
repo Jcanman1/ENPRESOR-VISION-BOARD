@@ -1946,6 +1946,14 @@ app.index_string = """<!DOCTYPE html>
                 color: #e8eaed;
                 border-color: rgba(255,255,255,0.125);
             }
+
+            body.dark-mode .form-control::placeholder {
+                color: #ffffff;
+            }
+
+            body.light-mode .form-control::placeholder {
+                color: #000000;
+            }
             
             body.dark-mode .dropdown-menu {
                 background-color: #2d2d30;
