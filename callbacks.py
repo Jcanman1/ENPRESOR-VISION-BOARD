@@ -5479,12 +5479,14 @@ def _register_callbacks_impl(app):
             return "d-none"  # Hide controls
 
     @app.callback(
-        Output("lab-test-controls", "className"),
+        [Output("lab-test-controls", "className"),
+         Output("lab-start-selector-col", "className")],
         [Input("mode-selector", "value")],
         prevent_initial_call=True,
     )
     def toggle_lab_controls_visibility(mode):
-        return "d-flex" if mode == "lab" else "d-none"
+        cls = "d-flex" if mode == "lab" else "d-none"
+        return cls, cls
 
     @app.callback(
         [Output("start-test-btn", "disabled"),
