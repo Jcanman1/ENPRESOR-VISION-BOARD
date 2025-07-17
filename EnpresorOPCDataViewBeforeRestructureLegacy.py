@@ -2366,7 +2366,6 @@ def connection_controls(lang=_initial_lang):
                             className="me-1",
                             style={"maxWidth": "150px"}
                         ),
-                        dbc.Button(tr("clear_data", lang), id="clear-data-btn", color="secondary", size="sm", className="py-0 me-1"),
                         dbc.RadioItems(
                             id="lab-start-selector",
                             options=[
@@ -2375,7 +2374,8 @@ def connection_controls(lang=_initial_lang):
                             ],
                             value="feeder",
                             inline=True,
-                            className="small",
+                            className="small d-inline-flex",
+                            style={"gap": "0.5rem"},
                         ),
                     ],
                 ),

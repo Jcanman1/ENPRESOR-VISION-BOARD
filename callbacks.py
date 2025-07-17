@@ -2002,7 +2002,6 @@ def _register_callbacks_impl(app):
         Output("start-test-btn", "children"),
         Output("stop-test-btn", "children"),
         Output("lab-test-name", "placeholder"),
-        Output("clear-data-btn", "children"),
         Output("lab-start-selector", "options"),
         Output("upload-image", "children"),
         Output("add-ip-button", "children"),
@@ -2074,7 +2073,6 @@ def _register_callbacks_impl(app):
             tr("start_test", lang),
             tr("stop_test", lang),
             tr("test_lot_name_placeholder", lang),
-            tr("clear_data", lang),
             [
                 {"label": tr("local_start_option", lang), "value": "local"},
                 {"label": tr("feeder_start_option", lang), "value": "feeder"},
@@ -5671,21 +5669,6 @@ def _register_callbacks_impl(app):
                 return time.time()
 
         return dash.no_update
-
-    @app.callback(
-        Output("clear-data-btn", "n_clicks"),
-        [Input("clear-data-btn", "n_clicks")],
-        [State("machines-data", "data")],
-        prevent_initial_call=True,
-    )
-    def clear_saved_data(n_clicks, machines_data):
-        if not n_clicks:
-            raise PreventUpdate
-        if not machines_data or not machines_data.get("machines"):
-            return dash.no_update
-        for m in machines_data["machines"]:
-            clear_machine_data(str(m.get("id")))
-        return 0
 
     @app.callback(
         [Output("display-modal", "is_open"),
