@@ -2003,6 +2003,7 @@ def _register_callbacks_impl(app):
         Output("stop-test-btn", "children"),
         Output("lab-test-name", "placeholder"),
         Output("clear-data-btn", "children"),
+        Output("lab-start-selector", "options"),
         Output("upload-image", "children"),
         Output("add-ip-button", "children"),
         Output("save-system-settings", "children")],
@@ -2074,6 +2075,10 @@ def _register_callbacks_impl(app):
             tr("stop_test", lang),
             tr("test_lot_name_placeholder", lang),
             tr("clear_data", lang),
+            [
+                {"label": tr("local_start_option", lang), "value": "local"},
+                {"label": tr("feeder_start_option", lang), "value": "feeder"},
+            ],
             html.Div([
                 tr("drag_and_drop", lang),
                 html.A(tr("select_image", lang))
@@ -5515,11 +5520,12 @@ def _register_callbacks_impl(app):
          Input("status-update-interval", "n_intervals")],
         [State("lab-test-running", "data"),
          State("lab-test-stop-time", "data"),
-         State("lab-test-name", "value")],
+         State("lab-test-name", "value"),
+         State("lab-start-selector", "value")],
         prevent_initial_call=True,
     )
 
-    def update_lab_running(start_click, stop_click, mode, n_intervals, running, stop_time, test_name):
+    def update_lab_running(start_click, stop_click, mode, n_intervals, running, stop_time, test_name, start_mode):
         """Update lab running state based on start/stop actions or feeder status."""
         global current_lab_filename
         ctx = callback_context
@@ -5529,19 +5535,19 @@ def _register_callbacks_impl(app):
 
         if ctx.triggered:
             trigger = ctx.triggered[0]["prop_id"].split(".")[0]
-            if trigger == "start-test-btn":
-                try:
-                    if active_machine_id is not None:
-                        _reset_lab_session(active_machine_id)
-                except Exception as exc:
-                    logger.warning(f"Failed to reset lab session: {exc}")
-                return True
-            elif trigger == "stop-test-btn":
-                # Do not end the test immediately; allow a 30s grace period
-                # so logging can continue before finalizing.
-                return True
+            if start_mode != "feeder":
+                if trigger == "start-test-btn":
+                    try:
+                        if active_machine_id is not None:
+                            _reset_lab_session(active_machine_id)
+                    except Exception as exc:
+                        logger.warning(f"Failed to reset lab session: {exc}")
+                    return True
+                elif trigger == "stop-test-btn":
+                    # Do not end the test immediately; allow a 30s grace period
+                    # so logging can continue before finalizing.
+                    return True
 
-        # Auto-start when any feeder begins running
         feeders_running = False
         if (
             active_machine_id is not None
@@ -5554,7 +5560,7 @@ def _register_callbacks_impl(app):
                     feeders_running = True
                     break
 
-        if feeders_running and not running:
+        if start_mode == "feeder" and feeders_running and not running:
 
 
             try:
@@ -5625,17 +5631,19 @@ def _register_callbacks_impl(app):
         [State("lab-test-running", "data"),
          State("lab-test-stop-time", "data"),
          State("app-mode", "data"),
-         State("active-machine-store", "data")],
+         State("active-machine-store", "data"),
+         State("lab-start-selector", "value")],
         prevent_initial_call=True,
     )
-    def update_lab_test_stop_time(start_click, stop_click, n_intervals, running, stop_time, mode, active_machine_data):
+    def update_lab_test_stop_time(start_click, stop_click, n_intervals, running, stop_time, mode, active_machine_data, start_mode):
         ctx = callback_context
         if ctx.triggered:
             trigger = ctx.triggered[0]["prop_id"].split(".")[0]
-            if trigger == "stop-test-btn":
-                return time.time()
-            if trigger == "start-test-btn":
-                return None
+            if start_mode != "feeder":
+                if trigger == "stop-test-btn":
+                    return time.time()
+                if trigger == "start-test-btn":
+                    return None
 
         if not running:
             return dash.no_update
@@ -5659,7 +5667,7 @@ def _register_callbacks_impl(app):
             if stop_time is not None:
                 return None
         else:
-            if stop_time is None:
+            if start_mode == "feeder" and stop_time is None:
                 return time.time()
 
         return dash.no_update
