@@ -2354,10 +2354,7 @@ def connection_controls(lang=_initial_lang):
                     clearable=False,
                     searchable=False,
                     className="small p-0",
-
-
                     style={"min-width": "60px"}
-
                 ),
             ], width="auto", className="px-1"),
 
@@ -2375,10 +2372,7 @@ def connection_controls(lang=_initial_lang):
                             placeholder=tr("test_lot_name_placeholder", lang),
                             size="sm",
                             className="me-1",
-
-
                             style={"maxWidth": "200px"}
-
                         ),
                         dbc.RadioItems(
                             id="lab-start-selector",
@@ -2388,12 +2382,11 @@ def connection_controls(lang=_initial_lang):
                             ],
                             value="feeder",
                             inline=True,
-                            className="small d-inline-flex",
-                            style={"gap": "0.5rem"},
+                            className="small d-inline-flex flex-nowrap",
+                            style={"gap": "0.5rem", "whiteSpace": "nowrap"},
                         ),
                     ],
                 ),
-
             ], width={"xs":3, "md":3}, className="px-1"),
             
             # Historical Time Slider (keep this)
@@ -2452,7 +2445,7 @@ def connection_controls(lang=_initial_lang):
                         )
                     ], className="")
                 ], className="text-end"),
-            ], width={"xs":2, "md":2}, className="px-1"),
+            ], width={"xs":1, "md":1}, className="px-1"),
 
             # Hidden Name field (keep this)
             dbc.Col([
@@ -2462,7 +2455,7 @@ def connection_controls(lang=_initial_lang):
                     type="hidden"
                 ),
             ], width=0, style={"display": "none"}),
-        ], className="g-0 align-items-center"),
+        ], className="gx-2 align-items-center"),
     ], className="py-1 px-2"),
     className="mb-1 mt-0",
     )
