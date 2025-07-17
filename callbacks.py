@@ -398,6 +398,44 @@ def load_last_lab_metrics(machine_id):
     return capacity, accepts, rejects
 
 
+def load_last_lab_objects(machine_id):
+    """Return the most recent ``objects_60M`` value from a lab log."""
+    machine_dir = os.path.join(hourly_data_saving.EXPORT_DIR, str(machine_id))
+    path = _get_latest_lab_file(machine_dir)
+    if not path or not os.path.exists(path):
+        return 0
+
+    # Ensure cached data is up to date so ``prev_rate`` reflects the latest row
+    load_lab_totals(machine_id)
+
+    key = (machine_id, os.path.abspath(path))
+    cache = _lab_totals_cache.get(key)
+    if cache:
+        rate = cache.get("prev_rate")
+        try:
+            return float(rate) if rate is not None else 0
+        except (ValueError, TypeError):
+            return 0
+
+    # Fallback: read the last row directly if cache is missing
+    last_row = None
+    try:
+        with open(path, newline="", encoding="utf-8") as f:
+            for row in csv.DictReader(f):
+                last_row = row
+    except OSError:
+        return 0
+
+    if not last_row:
+        return 0
+
+    val = last_row.get("objects_60M") or last_row.get("objects_per_min")
+    try:
+        return float(val) if val else 0
+    except ValueError:
+        return 0
+
+
 def load_lab_average_capacity_and_accepts(machine_id):
     """Return the average capacity rate (lbs/hr), total accepts in lbs,
     and elapsed seconds from the latest lab log."""
@@ -2726,12 +2764,12 @@ def _register_callbacks_impl(app):
                 )
                 if metrics:
                     tot_cap_lbs, acc_lbs, rej_lbs, _ = metrics
-                    counter_totals, _, object_totals = load_lab_totals(
+                    counter_totals, _, _ = load_lab_totals(
                         mid, active_counters=get_active_counter_flags(mid)
                     )
 
                     reject_count = sum(counter_totals)
-                    capacity_count = object_totals[-1] if object_totals else 0
+                    capacity_count = load_last_lab_objects(mid)
                     accepts_count = max(0, capacity_count - reject_count)
 
                     total_capacity = convert_capacity_from_lbs(tot_cap_lbs, weight_pref)
