@@ -2366,7 +2366,17 @@ def connection_controls(lang=_initial_lang):
                             className="me-1",
                             style={"maxWidth": "150px"}
                         ),
-                        dbc.Button(tr("clear_data", lang), id="clear-data-btn", color="secondary", size="sm", className="py-0"),
+                        dbc.Button(tr("clear_data", lang), id="clear-data-btn", color="secondary", size="sm", className="py-0 me-1"),
+                        dbc.RadioItems(
+                            id="lab-start-selector",
+                            options=[
+                                {"label": tr("local_start_option", lang), "value": "local"},
+                                {"label": tr("feeder_start_option", lang), "value": "feeder"},
+                            ],
+                            value="feeder",
+                            inline=True,
+                            className="small",
+                        ),
                     ],
                 ),
             ], width={"xs":2, "md":2}, className="px-1"),
