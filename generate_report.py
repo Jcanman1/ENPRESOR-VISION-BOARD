@@ -306,6 +306,21 @@ def calculate_total_objects_from_csv_rates(csv_rate_entries, log_interval_minute
 
     return df_processor.process_with_cleanup(csv_rate_entries, _calc)
 
+
+def last_value_scaled(series, scale=1.0):
+    """Return the last numeric value in ``series`` multiplied by ``scale``.
+
+    Any non-numeric values are ignored. If ``series`` is empty or contains no
+    valid numeric entries ``0`` is returned."""
+
+    try:
+        cleaned = pd.to_numeric(series, errors="coerce").dropna()
+        if cleaned.empty:
+            return 0
+        return float(cleaned.iloc[-1]) * scale
+    except Exception:
+        return 0
+
 from hourly_data_saving import EXPORT_DIR as METRIC_EXPORT_DIR, get_historical_data
 
 log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
@@ -547,103 +562,100 @@ def draw_global_summary(
                 )
                 total_capacity += stats['total_capacity_lbs']
 
+            ac = next((c for c in df.columns if c.lower() == 'accepts'), None)
+            rj = next((c for c in df.columns if c.lower() == 'rejects'), None)
 
-
-
-
-            ac = next((c for c in df.columns if c.lower()=='accepts'), None)
-            rj = next((c for c in df.columns if c.lower()=='rejects'), None)
             if is_lab_mode:
-                if ac:
-                    stats = calculate_total_objects_from_csv_rates(
-                        df[ac],
-                        timestamps=df['timestamp'],
-                        is_lab_mode=True,
-                    )
-                    total_accepts += stats['total_objects'] * LAB_WEIGHT_MULTIPLIER
-                if rj:
-                    stats = calculate_total_objects_from_csv_rates(
-                        df[rj],
-                        timestamps=df['timestamp'],
-                        is_lab_mode=True,
-                    )
-                    total_rejects += stats['total_objects'] * LAB_WEIGHT_MULTIPLIER
+                machine_objects = 0
+                if 'objects_60M' in df.columns:
+                    machine_objects = last_value_scaled(df['objects_60M'], 60)
+                elif 'objects_per_min' in df.columns:
+                    machine_objects = last_value_scaled(df['objects_per_min'], 60)
+                elif ac or rj:
+                    ac_tot = last_value_scaled(df[ac], 60) if ac else 0
+                    rj_tot = last_value_scaled(df[rj], 60) if rj else 0
+                    machine_objects = ac_tot + rj_tot
 
+                machine_removed = 0
+                for i in range(1, 13):
+                    col = next((c for c in df.columns if c.lower() == f'counter_{i}'), None)
+                    if col:
+                        machine_removed += last_value_scaled(df[col], 60)
+
+                total_objects += machine_objects
+                total_removed += machine_removed
+
+                clean_objs = machine_objects - machine_removed
+                total_accepts += clean_objs * LAB_WEIGHT_MULTIPLIER
+                total_rejects += machine_removed * LAB_WEIGHT_MULTIPLIER
             else:
                 if ac:
                     stats = calculate_total_capacity_from_csv_rates(
                         df[ac],
                         timestamps=df['timestamp'] if is_lab_mode else None,
                         is_lab_mode=is_lab_mode,
-
-
-
-
                         values_in_kg=values_in_kg,
                     )
                     total_accepts += stats['total_capacity_lbs']
                 if rj:
                     stats = calculate_total_capacity_from_csv_rates(
                         df[rj],
-
-
-
-
                         timestamps=df['timestamp'] if is_lab_mode else None,
                         is_lab_mode=is_lab_mode,
-
-
                         values_in_kg=values_in_kg,
                     )
                     total_rejects += stats['total_capacity_lbs']
 
-            # Aggregate total objects processed and impurities removed
-            machine_objects = 0
-            if is_lab_mode and 'objects_60M' in df.columns:
-                obj_stats = calculate_total_objects_from_csv_rates(
-                    df['objects_60M'],
-                    timestamps=df['timestamp'],
-                    is_lab_mode=True,
-                )
-                machine_objects = obj_stats['total_objects']
-            elif 'objects_per_min' in df.columns:
-                obj_stats = calculate_total_objects_from_csv_rates(
-                    df['objects_per_min'],
-                    timestamps=df['timestamp'] if is_lab_mode else None,
-                    is_lab_mode=is_lab_mode,
-                )
-                machine_objects = obj_stats['total_objects']
-            elif is_lab_mode:
-                ac_tot = rj_tot = 0
-                if ac:
-                    a_stats = calculate_total_objects_from_csv_rates(
-                        df[ac],
+                machine_objects = 0
+                if 'objects_60M' in df.columns and is_lab_mode:
+                    obj_stats = calculate_total_objects_from_csv_rates(
+                        df['objects_60M'],
                         timestamps=df['timestamp'],
                         is_lab_mode=True,
                     )
-                    ac_tot = a_stats['total_objects']
-                if rj:
-                    r_stats = calculate_total_objects_from_csv_rates(
-                        df[rj],
-                        timestamps=df['timestamp'],
-                        is_lab_mode=True,
-                    )
-                    rj_tot = r_stats['total_objects']
-                machine_objects = ac_tot + rj_tot
-
-            machine_removed = 0
-            for i in range(1, 13):
-                col = next((c for c in df.columns if c.lower() == f'counter_{i}'), None)
-                if col:
-                    c_stats = calculate_total_objects_from_csv_rates(
-                        df[col],
+                    machine_objects = obj_stats['total_objects']
+                elif 'objects_per_min' in df.columns:
+                    obj_stats = calculate_total_objects_from_csv_rates(
+                        df['objects_per_min'],
                         timestamps=df['timestamp'] if is_lab_mode else None,
                         is_lab_mode=is_lab_mode,
                     )
-                    machine_removed += c_stats['total_objects']
+                    machine_objects = obj_stats['total_objects']
+                elif is_lab_mode:
+                    ac_tot = rj_tot = 0
+                    if ac:
+                        a_stats = calculate_total_objects_from_csv_rates(
+                            df[ac],
+                            timestamps=df['timestamp'],
+                            is_lab_mode=True,
+                        )
+                        ac_tot = a_stats['total_objects']
+                    if rj:
+                        r_stats = calculate_total_objects_from_csv_rates(
+                            df[rj],
+                            timestamps=df['timestamp'],
+                            is_lab_mode=True,
+                        )
+                        rj_tot = r_stats['total_objects']
+                    machine_objects = ac_tot + rj_tot
 
-            total_objects += machine_objects
-            total_removed += machine_removed
+                machine_removed = 0
+                for i in range(1, 13):
+                    col = next((c for c in df.columns if c.lower() == f'counter_{i}'), None)
+                    if col:
+                        c_stats = calculate_total_objects_from_csv_rates(
+                            df[col],
+                            timestamps=df['timestamp'] if is_lab_mode else None,
+                            is_lab_mode=is_lab_mode,
+                        )
+                        machine_removed += c_stats['total_objects']
+
+                total_objects += machine_objects
+                total_removed += machine_removed
+
+
+
+
 
 
 
@@ -1781,65 +1793,31 @@ def draw_machine_sections(
     
    
     # Calculate machine totals
+        
     machine_objs = 0
     if 'objects_60M' in df.columns and is_lab_mode:
-        obj_stats = calculate_total_objects_from_csv_rates(
-            df['objects_60M'],
-            timestamps=df['timestamp'],
-            is_lab_mode=True,
-        )
-        machine_objs = obj_stats['total_objects']
+        machine_objs = last_value_scaled(df['objects_60M'], 60)
     elif 'objects_per_min' in df.columns:
-        obj_stats = calculate_total_objects_from_csv_rates(
-            df['objects_per_min'],
-            timestamps=df['timestamp'] if is_lab_mode else None,
-            is_lab_mode=is_lab_mode,
-        )
-        machine_objs = obj_stats['total_objects']
+        machine_objs = last_value_scaled(df['objects_per_min'], 60)
     elif is_lab_mode:
-        ac_tot = rj_tot = 0
-        if ac_col:
-            a_stats = calculate_total_objects_from_csv_rates(
-                df[ac_col],
-                timestamps=df['timestamp'],
-                is_lab_mode=True,
-            )
-            ac_tot = a_stats['total_objects']
-        if rj_col:
-            r_stats = calculate_total_objects_from_csv_rates(
-                df[rj_col],
-                timestamps=df['timestamp'],
-                is_lab_mode=True,
-            )
-            rj_tot = r_stats['total_objects']
+        ac_tot = last_value_scaled(df[ac_col], 60) if ac_col else 0
+        rj_tot = last_value_scaled(df[rj_col], 60) if rj_col else 0
         machine_objs = ac_tot + rj_tot
 
     machine_rem = 0
     for i in range(1, 13):
         col = next((c for c in df.columns if c.lower() == f'counter_{i}'), None)
         if col:
-            c_stats = calculate_total_objects_from_csv_rates(
-                df[col],
-                timestamps=df['timestamp'] if is_lab_mode else None,
-                is_lab_mode=is_lab_mode
-            )
-            machine_rem += c_stats['total_objects']
-    
+            machine_rem += last_value_scaled(df[col], 60)
 
     machine_accepts = 0
     machine_rejects = 0
-    
-    
+
     if is_lab_mode:
-        
-        # Use the already calculated and displayed values
         clean_objects = machine_objs - machine_rem
-        machine_accepts = clean_objects * (1/1800)
-        machine_rejects = machine_rem * (1/1800)
-        
-        
+        machine_accepts = clean_objects * LAB_WEIGHT_MULTIPLIER
+        machine_rejects = machine_rem * LAB_WEIGHT_MULTIPLIER
     else:
-        
         if ac_col:
             a_stats = calculate_total_capacity_from_csv_rates(
                 df[ac_col],
@@ -1847,15 +1825,6 @@ def draw_machine_sections(
                 is_lab_mode=is_lab_mode,
                 values_in_kg=values_in_kg,
             )
-            machine_accepts = a_stats["total_capacity_lbs"]
-        if rj_col:
-            r_stats = calculate_total_capacity_from_csv_rates(
-                df[rj_col],
-                timestamps=df['timestamp'] if is_lab_mode else None,
-                is_lab_mode=is_lab_mode,
-                values_in_kg=values_in_kg,
-            )
-            machine_rejects = r_stats["total_capacity_lbs"]
 
     
     # Draw SMALLER blue counts section
