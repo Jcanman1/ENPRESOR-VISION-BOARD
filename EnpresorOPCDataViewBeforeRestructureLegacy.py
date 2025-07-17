@@ -2355,8 +2355,10 @@ def connection_controls(lang=_initial_lang):
                     searchable=False,
                     className="small p-0",
                     style={"width": "100px", "minWidth": "100px"}
+
+ 
                 ),
-            ], width={"xs":1, "md":1}, className="px-1"),
+            ], width="auto", className="px-1"),
 
             # Lab Test Controls
             dbc.Col([
@@ -2372,6 +2374,7 @@ def connection_controls(lang=_initial_lang):
                             placeholder=tr("test_lot_name_placeholder", lang),
                             size="sm",
                             className="me-1",
+ usj1cu-codex/reduce-dropdown-selector-width
                             style={"width": "250px"}
                         ),
                     ],
@@ -2394,6 +2397,7 @@ def connection_controls(lang=_initial_lang):
                 width={"xs":2, "md":2},
                 className="px-1 d-none",
             ),
+
             
             # Historical Time Slider (keep this)
             dbc.Col([
