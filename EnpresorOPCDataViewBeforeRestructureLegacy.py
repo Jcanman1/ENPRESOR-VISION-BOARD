@@ -2354,7 +2354,10 @@ def connection_controls(lang=_initial_lang):
                     clearable=False,
                     searchable=False,
                     className="small p-0",
-                    style={"width": "40px", "minWidth": "40px"}
+
+
+                    style={"min-width": "60px"}
+
                 ),
             ], width="auto", className="px-1"),
 
@@ -2372,7 +2375,10 @@ def connection_controls(lang=_initial_lang):
                             placeholder=tr("test_lot_name_placeholder", lang),
                             size="sm",
                             className="me-1",
-                            style={"maxWidth": "400px"}
+
+
+                            style={"maxWidth": "200px"}
+
                         ),
                         dbc.RadioItems(
                             id="lab-start-selector",
@@ -2387,7 +2393,8 @@ def connection_controls(lang=_initial_lang):
                         ),
                     ],
                 ),
-            ], width={"xs":4, "md":4}, className="px-1"),
+
+            ], width={"xs":3, "md":3}, className="px-1"),
             
             # Historical Time Slider (keep this)
             dbc.Col([
