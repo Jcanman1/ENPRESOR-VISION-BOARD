@@ -2354,8 +2354,9 @@ def connection_controls(lang=_initial_lang):
                     clearable=False,
                     searchable=False,
                     className="small p-0",
+                    style={"width": "100px", "minWidth": "100px"}
 
-                    style={"min-width": "60px"}
+ 
                 ),
             ], width="auto", className="px-1"),
 
@@ -2373,23 +2374,29 @@ def connection_controls(lang=_initial_lang):
                             placeholder=tr("test_lot_name_placeholder", lang),
                             size="sm",
                             className="me-1",
-
-                            style={"maxWidth": "200px"}
-                        ),
-                        dbc.RadioItems(
-                            id="lab-start-selector",
-                            options=[
-                                {"label": tr("local_start_option", lang), "value": "local"},
-                                {"label": tr("feeder_start_option", lang), "value": "feeder"},
-                            ],
-                            value="feeder",
-                            inline=True,
-                            className="small d-inline-flex flex-nowrap",
-                            style={"gap": "0.5rem", "whiteSpace": "nowrap"},
+ usj1cu-codex/reduce-dropdown-selector-width
+                            style={"width": "250px"}
                         ),
                     ],
                 ),
-            ], width={"xs":3, "md":3}, className="px-1"),
+            ], width={"xs":4, "md":3}, className="px-1"),
+
+            dbc.Col(
+                dbc.RadioItems(
+                    id="lab-start-selector",
+                    options=[
+                        {"label": tr("local_start_option", lang), "value": "local"},
+                        {"label": tr("feeder_start_option", lang), "value": "feeder"},
+                    ],
+                    value="feeder",
+                    inline=True,
+                    className="small d-inline-flex flex-nowrap",
+                    style={"gap": "0.5rem", "whiteSpace": "nowrap", "flexWrap": "nowrap"},
+                ),
+                id="lab-start-selector-col",
+                width={"xs":2, "md":2},
+                className="px-1 d-none",
+            ),
 
             
             # Historical Time Slider (keep this)
