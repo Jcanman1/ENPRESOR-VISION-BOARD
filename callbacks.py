@@ -258,7 +258,9 @@ def load_lab_totals(machine_id, filename=None, active_counters=None):
                         counter_totals[idx_c] += prev_val * delta_minutes * scale
 
 
-            opm = row.get("objects_per_min")
+            opm = row.get("objects_60M")
+            if opm is None or opm == "":
+                opm = row.get("objects_per_min")
             try:
                 rate_val = float(opm) if opm else None
             except ValueError:
@@ -5978,7 +5980,8 @@ def _register_callbacks_impl(app):
         CAPACITY_TAG = "Status.ColorSort.Sort1.Throughput.KgPerHour.Current"
         REJECTS_TAG = "Status.ColorSort.Sort1.Total.Percentage.Current"
         OPM_TAG = "Status.ColorSort.Sort1.Throughput.ObjectPerMin.Current"
-        COUNTER_TAG = "Status.ColorSort.Sort1.DefectCount{}.Rate.Current"
+        OPM_60M_TAG = "Status.ColorSort.Sort1.Throughput.ObjectPerMin.60M"
+        COUNTER_TAG = "Status.ColorSort.Sort1.DefectCount{}.Rate.60M"
         mode = "demo"
         if app_mode and isinstance(app_mode, dict) and "mode" in app_mode:
             mode = app_mode["mode"]
@@ -5999,6 +6002,7 @@ def _register_callbacks_impl(app):
                         "accepts": convert_capacity_to_lbs(accepts, weight_pref),
                         "rejects": convert_capacity_to_lbs(rejects, weight_pref),
                         "objects_per_min": 0,
+                        "objects_60M": 0,
                         "running": 1,
                         "stopped": 0,
                     }
@@ -6047,8 +6051,11 @@ def _register_callbacks_impl(app):
             capacity_lbs = capacity_value * 2.205 if capacity_value is not None else 0
 
             opm = tags.get(OPM_TAG, {}).get("data").latest_value if OPM_TAG in tags else 0
+            opm60 = tags.get(OPM_60M_TAG, {}).get("data").latest_value if OPM_60M_TAG in tags else 0
             if opm is None:
                 opm = 0
+            if opm60 is None:
+                opm60 = 0
 
             reject_count = 0
             counters = {}
@@ -6079,6 +6086,7 @@ def _register_callbacks_impl(app):
                 "accepts": accepts_lbs,
                 "rejects": rejects_lbs,
                 "objects_per_min": opm,
+                "objects_60M": opm60,
                 "running": 1 if feeder_running else 0,
                 "stopped": 0 if feeder_running else 1,
             }

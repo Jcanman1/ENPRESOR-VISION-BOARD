@@ -599,7 +599,14 @@ def draw_global_summary(
 
             # Aggregate total objects processed and impurities removed
             machine_objects = 0
-            if 'objects_per_min' in df.columns:
+            if is_lab_mode and 'objects_60M' in df.columns:
+                obj_stats = calculate_total_objects_from_csv_rates(
+                    df['objects_60M'],
+                    timestamps=df['timestamp'],
+                    is_lab_mode=True,
+                )
+                machine_objects = obj_stats['total_objects']
+            elif 'objects_per_min' in df.columns:
                 obj_stats = calculate_total_objects_from_csv_rates(
                     df['objects_per_min'],
                     timestamps=df['timestamp'] if is_lab_mode else None,
@@ -1572,6 +1579,8 @@ def draw_machine_sections(
     except Exception as e:
         logger.error(f"Error reading data for machine {machine}: {e}")
         return y_start
+
+    settings_data = load_machine_settings(csv_parent_dir, machine)
     
     # OPTIMIZED DIMENSIONS FOR 2 MACHINES PER PAGE
     w_left = total_w * 0.4
@@ -1773,7 +1782,14 @@ def draw_machine_sections(
    
     # Calculate machine totals
     machine_objs = 0
-    if 'objects_per_min' in df.columns:
+    if 'objects_60M' in df.columns and is_lab_mode:
+        obj_stats = calculate_total_objects_from_csv_rates(
+            df['objects_60M'],
+            timestamps=df['timestamp'],
+            is_lab_mode=True,
+        )
+        machine_objs = obj_stats['total_objects']
+    elif 'objects_per_min' in df.columns:
         obj_stats = calculate_total_objects_from_csv_rates(
             df['objects_per_min'],
             timestamps=df['timestamp'] if is_lab_mode else None,
@@ -1797,6 +1813,7 @@ def draw_machine_sections(
             )
             rj_tot = r_stats['total_objects']
         machine_objs = ac_tot + rj_tot
+
     machine_rem = 0
     for i in range(1, 13):
         col = next((c for c in df.columns if c.lower() == f'counter_{i}'), None)
@@ -1914,8 +1931,6 @@ def draw_machine_sections(
     c.rect(x0, y_counts, total_w, counts_height)
 
     next_y = y_counts - spacing
-
-    settings_data = load_machine_settings(csv_parent_dir, machine)
 
     if is_lab_mode:
         settings_height = 60
