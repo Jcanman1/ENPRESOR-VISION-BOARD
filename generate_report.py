@@ -13,6 +13,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 from reportlab.graphics.shapes import Drawing
 from reportlab.graphics.charts.lineplots import LinePlot
 from reportlab.graphics.charts.piecharts import Pie
@@ -380,6 +381,7 @@ def draw_header(c, width, height, page_number=None, *, lang="en"):
     font_enpresor = FONT_BOLD  # Default fallback
     chosen_path = None
     jp_font_path = None
+    jp_font_name = None
 
     for d in search_dirs:
         for font_filename in possible_font_files:
@@ -412,12 +414,21 @@ def draw_header(c, width, height, page_number=None, *, lang="en"):
                     else:
                         pdfmetrics.registerFont(TTFont('NotoSansJP', jp_path))
                     jp_font_path = jp_path
+                    jp_font_name = 'NotoSansJP'
                     logger.info(f"Japanese font loaded from: {jp_path}")
                     break
                 except Exception as e:
                     logger.debug(f"\u274C Error registering font from {jp_path}: {e}")
         if jp_font_path:
             break
+
+    if not jp_font_path:
+        try:
+            pdfmetrics.registerFont(UnicodeCIDFont('HeiseiKakuGo-W5'))
+            jp_font_name = 'HeiseiKakuGo-W5'
+            logger.info("Using fallback Japanese font 'HeiseiKakuGo-W5'")
+        except Exception as e:
+            logger.warning(f"Unable to register fallback Japanese font: {e}")
 
     if not chosen_path:
         logger.debug("\u26A0\ufe0f  No Audiowide font file found.")
@@ -427,9 +438,9 @@ def draw_header(c, width, height, page_number=None, *, lang="en"):
             logger.debug(d)
 
     # Update global default fonts depending on language
-    if lang == "ja" and jp_font_path:
-        FONT_DEFAULT = "NotoSansJP"
-        FONT_BOLD = "NotoSansJP"
+    if lang == "ja" and jp_font_name:
+        FONT_DEFAULT = jp_font_name
+        FONT_BOLD = jp_font_name
     else:
         FONT_DEFAULT = "Helvetica"
         FONT_BOLD = "Helvetica-Bold"
