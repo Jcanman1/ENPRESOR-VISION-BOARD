@@ -3086,7 +3086,10 @@ app.layout = html.Div([
     units_modal,        # id="production-rate-units-modal"
     settings_modal,     # id="settings-modal"
     update_counts_modal, # id="update-counts-modal"
-    
+    # Hidden placeholder so callbacks referencing the update counts button
+    # don't raise errors when the button isn't in the current layout
+    html.Button(id="open-update-counts", style={"display": "none"}),
+
     # ─── NEW: Delete Confirmation Modal ────────────────────────────────────
     dbc.Modal([
         dbc.ModalHeader([
