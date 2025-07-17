@@ -2330,7 +2330,7 @@ def connection_controls(lang=_initial_lang):
                     html.Span(tr("active_machine_label", lang), id="active-machine-label", className="fw-bold small me-1"),
                     html.Span(id="active-machine-display", className="small"),
                 ], className="mt-1"),
-            ], width={"xs":2, "md":2}, className="px-1"),
+            ], width={"xs":2, "md":2}, className="px-1" ),
             
             # Status (keep this)
             dbc.Col([
@@ -2354,6 +2354,7 @@ def connection_controls(lang=_initial_lang):
                     clearable=False,
                     searchable=False,
                     className="small p-0",
+
                     style={"min-width": "60px"}
                 ),
             ], width="auto", className="px-1"),
@@ -2362,7 +2363,7 @@ def connection_controls(lang=_initial_lang):
             dbc.Col([
                 html.Div(
                     id="lab-test-controls",
-                    className="d-none",
+                    className="d-none d-flex align-items-center gap-1",
                     children=[
                         dbc.Button(tr("start_test", lang), id="start-test-btn", color="success", size="sm", className="py-0 me-1"),
                         dbc.Button(tr("stop_test", lang), id="stop-test-btn", color="danger", size="sm", className="py-0 me-1"),
@@ -2372,6 +2373,7 @@ def connection_controls(lang=_initial_lang):
                             placeholder=tr("test_lot_name_placeholder", lang),
                             size="sm",
                             className="me-1",
+
                             style={"maxWidth": "200px"}
                         ),
                         dbc.RadioItems(
@@ -2388,6 +2390,7 @@ def connection_controls(lang=_initial_lang):
                     ],
                 ),
             ], width={"xs":3, "md":3}, className="px-1"),
+
             
             # Historical Time Slider (keep this)
             dbc.Col([
@@ -2414,7 +2417,7 @@ def connection_controls(lang=_initial_lang):
                         style={"whiteSpace": "nowrap", "fontSize": "0.7rem", "marginTop": "-2px"}
                     )
                 ]),
-            ], width={"xs":2, "md":2}, className="px-1"),
+            ], width={"xs":2, "md":1}, className="px-1"),
             
             # Settings and Export buttons (keep this)
             dbc.Col([
