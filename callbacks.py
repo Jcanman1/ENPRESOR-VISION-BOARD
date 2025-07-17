@@ -435,7 +435,6 @@ def load_last_lab_objects(machine_id):
     except ValueError:
         return 0
 
-
 def load_last_lab_counters(machine_id):
     """Return the most recent ``counter`` rates from a lab log."""
     machine_dir = os.path.join(hourly_data_saving.EXPORT_DIR, str(machine_id))
@@ -478,6 +477,7 @@ def load_last_lab_counters(machine_id):
         except ValueError:
             rates.append(0.0)
     return rates
+
 
 
 def load_lab_average_capacity_and_accepts(machine_id):
@@ -2808,6 +2808,7 @@ def _register_callbacks_impl(app):
                 )
                 if metrics:
                     tot_cap_lbs, acc_lbs, rej_lbs, _ = metrics
+
                     load_lab_totals(
                         mid, active_counters=get_active_counter_flags(mid)
                     )
@@ -2815,6 +2816,7 @@ def _register_callbacks_impl(app):
                     counter_rates = load_last_lab_counters(mid)
                     reject_count = sum(counter_rates) * 60
                     capacity_count = load_last_lab_objects(mid) * 60
+
                     accepts_count = max(0, capacity_count - reject_count)
 
                     total_capacity = convert_capacity_from_lbs(tot_cap_lbs, weight_pref)
