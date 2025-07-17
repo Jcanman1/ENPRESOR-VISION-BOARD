@@ -338,14 +338,25 @@ def draw_header(c, width, height, page_number=None, *, lang="en"):
         ]
     else:
         base_dir = os.path.dirname(os.path.abspath(__file__))
-        search_dirs = [base_dir, os.path.join(base_dir, "assets")]
+        search_dirs = [
+            base_dir,
+            os.path.join(base_dir, "assets"),
+            "/usr/share/fonts/truetype",
+            "/usr/share/fonts/opentype",
+            "/usr/share/fonts/truetype/noto",
+            "/usr/share/fonts/opentype/noto",
+        ]
     
     # Check what font files actually exist in the search directories
     for d in search_dirs:
         logger.debug(f"Checking directory: {d}")
         try:
-            files_in_dir = [f for f in os.listdir(d) if f.lower().endswith('.ttf')]
-            logger.debug(f"TTF files found in {d}: {files_in_dir}")
+            files_in_dir = [
+                f
+                for f in os.listdir(d)
+                if f.lower().endswith(('.ttf', '.otf', '.ttc'))
+            ]
+            logger.debug(f"Font files found in {d}: {files_in_dir}")
         except Exception as e:
             logger.debug(f"Error listing {d}: {e}")
     
@@ -362,7 +373,8 @@ def draw_header(c, width, height, page_number=None, *, lang="en"):
         'NotoSansJP-Regular.otf',
         'NotoSansJP-Regular.ttf',
         'NotoSansJP.otf',
-        'NotoSansJP.ttf'
+        'NotoSansJP.ttf',
+        'NotoSansCJK-Regular.ttc',
     ]
     
     font_enpresor = FONT_BOLD  # Default fallback
@@ -393,7 +405,12 @@ def draw_header(c, width, height, page_number=None, *, lang="en"):
             logger.debug(f"Trying JP font file: {jp_path}")
             if os.path.isfile(jp_path):
                 try:
-                    pdfmetrics.registerFont(TTFont('NotoSansJP', jp_path))
+                    if jp_path.lower().endswith('.ttc'):
+                        pdfmetrics.registerFont(
+                            TTFont('NotoSansJP', jp_path, subfontIndex=0)
+                        )
+                    else:
+                        pdfmetrics.registerFont(TTFont('NotoSansJP', jp_path))
                     jp_font_path = jp_path
                     logger.info(f"Japanese font loaded from: {jp_path}")
                     break

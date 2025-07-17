@@ -103,8 +103,9 @@ Windows installer using the provided Inno Setup script, make sure the
 will look for the font either in the application directory or an `assets`
 subfolder. The installer script copies the file into `assets` automatically so
 the PDF headers render with the correct font. When generating Japanese
-reports you must also include `NotoSansJP-Regular.otf` in the `assets`
-folder so the text renders correctly.
+reports you should either include `NotoSansJP-Regular.otf` in the `assets`
+folder **or** ensure the system package `fonts-noto-cjk` is installed so
+the application can locate a suitable Japanese font automatically.
 
 To include the `assets` folder when creating the executable with PyInstaller use
 the `--add-data` option. The separator differs by platform:
