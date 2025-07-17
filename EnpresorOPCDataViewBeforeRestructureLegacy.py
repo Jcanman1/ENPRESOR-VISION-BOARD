@@ -2354,7 +2354,7 @@ def connection_controls(lang=_initial_lang):
                     clearable=False,
                     searchable=False,
                     className="small p-0",
-                    style={"min-width": "60px"}
+                    style={"min-width": "30px"}
                 ),
             ], width={"xs":1, "md":1}, className="px-1"),
 
@@ -2372,7 +2372,7 @@ def connection_controls(lang=_initial_lang):
                             placeholder=tr("test_lot_name_placeholder", lang),
                             size="sm",
                             className="me-1",
-                            style={"maxWidth": "200px"}
+                            style={"maxWidth": "400px"}
                         ),
                         dbc.RadioItems(
                             id="lab-start-selector",
