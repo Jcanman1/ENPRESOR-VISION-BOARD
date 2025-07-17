@@ -139,6 +139,18 @@ def _create_empty_lab_log(machine_id, filename):
         pass
 
 
+def _get_latest_lab_file(machine_dir):
+    """Return the newest existing ``Lab_Test_*.csv`` file or ``None``."""
+    files = glob.glob(os.path.join(machine_dir, "Lab_Test_*.csv"))
+    existing = [f for f in files if os.path.exists(f)]
+    if not existing:
+        return None
+    try:
+        return max(existing, key=os.path.getmtime)
+    except OSError:
+        return None
+
+
 
 
 
@@ -164,10 +176,9 @@ def load_lab_totals(machine_id, filename=None, active_counters=None):
     if filename:
         path = os.path.join(machine_dir, filename)
     else:
-        files = glob.glob(os.path.join(machine_dir, "Lab_Test_*.csv"))
-        if not files:
+        path = _get_latest_lab_file(machine_dir)
+        if not path:
             return [0] * 12, [], []
-        path = max(files, key=os.path.getmtime)
 
     if not os.path.exists(path):
         return [0] * 12, [], []
@@ -357,11 +368,9 @@ def load_live_counter_totals(machine_id, filename=hourly_data_saving.METRICS_FIL
 def load_last_lab_metrics(machine_id):
     """Return the last capacity/accepts/rejects values from a lab log."""
     machine_dir = os.path.join(hourly_data_saving.EXPORT_DIR, str(machine_id))
-    files = glob.glob(os.path.join(machine_dir, "Lab_Test_*.csv"))
-    if not files:
+    path = _get_latest_lab_file(machine_dir)
+    if not path:
         return None
-
-    path = max(files, key=os.path.getmtime)
     if not os.path.exists(path):
         return None
 
@@ -391,12 +400,8 @@ def load_lab_average_capacity_and_accepts(machine_id):
     """Return the average capacity rate (lbs/hr), total accepts in lbs,
     and elapsed seconds from the latest lab log."""
     machine_dir = os.path.join(hourly_data_saving.EXPORT_DIR, str(machine_id))
-    files = glob.glob(os.path.join(machine_dir, "Lab_Test_*.csv"))
-    if not files:
-        return None
-
-    path = max(files, key=os.path.getmtime)
-    if not os.path.exists(path):
+    path = _get_latest_lab_file(machine_dir)
+    if not path:
         return None
 
     capacities = []
@@ -446,12 +451,8 @@ def load_lab_totals_metrics(machine_id, active_counters=None):
     but is currently unused.
     """
     machine_dir = os.path.join(hourly_data_saving.EXPORT_DIR, str(machine_id))
-    files = glob.glob(os.path.join(machine_dir, "Lab_Test_*.csv"))
-    if not files:
-        return None
-
-    path = max(files, key=os.path.getmtime)
-    if not os.path.exists(path):
+    path = _get_latest_lab_file(machine_dir)
+    if not path:
         return None
 
     accepts = []
@@ -554,12 +555,8 @@ def refresh_lab_cache(machine_id):
     """Update cached lab totals after a test completes."""
     weight_pref = load_weight_preference()
     machine_dir = os.path.join(hourly_data_saving.EXPORT_DIR, str(machine_id))
-    files = glob.glob(os.path.join(machine_dir, "Lab_Test_*.csv"))
-    if not files:
-        return
-
-    path = max(files, key=os.path.getmtime)
-    if not os.path.exists(path):
+    path = _get_latest_lab_file(machine_dir)
+    if not path:
         return
 
     stat = os.stat(path)
@@ -2697,9 +2694,8 @@ def _register_callbacks_impl(app):
             capacity_count = accepts_count = reject_count = 0
 
             machine_dir = os.path.join(hourly_data_saving.EXPORT_DIR, str(mid))
-            files = glob.glob(os.path.join(machine_dir, "Lab_Test_*.csv"))
-            path = max(files, key=os.path.getmtime) if files else None
-            if path and os.path.exists(path):
+            path = _get_latest_lab_file(machine_dir)
+            if path:
                 stat = os.stat(path)
                 mtime = stat.st_mtime
                 size = stat.st_size
