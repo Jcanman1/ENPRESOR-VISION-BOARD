@@ -895,12 +895,7 @@ def calculate_global_max_firing_average(csv_parent_dir, machines=None, *, is_lab
                     col_name = next((c for c in df.columns if c.lower() == f'counter_{i}'), None)
                     if col_name and col_name in df.columns:
                         if is_lab_mode:
-                            stats = calculate_total_objects_from_csv_rates(
-                                df[col_name],
-                                timestamps=ts,
-                                is_lab_mode=True,
-                            )
-                            val = stats['total_objects']
+                            val = last_value_scaled(df[col_name], 60)
                         else:
                             val = df[col_name].mean()
                         if not pd.isna(val):
@@ -1717,12 +1712,7 @@ def draw_machine_sections(
         col_name = next((c for c in df.columns if c.lower() == f'counter_{i}'), None)
         if col_name and col_name in df.columns:
             if is_lab_mode:
-                stats = calculate_total_objects_from_csv_rates(
-                    df[col_name],
-                    timestamps=df['timestamp'] if 'timestamp' in df.columns else None,
-                    is_lab_mode=True,
-                )
-                val = stats['total_objects']
+                val = last_value_scaled(df[col_name], 60)
             else:
                 val = df[col_name].mean()
             if not pd.isna(val):
