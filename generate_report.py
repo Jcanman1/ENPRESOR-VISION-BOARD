@@ -334,8 +334,21 @@ if not logging.getLogger().handlers:
 
 
 
-def draw_header(c, width, height, page_number=None, *, lang="en"):
-    """Draw the header section on each page with optional page number"""
+def draw_header(
+    c,
+    width,
+    height,
+    page_number=None,
+    *,
+    lang="en",
+    is_lab_mode: bool = False,
+    lab_test_name: str | None = None,
+):
+    """Draw the header section on each page with optional page number.
+
+    When ``is_lab_mode`` is ``True`` and ``lab_test_name`` is provided the test
+    name is drawn below the date stamp.
+    """
     global FONT_DEFAULT, FONT_BOLD
     # Determine directories to search for the font
     if getattr(sys, "frozen", False):
@@ -485,6 +498,10 @@ def draw_header(c, width, height, page_number=None, *, lang="en"):
     c.setFont(FONT_DEFAULT, 10)
     c.setFillColor(colors.black)
     c.drawCentredString(x_center, height - 70, date_str)
+
+    if is_lab_mode and lab_test_name:
+        c.setFont(FONT_BOLD, 12)
+        c.drawCentredString(x_center, height - 85, lab_test_name)
     
     # Add page number in bottom right corner
     if page_number is not None:
@@ -1429,6 +1446,7 @@ def draw_sensitivity_sections(
     is_lab_mode=False,
     width=None,
     height=None,
+    lab_test_name: str | None = None,
 ):
     """Draw grids for all active sensitivities and return new y position."""
     spacing = 10
@@ -1454,7 +1472,15 @@ def draw_sensitivity_sections(
             # Start a new page after the first five sections in lab mode
             c.showPage()
             page_number = c.getPageNumber()
-            content_start_y = draw_header(c, width, height, page_number, lang=lang)
+            content_start_y = draw_header(
+                c,
+                width,
+                height,
+                page_number,
+                lang=lang,
+                is_lab_mode=is_lab_mode,
+                lab_test_name=lab_test_name,
+            )
             current_y = content_start_y
 
         y_grid = current_y - section_h
@@ -1526,6 +1552,7 @@ def build_report(
     is_lab_mode: bool = False,
     values_in_kg: bool = False,
     lang: str = "en",
+    lab_test_name: str | None = None,
 ) -> None:
     """Generate a PDF report and write it to ``pdf_path``.
 
@@ -1542,6 +1569,7 @@ def build_report(
             lang=lang,
             is_lab_mode=is_lab_mode,
             values_in_kg=values_in_kg,
+            lab_test_name=lab_test_name,
         )
     else:
         draw_layout_standard(
@@ -1552,6 +1580,7 @@ def build_report(
             lang=lang,
             is_lab_mode=is_lab_mode,
             values_in_kg=values_in_kg,
+            lab_test_name=lab_test_name,
         )
 
 def draw_machine_sections(
@@ -1569,7 +1598,7 @@ def draw_machine_sections(
     values_in_kg=False,
     width=None,
     height=None,
-    
+    lab_test_name: str | None = None,
 ):
     width = width or (c._pagesize[0] if c else letter[0])
     height = height or (c._pagesize[1] if c else letter[1])
@@ -1941,6 +1970,7 @@ def draw_machine_sections(
         is_lab_mode=is_lab_mode,
         width=width,
         height=height,
+        lab_test_name=lab_test_name,
     )
 
     # Return the Y position where the next content should start
@@ -1956,6 +1986,7 @@ def draw_layout_optimized(
     lang="en",
     is_lab_mode: bool = False,
     values_in_kg: bool = False,
+    lab_test_name: str | None = None,
 ):
     """Optimized version - CONSISTENT SIZING, 2 machines per page"""
     
@@ -1977,7 +2008,15 @@ def draw_layout_optimized(
     page_number = 0
     if include_global:
         page_number += 1
-        content_start_y = draw_header(c, width, height, page_number, lang=lang)
+        content_start_y = draw_header(
+            c,
+            width,
+            height,
+            page_number,
+            lang=lang,
+            is_lab_mode=is_lab_mode,
+            lab_test_name=lab_test_name,
+        )
         available_height = content_start_y - margin - 50
 
         # Draw global summary (takes full page)
@@ -2005,7 +2044,15 @@ def draw_layout_optimized(
         page_number += 1
         
         # Draw header with page number
-        content_start_y = draw_header(c, width, height, page_number, lang=lang)
+        content_start_y = draw_header(
+            c,
+            width,
+            height,
+            page_number,
+            lang=lang,
+            is_lab_mode=is_lab_mode,
+            lab_test_name=lab_test_name,
+        )
         available_height = content_start_y - margin - 50
         
         # INCREASED height per machine to accommodate larger sections
@@ -2029,6 +2076,7 @@ def draw_layout_optimized(
                 values_in_kg=values_in_kg,
                 width=width,
                 height=height,
+                lab_test_name=lab_test_name,
             )
                 
             # FIXED spacing between machines
@@ -2047,6 +2095,7 @@ def draw_layout_standard(
     lang="en",
     is_lab_mode: bool = False,
     values_in_kg: bool = False,
+    lab_test_name: str | None = None,
 ):
     """Standard layout - CONSISTENT SIZING with dynamic page breaks"""
   
@@ -2070,7 +2119,15 @@ def draw_layout_standard(
     page_number = 0
     if include_global:
         page_number += 1
-        content_start_y = draw_header(c, width, height, page_number, lang=lang)
+        content_start_y = draw_header(
+            c,
+            width,
+            height,
+            page_number,
+            lang=lang,
+            is_lab_mode=is_lab_mode,
+            lab_test_name=lab_test_name,
+        )
         available_height = content_start_y - margin - 50
 
         # Draw global summary (takes full page)
@@ -2100,7 +2157,15 @@ def draw_layout_standard(
             page_number += 1
             
             # Draw header on new page with page number
-            content_start_y = draw_header(c, width, height, page_number, lang=lang)
+            content_start_y = draw_header(
+                c,
+                width,
+                height,
+                page_number,
+                lang=lang,
+                is_lab_mode=is_lab_mode,
+                lab_test_name=lab_test_name,
+            )
             next_y = content_start_y
         
         # Draw machine sections with FIXED height and global max
@@ -2118,6 +2183,7 @@ def draw_layout_standard(
             values_in_kg=values_in_kg,
             width=width,
             height=height,
+            lab_test_name=lab_test_name,
         )
         
         machines_processed += 1
@@ -2135,6 +2201,7 @@ if __name__=='__main__':
     parser.add_argument("--optimized", action="store_true", help="use optimized layout")
     parser.add_argument("--lab", action="store_true", help="enable lab mode calculations")
     parser.add_argument("--log-kg", action="store_true", help="metrics in CSV are in kilograms")
+    parser.add_argument("--lab-test-name", help="lab test name to include in the report")
     args = parser.parse_args()
 
     pdf_path = generate_report_filename(sd)
@@ -2146,6 +2213,7 @@ if __name__=='__main__':
             lang="en",
             is_lab_mode=args.lab,
             values_in_kg=args.log_kg,
+            lab_test_name=args.lab_test_name,
         )
     else:
         draw_layout_standard(
@@ -2154,4 +2222,5 @@ if __name__=='__main__':
             lang="en",
             is_lab_mode=args.lab,
             values_in_kg=args.log_kg,
+            lab_test_name=args.lab_test_name,
         )

@@ -152,5 +152,30 @@ def test_position_text_from_axis_wave_lab_mode():
         assert expected in c.texts
 
 
+def test_header_includes_lab_test_name():
+    class DummyCanvas:
+        def __init__(self):
+            self.texts = []
+
+        def setFont(self, *a, **k):
+            pass
+
+        def setFillColor(self, *a, **k):
+            pass
+
+        def drawString(self, x, y, text):
+            self.texts.append(text)
+
+        def drawCentredString(self, x, y, text):
+            self.texts.append(text)
+
+        def stringWidth(self, text, font, size):
+            return len(text)
+
+    c = DummyCanvas()
+    generate_report.draw_header(c, 600, 800, 1, lang="en", is_lab_mode=True, lab_test_name="TestLot")
+    assert "TestLot" in c.texts
+
+
 
 
