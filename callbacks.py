@@ -16,6 +16,7 @@ import shutil
 import tempfile
 import time
 import csv
+import re
 import hourly_data_saving
 import autoconnect
 import image_manager as img_utils
@@ -942,6 +943,7 @@ def _register_callbacks_impl(app):
         machines = None
         include_global = True
         temp_dir = None
+        lab_test_name = None
 
         if app_mode and isinstance(app_mode, dict) and app_mode.get("mode") == "lab":
             mid = active_machine_data.get("machine_id") if active_machine_data else None
@@ -955,6 +957,13 @@ def _register_callbacks_impl(app):
             if not lab_files:
                 raise PreventUpdate
             latest_file = max(lab_files, key=os.path.getmtime)
+            lab_test_name = None
+            m = re.match(
+                r"Lab_Test_(.+?)_\d{2}_\d{2}_\d{4}(?:_\d{2}_\d{2}_\d{2})?\.csv$",
+                os.path.basename(latest_file),
+            )
+            if m:
+                lab_test_name = m.group(1)
 
             temp_dir = tempfile.mkdtemp()
             temp_machine_dir = os.path.join(temp_dir, str(mid))
@@ -982,6 +991,7 @@ def _register_callbacks_impl(app):
                 include_global=include_global,
                 is_lab_mode=is_lab_mode,
                 lang=lang,  # pass language
+                lab_test_name=lab_test_name if is_lab_mode else None,
             )
             with open(tmp.name, "rb") as f:
                 pdf_bytes = f.read()
