@@ -303,3 +303,21 @@ def test_lab_restart_clears_stop_time(monkeypatch):
     monkeypatch.setattr(callbacks, "callback_context", DummyCtx("status-update-interval.n_intervals"))
     res = func.__wrapped__(None, None, 1, True, 100.0, {"mode": "lab"}, {"machine_id": 1}, "feeder")
     assert res is None
+
+
+def test_manual_stop_sets_negative_time(monkeypatch):
+    monkeypatch.setattr(autoconnect, "initialize_autoconnect", lambda: None)
+    app = dash.Dash(__name__)
+    callbacks.register_callbacks(app)
+
+    func = app.callback_map["lab-test-stop-time.data"]["callback"]
+
+    class DummyCtx:
+        def __init__(self, prop_id):
+            self.triggered = [{"prop_id": prop_id}]
+
+    monkeypatch.setattr(callbacks, "callback_context", DummyCtx("stop-test-btn.n_clicks"))
+    monkeypatch.setattr(callbacks.time, "time", lambda: 456.0)
+
+    res = func.__wrapped__(None, 1, 0, True, None, {"mode": "lab"}, {"machine_id": 1}, "feeder")
+    assert res == -456.0
