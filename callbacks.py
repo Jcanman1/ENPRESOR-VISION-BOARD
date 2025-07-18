@@ -1009,7 +1009,7 @@ def _register_callbacks_impl(app):
             return True
         if stop_time is None:
             return False
-        return (time.time() - stop_time) < 30
+        return (time.time() - abs(stop_time)) < 30
 
     @app.callback(
         [Output("delete-confirmation-modal", "is_open"),
@@ -5585,7 +5585,7 @@ def _register_callbacks_impl(app):
             return True, "secondary", True, "secondary"
 
         # Disable both buttons during the 30s grace period after stopping
-        if running and stop_time and (time.time() - stop_time < 30):
+        if running and stop_time and (time.time() - abs(stop_time) < 30):
             return True, "secondary", True, "secondary"
 
         if running:
@@ -5658,7 +5658,7 @@ def _register_callbacks_impl(app):
             return True
 
         # Check if we should end the test based on the stop time
-        if running and stop_time and (time.time() - stop_time >= 30):
+        if running and stop_time and (time.time() - abs(stop_time) >= 30):
             current_lab_filename = None
             try:
                 refresh_lab_cache(active_machine_id)
@@ -5720,11 +5720,10 @@ def _register_callbacks_impl(app):
         ctx = callback_context
         if ctx.triggered:
             trigger = ctx.triggered[0]["prop_id"].split(".")[0]
-            if start_mode != "feeder":
-                if trigger == "stop-test-btn":
-                    return time.time()
-                if trigger == "start-test-btn":
-                    return None
+            if trigger == "stop-test-btn":
+                return -time.time()
+            if trigger == "start-test-btn":
+                return None
 
         if not running:
             return dash.no_update
@@ -5745,7 +5744,7 @@ def _register_callbacks_impl(app):
                 break
 
         if any_running:
-            if stop_time is not None:
+            if stop_time is not None and stop_time >= 0:
                 return None
         else:
             if start_mode == "feeder" and stop_time is None:
