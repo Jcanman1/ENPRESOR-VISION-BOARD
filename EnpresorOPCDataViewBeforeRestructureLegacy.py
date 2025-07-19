@@ -1038,8 +1038,19 @@ def opc_update_thread():
     stalled_cycles = 0
     stalled_threshold = 3
     prev_update_time = app_state.last_update_time
-    
+
     while not app_state.thread_stop_flag:
+        # Auto-select the only connected machine if none is active
+        if active_machine_id is None:
+            connected = [mid for mid, info in machine_connections.items()
+                        if info.get("connected")]
+            if len(connected) == 1:
+                mid = connected[0]
+                logger.info("Auto-selecting machine %s as active machine", mid)
+                globals()["active_machine_id"] = mid
+                app_state.client = machine_connections[mid]["client"]
+                app_state.tags = machine_connections[mid]["tags"]
+                app_state.connected = True
         if prev_update_time is not None and app_state.last_update_time == prev_update_time:
             stalled_cycles += 1
             if stalled_cycles > stalled_threshold:
