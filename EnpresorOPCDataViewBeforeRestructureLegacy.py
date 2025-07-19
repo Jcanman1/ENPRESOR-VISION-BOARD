@@ -89,9 +89,9 @@ except Exception:  # pragma: no cover - optional dependency
 logging.getLogger('opcua').setLevel(logging.WARNING)  # Turn off OPC UA debug logs
 logging.getLogger('opcua.client.ua_client').setLevel(logging.WARNING)
 logging.getLogger('opcua.uaprotocol').setLevel(logging.WARNING)
-log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
+log_level = os.environ.get("LOG_LEVEL", "WARNING").upper()
 logging.basicConfig(
-    level=getattr(logging, log_level, logging.INFO),
+    level=getattr(logging, log_level, logging.WARNING),
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
