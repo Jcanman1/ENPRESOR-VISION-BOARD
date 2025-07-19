@@ -3572,7 +3572,7 @@ def _register_callbacks_impl(app):
         mode = "demo"  # Default to demo mode
         if app_mode and isinstance(app_mode, dict) and "mode" in app_mode:
             mode = app_mode["mode"]
-        logger.info("Section 2: mode=%s, connected=%s", mode, app_state_data.get("connected", False))
+        logger.debug("Section 2: mode=%s, connected=%s", mode, app_state_data.get("connected", False))
         
         # Define color styles for different states
         success_style = {"backgroundColor": "#28a745", "color": "white"}  # Green
@@ -3688,7 +3688,12 @@ def _register_callbacks_impl(app):
                 feeder_style = secondary_style
             
             # Add debug logging for live mode
-            logger.info(f"Live mode - Preset: {preset_text}, Status: {status_text}, Feeder: {feeder_text}")
+            logger.debug(
+                "Live mode - Preset: %s , Status: %s, Feeder: %s",
+                preset_text,
+                status_text,
+                feeder_text,
+            )
         
         # Create the feeder rate boxes with conditional display
         feeder_boxes = create_feeder_rate_boxes(app_state_data, app_mode, mode, show_all_gauges)
@@ -3857,7 +3862,11 @@ def _register_callbacks_impl(app):
         mode = "demo"  # Default to demo mode
         if app_mode and isinstance(app_mode, dict) and "mode" in app_mode:
             mode = app_mode["mode"]
-        logger.info("Section 3-2: mode=%s, connected=%s", mode, app_state_data.get("connected", False))
+        logger.debug(
+            "Section 3-2: mode=%s, connected=%s",
+            mode,
+            app_state_data.get("connected", False),
+        )
 
         # Generate current timestamp for "Last Update" display. This must be
         # evaluated on each callback invocation so the UI reflects the actual
@@ -4683,13 +4692,13 @@ def _register_callbacks_impl(app):
     
             # Store the new values for the next update
             previous_counter_values = new_counter_values.copy()
-            logger.info(f"Section 5-2 values (historical mode): {new_counter_values}")
+            logger.debug("Section 5-2 values (historical mode): %s", new_counter_values)
         elif mode == "lab":
             mid = active_machine_data.get("machine_id") if active_machine_data else None
             rates = load_last_lab_counters(mid)
             new_counter_values = [r * 60 for r in rates]
             previous_counter_values = new_counter_values.copy()
-            logger.info(f"Section 5-2 values (lab mode): {new_counter_values}")
+            logger.debug("Section 5-2 values (lab mode): %s", new_counter_values)
         elif mode in LIVE_LIKE_MODES and app_state_data.get("connected", False):
             # Live mode: get values from OPC UA
             # Use the tag pattern provided for each counter
@@ -4711,7 +4720,7 @@ def _register_callbacks_impl(app):
     
             # Store the new values for the next update
             previous_counter_values = new_counter_values.copy()
-            logger.info(f"Section 5-2 values (live mode): {new_counter_values}")
+            logger.debug("Section 5-2 values (live mode): %s", new_counter_values)
         elif mode == "demo":
             # Demo mode: generate synthetic values
             new_counter_values = []
@@ -4733,11 +4742,11 @@ def _register_callbacks_impl(app):
     
             # Store the new values for the next update
             previous_counter_values = new_counter_values.copy()
-            logger.info(f"Section 5-2 values (demo mode): {new_counter_values}")
+            logger.debug("Section 5-2 values (demo mode): %s", new_counter_values)
         else:
             # Live mode but not connected - keep the last values
             new_counter_values = previous_counter_values.copy()
-            logger.info("Section 5-2 values (disconnected): using previous values")
+            logger.debug("Section 5-2 values (disconnected): using previous values")
         
         # Create counter names
         counter_names = [f"{i}" for i in range(1, 13)]
@@ -4937,7 +4946,7 @@ def _register_callbacks_impl(app):
             step = max(1, len(label_list) // 5) if label_list else 1
 
             hist_values = [historical_data[i]['values'][-1] if historical_data[i]['values'] else None for i in range(1, 13)]
-            logger.info(f"Section 6-1 latest values (historical mode): {hist_values}")
+            logger.debug("Section 6-1 latest values (historical mode): %s", hist_values)
 
             max_hist_value = 0
             for i in range(1, 13):
@@ -5010,7 +5019,7 @@ def _register_callbacks_impl(app):
                 counter_utils.add_data_point(app_state.counter_history, i, current_time, prev_value)
 
         latest_values = [app_state.counter_history[i]['values'][-1] if app_state.counter_history[i]['values'] else None for i in range(1, 13)]
-        logger.info(f"Section 6-1 latest values ({mode} mode): {latest_values}")
+        logger.debug("Section 6-1 latest values (%s mode): %s", mode, latest_values)
 
         fig = go.Figure()
 
@@ -5318,12 +5327,12 @@ def _register_callbacks_impl(app):
         if app_mode and isinstance(app_mode, dict) and "mode" in app_mode:
             mode = app_mode["mode"]
         
-        logger.info("Section 7-2 callback triggered at %s", datetime.now())
-        logger.info("Section 7-2: mode=%s, connected=%s", mode, app_state_data.get("connected", False))
-        logger.info(f"Section 7-2 Debug: machine_id={machine_id}")
-        logger.info(f"Section 7-2 Debug: MONITORED_RATE_TAGS={MONITORED_RATE_TAGS}")
-        logger.info(f"Section 7-2 Debug: prev_values keys={list(prev_values.get(machine_id, {}).keys())}")
-        logger.info(f"Available tags in app_state: {list(app_state.tags.keys())}")
+        logger.debug("Section 7-2 callback triggered at %s", datetime.now())
+        logger.debug("Section 7-2: mode=%s, connected=%s", mode, app_state_data.get("connected", False))
+        logger.debug("Section 7-2 Debug: machine_id=%s", machine_id)
+        logger.debug("Section 7-2 Debug: MONITORED_RATE_TAGS=%s", MONITORED_RATE_TAGS)
+        logger.debug("Section 7-2 Debug: prev_values keys=%s", list(prev_values.get(machine_id, {}).keys()))
+        logger.debug("Available tags in app_state: %s", list(app_state.tags.keys()))
     
         # Live monitoring of feeder rate tags and sensitivity assignments
         if mode in LIVE_LIKE_MODES and app_state_data.get("connected", False) and machine_id is not None:
@@ -5331,10 +5340,10 @@ def _register_callbacks_impl(app):
                 # Initialize machine_prev dictionaries if they don't exist
                 if machine_id not in prev_values:
                     prev_values[machine_id] = {}
-                    logger.info(f"Initialized prev_values for machine {machine_id}")
+                    logger.debug("Initialized prev_values for machine %s", machine_id)
                 if machine_id not in prev_active_states:
                     prev_active_states[machine_id] = {}
-                    logger.info(f"Initialized prev_active_states for machine {machine_id}")
+                    logger.debug("Initialized prev_active_states for machine %s", machine_id)
                 
                 machine_prev = prev_values[machine_id]
                 machine_prev_active = prev_active_states[machine_id]
@@ -5345,14 +5354,14 @@ def _register_callbacks_impl(app):
                         if opc_tag in app_state.tags:
                             new_val = app_state.tags[opc_tag]["data"].latest_value
                             prev_val = machine_prev.get(opc_tag)
-                            logger.info(f"Tag {opc_tag}: new_val={new_val}, prev_val={prev_val}")
+                            logger.debug("Tag %s: new_val=%s, prev_val=%s", opc_tag, new_val, prev_val)
     
                             if prev_val is not None and new_val is not None and new_val != prev_val:
-                                logger.info(f"CHANGE DETECTED! {opc_tag}: {prev_val} -> {new_val}")
+                                logger.debug("CHANGE DETECTED! %s: %s -> %s", opc_tag, prev_val, new_val)
                                 try:
                                     logger.debug("Rate %s changed from %s to %s", opc_tag, prev_val, new_val)
                                     add_control_log_entry(friendly_name, prev_val, new_val, machine_id=machine_id)
-                                    logger.info(f"LOG ENTRY ADDED for {friendly_name}")
+                                    logger.debug("LOG ENTRY ADDED for %s", friendly_name)
                                 except Exception as e:
                                     logger.error(f"ERROR adding log entry: {e}")
     
@@ -5363,7 +5372,7 @@ def _register_callbacks_impl(app):
                         logger.error(f"Error monitoring feeder tag {opc_tag}: {e}")
     
                 # Monitor sensitivity assignment changes  
-                logger.info(f"Starting sensitivity tag checks")
+                logger.debug("Starting sensitivity tag checks")
                 for opc_tag, sens_num in SENSITIVITY_ACTIVE_TAGS.items():
                     try:
                         if opc_tag in app_state.tags:
@@ -5435,9 +5444,9 @@ def _register_callbacks_impl(app):
                 # Include if machine_id matches (regardless of demo flag for now)
                 if str(entry_machine_id) == str(machine_id):
                     display_log.append(entry)
-                    logger.info(f"Including entry: {entry.get('tag', 'N/A')}")
+                    logger.debug("Including entry: %s", entry.get('tag', 'N/A'))
             
-            logger.info(f"Filtered to {len(display_log)} entries for machine {machine_id}")
+            logger.debug("Filtered to %s entries for machine %s", len(display_log), machine_id)
     
         # newest entries first - sort by timestamp if available
         if display_log:
