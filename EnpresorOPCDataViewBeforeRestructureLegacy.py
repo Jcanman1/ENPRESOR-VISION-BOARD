@@ -1062,17 +1062,24 @@ def opc_update_thread():
             app_state.tags = machine_connections[mid]["tags"]
             app_state.connected = True
 
-        if prev_update_time is not None and app_state.last_update_time == prev_update_time:
+        machine_update = None
+        if active_machine_id in machine_connections:
+            machine_update = machine_connections[active_machine_id].get(
+                "last_update"
+            )
+
+        if prev_update_time is not None and machine_update == prev_update_time:
+
             stalled_cycles += 1
             if stalled_cycles > stalled_threshold:
                 logger.warning(
                     "OPC update thread has not updated for %d cycles (last update at %s)",
                     stalled_cycles,
-                    app_state.last_update_time,
+                    machine_update,
                 )
         else:
             stalled_cycles = 0
-        prev_update_time = app_state.last_update_time
+        prev_update_time = machine_update
         logger.debug(
             "opc_update_thread loop: mode=%s, active_machine=%s, stop_flag=%s",
             current_app_mode,
