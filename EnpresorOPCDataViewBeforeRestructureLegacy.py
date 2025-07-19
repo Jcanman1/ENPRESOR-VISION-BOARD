@@ -1032,25 +1032,51 @@ def get_event_loop():
 # Background thread for OPC UA updates
 def opc_update_thread():
     """Enhanced OPC update thread with better error handling and connection validation"""
+    global active_machine_id
     #logger.info("OPC update thread started")
     consecutive_failures = 0
     max_failures = 5
     stalled_cycles = 0
     stalled_threshold = 3
     prev_update_time = app_state.last_update_time
-    
+
     while not app_state.thread_stop_flag:
-        if prev_update_time is not None and app_state.last_update_time == prev_update_time:
+        # Refresh connection info each cycle
+        update_machine_connections()
+
+        # Auto-select the only connected machine if none is active or the
+        # current active machine has disconnected
+        connected = [mid for mid, info in machine_connections.items()
+                     if info.get("connected")]
+        if (
+            (active_machine_id is None
+             or active_machine_id not in machine_connections
+             or not machine_connections[active_machine_id].get("connected"))
+            and len(connected) == 1
+        ):
+            mid = connected[0]
+            logger.info("Auto-selecting machine %s as active machine", mid)
+            active_machine_id = mid
+            app_state.client = machine_connections[mid]["client"]
+            app_state.tags = machine_connections[mid]["tags"]
+            app_state.connected = True
+        machine_update = None
+        if active_machine_id in machine_connections:
+            machine_update = machine_connections[active_machine_id].get(
+                "last_update"
+            )
+
+        if prev_update_time is not None and machine_update == prev_update_time:
             stalled_cycles += 1
             if stalled_cycles > stalled_threshold:
                 logger.warning(
                     "OPC update thread has not updated for %d cycles (last update at %s)",
                     stalled_cycles,
-                    app_state.last_update_time,
+                    machine_update,
                 )
         else:
             stalled_cycles = 0
-        prev_update_time = app_state.last_update_time
+        prev_update_time = machine_update
         logger.debug(
             "opc_update_thread loop: mode=%s, active_machine=%s, stop_flag=%s",
             current_app_mode,
@@ -1060,8 +1086,6 @@ def opc_update_thread():
         # Track read failures for this cycle
         failure_counts = defaultdict(int)
         try:
-            # Always refresh tags for all connected machines
-            update_machine_connections()
 
             # Only update if we have an active, connected machine
             if not app_state.connected or not app_state.client:
