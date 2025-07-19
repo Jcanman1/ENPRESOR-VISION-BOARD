@@ -751,7 +751,7 @@ def draw_global_summary(
     if total > 0:
         values = [total_accepts, total_rejects]
         percentages = [(val/total)*100 for val in values]
-        angles = [45, -59 + (360*(total_rejects/total)*100/2/100)]    
+        angles = [180 + -59 + (360*(total_rejects/total)*100/2/100), -59 + (360*(total_rejects/total)*100/2/100)]    
         print("global angles",angles, total_rejects, total)
         labels_tr = [tr('accepts', lang), tr('rejects', lang)]
         for i, (label, pct, angle) in enumerate(zip(labels_tr, percentages, angles)):
@@ -1703,7 +1703,7 @@ def draw_machine_sections(
         total_pie = a_val + r_val
         if total_pie > 0:
             percentages = [(a_val/total_pie)*100, (r_val/total_pie)*100]
-            angles = [45, -59 + (360*((r_val/total_pie)*100)/2/100)] 
+            angles = [180+-59 + (360*((r_val/total_pie)*100)/2/100), -59 + (360*((r_val/total_pie)*100)/2/100)] 
             print('###############angles =',angles, r_val,total_pie) 
             labels = [tr('accepts', lang), tr('rejects', lang)]
             
