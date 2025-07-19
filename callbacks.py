@@ -5327,12 +5327,15 @@ def _register_callbacks_impl(app):
         if app_mode and isinstance(app_mode, dict) and "mode" in app_mode:
             mode = app_mode["mode"]
         
-        logger.debug("Section 7-2 callback triggered at %s", datetime.now())
-        logger.debug("Section 7-2: mode=%s, connected=%s", mode, app_state_data.get("connected", False))
-        logger.debug("Section 7-2 Debug: machine_id=%s", machine_id)
-        logger.debug("Section 7-2 Debug: MONITORED_RATE_TAGS=%s", MONITORED_RATE_TAGS)
-        logger.debug("Section 7-2 Debug: prev_values keys=%s", list(prev_values.get(machine_id, {}).keys()))
-        logger.debug("Available tags in app_state: %s", list(app_state.tags.keys()))
+        #logger.debug("Section 7-2 callback triggered at %s", datetime.now())
+        #logger.debug("Section 7-2: mode=%s, connected=%s", mode, app_state_data.get("connected", False))
+        #logger.debug("Section 7-2 Debug: machine_id=%s", machine_id)
+        #logger.debug("Section 7-2 Debug: MONITORED_RATE_TAGS=%s", MONITORED_RATE_TAGS)
+        #logger.debug("Section 7-2 Debug: prev_values keys=%s", list(prev_values.get(machine_id, {}).keys()))
+
+        # Avoid dumping the entire tag list every cycle
+        #logger.debug("app_state tag count: %s", len(app_state.tags))
+
     
         # Live monitoring of feeder rate tags and sensitivity assignments
         if mode in LIVE_LIKE_MODES and app_state_data.get("connected", False) and machine_id is not None:
