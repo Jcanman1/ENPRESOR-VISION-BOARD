@@ -876,7 +876,7 @@ def _register_callbacks_impl(app):
         
         # On every actual click, flip between "main" and "new"
         new_dashboard = "new" if current == "main" else "main"
-        logger.debug("manage_dashboard toggled to %s", new_dashboard)
+        #logger.debug("manage_dashboard toggled to %s", new_dashboard)
         return new_dashboard
 
     @app.callback(
@@ -1158,7 +1158,7 @@ def _register_callbacks_impl(app):
         try:
             with open('ip_addresses.json', 'w') as f:
                 json.dump(ip_addresses, f, indent=4)
-            logger.debug("Saved IP addresses: %s", ip_addresses)
+            #logger.debug("Saved IP addresses: %s", ip_addresses)
         except Exception as e:
             logger.error(f"Error saving IP addresses: {e}")
             return "Error saving IP addresses", dash.no_update
@@ -1716,22 +1716,22 @@ def _register_callbacks_impl(app):
             machine_id = triggered_id.get("index")
 
         if machine_id is None:
-            logger.warning("Machine card clicked but no machine ID found")
+            #logger.warning("Machine card clicked but no machine ID found")
             return dash.no_update, dash.no_update, dash.no_update
         
         # CRITICAL FIX: Set global active_machine_id FIRST
         active_machine_id = machine_id
-        logger.info(f"=== MACHINE SELECTION: Selected machine {machine_id} as active machine ===")
+        #logger.info(f"=== MACHINE SELECTION: Selected machine {machine_id} as active machine ===")
         
         # CRITICAL FIX: Stop existing thread before starting new one
         if app_state.update_thread is not None and app_state.update_thread.is_alive():
-            logger.info("Stopping existing OPC update thread...")
+            #logger.info("Stopping existing OPC update thread...")
             app_state.thread_stop_flag = True
             app_state.update_thread.join(timeout=3)
-            if app_state.update_thread.is_alive():
-                logger.warning("Thread did not stop gracefully")
-            else:
-                logger.info("Successfully stopped existing OPC update thread")
+            #if app_state.update_thread.is_alive():
+                #logger.warning("Thread did not stop gracefully")
+            #else:
+                #logger.info("Successfully stopped existing OPC update thread")
         
         # Check if the machine is connected
         if machine_id in machine_connections and machine_connections[machine_id].get('connected', False):
@@ -1748,15 +1748,15 @@ def _register_callbacks_impl(app):
             app_state.update_thread = Thread(target=opc_update_thread)
             app_state.update_thread.daemon = True
             app_state.update_thread.start()
-            logger.info(f"Started new OPC update thread for machine {machine_id}")
-            logger.debug(
-                "Thread status after selection: mode=%s, active_machine=%s, alive=%s",
-                current_app_mode,
-                active_machine_id,
-                app_state.update_thread.is_alive(),
-            )
+            #logger.info(f"Started new OPC update thread for machine {machine_id}")
+            #logger.debug(
+            #    "Thread status after selection: mode=%s, active_machine=%s, alive=%s",
+            #    current_app_mode,
+            #    active_machine_id,
+            #    app_state.update_thread.is_alive(),
+            #)
             
-            logger.info(f"Switched to connected machine {machine_id} - {len(app_state.tags)} tags available")
+            #logger.info(f"Switched to connected machine {machine_id} - {len(app_state.tags)} tags available")
             app_state_data["connected"] = True
             
         else:
@@ -1766,11 +1766,11 @@ def _register_callbacks_impl(app):
             app_state.connected = False
             app_state.last_update_time = None
             
-            logger.info(f"Switched to disconnected machine {machine_id}")
+            #logger.info(f"Switched to disconnected machine {machine_id}")
             app_state_data["connected"] = False
         
         # Return to main dashboard with selected machine
-        logger.info(f"=== SWITCHING TO MAIN DASHBOARD with machine {machine_id} ===")
+        #logger.info(f"=== SWITCHING TO MAIN DASHBOARD with machine {machine_id} ===")
         return "main", {"machine_id": machine_id}, app_state_data
 
     @app.callback(
@@ -1813,7 +1813,7 @@ def _register_callbacks_impl(app):
                 if machine_id in machine_connections:
                     machine_connections[machine_id]['client'].disconnect()
                     del machine_connections[machine_id]
-                    logger.info(f"Disconnected machine {machine_id}")
+                    #logger.info(f"Disconnected machine {machine_id}")
                 
                 for machine in machines:
                     if machine["id"] == machine_id:
@@ -1845,7 +1845,7 @@ def _register_callbacks_impl(app):
                             machine["operational_data"] = operational_data
                             break
                             
-                    logger.info(f"Successfully connected machine {machine_id}")
+                    #logger.info(f"Successfully connected machine {machine_id}")
 
                     # Initialize previous values so the next change will be logged
                     if machine_id not in prev_values:
@@ -1873,7 +1873,7 @@ def _register_callbacks_impl(app):
                             app_state.update_thread = Thread(target=opc_update_thread)
                             app_state.update_thread.daemon = True
                             app_state.update_thread.start()
-                            logger.info("Started OPC update thread for connected machine")
+                            #logger.info("Started OPC update thread for connected machine")
                     
                 else:
                     logger.error(f"Failed to connect machine {machine_id}")
@@ -2189,7 +2189,7 @@ def _register_callbacks_impl(app):
         """Cache machines data for auto-reconnection thread"""
         if machines_data:
             app_state.machines_data_cache = machines_data
-            logger.debug(f"Cached machines data: {len(machines_data.get('machines', []))} machines")
+            #logger.debug(f"Cached machines data: {len(machines_data.get('machines', []))} machines")
         return machines_data
 
     @app.callback(
@@ -2695,13 +2695,13 @@ def _register_callbacks_impl(app):
 
         global previous_counter_values
 
-        logger.debug(
-            "update_section_1_1: mode=%s, active_machine=%s, thread_alive=%s, stop_flag=%s",
-            current_app_mode,
-            active_machine_id,
-            app_state.update_thread.is_alive() if app_state.update_thread else False,
-            app_state.thread_stop_flag,
-        )
+        #logger.debug(
+        #    "update_section_1_1: mode=%s, active_machine=%s, thread_alive=%s, stop_flag=%s",
+        #    current_app_mode,
+        #    active_machine_id,
+        #    app_state.update_thread.is_alive() if app_state.update_thread else False,
+        #    app_state.thread_stop_flag,
+        #)
 
         total_capacity_formatted = None
         capacity_count = accepts_count = reject_count = None
@@ -3334,7 +3334,7 @@ def _register_callbacks_impl(app):
         # Mark if user made changes in live mode
         if mode in LIVE_LIKE_MODES:
             new_data["live_mode_user_changed"] = True
-            logger.debug("User changed %s in live mode", trigger_id)
+            #logger.debug("User changed %s in live mode", trigger_id)
         
         # Update the value that changed
         if trigger_id == "unit-selector" and units is not None:
@@ -3552,11 +3552,11 @@ def _register_callbacks_impl(app):
             raise PreventUpdate
         # CRITICAL: Check if we actually have a connected machine and valid app_state
         if not app_state_data.get("connected", False):
-            logger.debug("No connected machine - preventing section update")
+            #logger.debug("No connected machine - preventing section update")
             raise PreventUpdate
         
         if not app_state.client or not app_state.tags:
-            logger.debug("No valid client or tags - preventing section update")
+            #logger.debug("No valid client or tags - preventing section update")
             raise PreventUpdate
             # or return [no_update, no_update]
         # Tag definitions
@@ -3572,7 +3572,7 @@ def _register_callbacks_impl(app):
         mode = "demo"  # Default to demo mode
         if app_mode and isinstance(app_mode, dict) and "mode" in app_mode:
             mode = app_mode["mode"]
-        logger.debug("Section 2: mode=%s, connected=%s", mode, app_state_data.get("connected", False))
+        #logger.debug("Section 2: mode=%s, connected=%s", mode, app_state_data.get("connected", False))
         
         # Define color styles for different states
         success_style = {"backgroundColor": "#28a745", "color": "white"}  # Green
@@ -3688,12 +3688,12 @@ def _register_callbacks_impl(app):
                 feeder_style = secondary_style
             
             # Add debug logging for live mode
-            logger.debug(
-                "Live mode - Preset: %s , Status: %s, Feeder: %s",
-                preset_text,
-                status_text,
-                feeder_text,
-            )
+            #logger.debug(
+            #    "Live mode - Preset: %s , Status: %s, Feeder: %s",
+            #    preset_text,
+            #    status_text,
+            #    feeder_text,
+            #)
         
         # Create the feeder rate boxes with conditional display
         feeder_boxes = create_feeder_rate_boxes(app_state_data, app_mode, mode, show_all_gauges)
@@ -3862,11 +3862,11 @@ def _register_callbacks_impl(app):
         mode = "demo"  # Default to demo mode
         if app_mode and isinstance(app_mode, dict) and "mode" in app_mode:
             mode = app_mode["mode"]
-        logger.debug(
-            "Section 3-2: mode=%s, connected=%s",
-            mode,
-            app_state_data.get("connected", False),
-        )
+        #logger.debug(
+        #    "Section 3-2: mode=%s, connected=%s",
+        #    mode,
+        #    app_state_data.get("connected", False),
+        #)
 
         # Generate current timestamp for "Last Update" display. This must be
         # evaluated on each callback invocation so the UI reflects the actual
@@ -4218,10 +4218,10 @@ def _register_callbacks_impl(app):
                                 image_src = f"data:image/png;base64,{base64_str}"
                                 has_image = True
                     except Exception as e:
-                        logger.error(f"Error processing image data for Primary {i}: {e}")
+                        #logger.error(f"Error processing image data for Primary {i}: {e}")
                         has_image = False
-                else:
-                    logger.debug(f"Image tag {image_tag} not found in app_state.tags")
+                #else:
+                    #logger.debug(f"Image tag {image_tag} not found in app_state.tags")
                 
                 # Set styling based on active status
                 if is_active:
@@ -4692,13 +4692,13 @@ def _register_callbacks_impl(app):
     
             # Store the new values for the next update
             previous_counter_values = new_counter_values.copy()
-            logger.debug("Section 5-2 values (historical mode): %s", new_counter_values)
+            #logger.debug("Section 5-2 values (historical mode): %s", new_counter_values)
         elif mode == "lab":
             mid = active_machine_data.get("machine_id") if active_machine_data else None
             rates = load_last_lab_counters(mid)
             new_counter_values = [r * 60 for r in rates]
             previous_counter_values = new_counter_values.copy()
-            logger.debug("Section 5-2 values (lab mode): %s", new_counter_values)
+            #logger.debug("Section 5-2 values (lab mode): %s", new_counter_values)
         elif mode in LIVE_LIKE_MODES and app_state_data.get("connected", False):
             # Live mode: get values from OPC UA
             # Use the tag pattern provided for each counter
@@ -4720,7 +4720,7 @@ def _register_callbacks_impl(app):
     
             # Store the new values for the next update
             previous_counter_values = new_counter_values.copy()
-            logger.debug("Section 5-2 values (live mode): %s", new_counter_values)
+            #logger.debug("Section 5-2 values (live mode): %s", new_counter_values)
         elif mode == "demo":
             # Demo mode: generate synthetic values
             new_counter_values = []
@@ -4742,11 +4742,11 @@ def _register_callbacks_impl(app):
     
             # Store the new values for the next update
             previous_counter_values = new_counter_values.copy()
-            logger.debug("Section 5-2 values (demo mode): %s", new_counter_values)
+            #logger.debug("Section 5-2 values (demo mode): %s", new_counter_values)
         else:
             # Live mode but not connected - keep the last values
             new_counter_values = previous_counter_values.copy()
-            logger.debug("Section 5-2 values (disconnected): using previous values")
+            #logger.debug("Section 5-2 values (disconnected): using previous values")
         
         # Create counter names
         counter_names = [f"{i}" for i in range(1, 13)]
@@ -4946,7 +4946,7 @@ def _register_callbacks_impl(app):
             step = max(1, len(label_list) // 5) if label_list else 1
 
             hist_values = [historical_data[i]['values'][-1] if historical_data[i]['values'] else None for i in range(1, 13)]
-            logger.debug("Section 6-1 latest values (historical mode): %s", hist_values)
+            #logger.debug("Section 6-1 latest values (historical mode): %s", hist_values)
 
             max_hist_value = 0
             for i in range(1, 13):
@@ -5019,7 +5019,7 @@ def _register_callbacks_impl(app):
                 counter_utils.add_data_point(app_state.counter_history, i, current_time, prev_value)
 
         latest_values = [app_state.counter_history[i]['values'][-1] if app_state.counter_history[i]['values'] else None for i in range(1, 13)]
-        logger.debug("Section 6-1 latest values (%s mode): %s", mode, latest_values)
+        #logger.debug("Section 6-1 latest values (%s mode): %s", mode, latest_values)
 
         fig = go.Figure()
 
@@ -5346,7 +5346,7 @@ def _register_callbacks_impl(app):
                     logger.debug("Initialized prev_values for machine %s", machine_id)
                 if machine_id not in prev_active_states:
                     prev_active_states[machine_id] = {}
-                    logger.debug("Initialized prev_active_states for machine %s", machine_id)
+                    #logger.debug("Initialized prev_active_states for machine %s", machine_id)
                 
                 machine_prev = prev_values[machine_id]
                 machine_prev_active = prev_active_states[machine_id]
@@ -5357,14 +5357,14 @@ def _register_callbacks_impl(app):
                         if opc_tag in app_state.tags:
                             new_val = app_state.tags[opc_tag]["data"].latest_value
                             prev_val = machine_prev.get(opc_tag)
-                            logger.debug("Tag %s: new_val=%s, prev_val=%s", opc_tag, new_val, prev_val)
+                            #logger.debug("Tag %s: new_val=%s, prev_val=%s", opc_tag, new_val, prev_val)
     
                             if prev_val is not None and new_val is not None and new_val != prev_val:
                                 logger.debug("CHANGE DETECTED! %s: %s -> %s", opc_tag, prev_val, new_val)
                                 try:
-                                    logger.debug("Rate %s changed from %s to %s", opc_tag, prev_val, new_val)
+                                    #logger.debug("Rate %s changed from %s to %s", opc_tag, prev_val, new_val)
                                     add_control_log_entry(friendly_name, prev_val, new_val, machine_id=machine_id)
-                                    logger.debug("LOG ENTRY ADDED for %s", friendly_name)
+                                    #logger.debug("LOG ENTRY ADDED for %s", friendly_name)
                                 except Exception as e:
                                     logger.error(f"ERROR adding log entry: {e}")
     
@@ -5375,7 +5375,7 @@ def _register_callbacks_impl(app):
                         logger.error(f"Error monitoring feeder tag {opc_tag}: {e}")
     
                 # Monitor sensitivity assignment changes  
-                logger.debug("Starting sensitivity tag checks")
+                #logger.debug("Starting sensitivity tag checks")
                 for opc_tag, sens_num in SENSITIVITY_ACTIVE_TAGS.items():
                     try:
                         if opc_tag in app_state.tags:
@@ -5426,30 +5426,30 @@ def _register_callbacks_impl(app):
             display_log = sorted(display_log, key=lambda e: e.get("timestamp"), reverse=True)
         elif mode in LIVE_LIKE_MODES:
             # Debug logging to see what's in the control log
-            logger.debug(
-                "Total entries in machine_control_log: %s",
-                len(machine_control_log),
-            )
-            logger.debug("Looking for entries with machine_id=%s", machine_id)
+            #logger.debug(
+            #    "Total entries in machine_control_log: %s",
+            #    len(machine_control_log),
+            #)
+            #logger.debug("Looking for entries with machine_id=%s", machine_id)
             
             # More permissive filtering - include entries that match the machine_id
             display_log = []
             for entry in machine_control_log:
                 entry_machine_id = entry.get("machine_id")
                 is_demo = entry.get("demo", False)
-                logger.debug(
-                    "Entry: machine_id=%s, demo=%s, tag=%s",
-                    entry_machine_id,
-                    is_demo,
-                    entry.get('tag', 'N/A'),
-                )
+                #logger.debug(
+                #    "Entry: machine_id=%s, demo=%s, tag=%s",
+                #    entry_machine_id,
+                #    is_demo,
+                #    entry.get('tag', 'N/A'),
+                #)
                 
                 # Include if machine_id matches (regardless of demo flag for now)
                 if str(entry_machine_id) == str(machine_id):
                     display_log.append(entry)
-                    logger.debug("Including entry: %s", entry.get('tag', 'N/A'))
+                    #logger.debug("Including entry: %s", entry.get('tag', 'N/A'))
             
-            logger.debug("Filtered to %s entries for machine %s", len(display_log), machine_id)
+            #logger.debug("Filtered to %s entries for machine %s", len(display_log), machine_id)
     
         # newest entries first - sort by timestamp if available
         if display_log:
@@ -5954,7 +5954,7 @@ def _register_callbacks_impl(app):
         slider_value = 24 if mode == "historical" else dash.no_update
     
         # Log the new mode for debugging unexpected switches
-        logger.info(f"App mode updated to '{mode}'")
+        #logger.info(f"App mode updated to '{mode}'")
     
         return {"mode": mode}, slider_value
 
