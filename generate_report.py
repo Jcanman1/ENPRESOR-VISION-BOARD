@@ -323,9 +323,9 @@ def last_value_scaled(series, scale=1.0):
 
 from hourly_data_saving import EXPORT_DIR as METRIC_EXPORT_DIR, get_historical_data
 
-log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
+log_level = os.environ.get("LOG_LEVEL", "WARNING").upper()
 logging.basicConfig(
-    level=getattr(logging, log_level, logging.INFO),
+    level=getattr(logging, log_level, logging.WARNING),
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
