@@ -4119,7 +4119,7 @@ def create_enhanced_machine_card_with_selection(machine, ip_options, floors_data
     ) or demo_mode
     
     # DEBUG: Add logging to see what's happening
-    logger.debug(f"Machine {machine_id}: status='{machine_status}', in_connections={machine_id in machine_connections}, is_connected={is_actually_connected}")
+    #logger.debug(f"Machine {machine_id}: status='{machine_status}', in_connections={machine_id in machine_connections}, is_connected={is_actually_connected}")
     
     # Card styling based on connection status AND selection status - Use CSS classes with !important
     if is_active:
@@ -4459,8 +4459,8 @@ def get_machine_operational_data(machine_id):
     tags = connection_info['tags']
     
     # Add debugging for localhost
-    logger.debug("Getting operational data for machine %s", machine_id)
-    logger.debug("Available tags: %s", len(tags))
+    #logger.debug("Getting operational data for machine %s", machine_id)
+    #logger.debug("Available tags: %s", len(tags))
     
     # Tag definitions (same as section 2)
     PRESET_NUMBER_TAG = "Status.Info.PresetNumber"
@@ -4488,13 +4488,13 @@ def get_machine_operational_data(machine_id):
         raw_value = tags[PRESET_NUMBER_TAG]["data"].latest_value
         if raw_value is not None:
             preset_number = raw_value
-            logger.debug("Preset number: %s", preset_number)
+            #logger.debug("Preset number: %s", preset_number)
             
     if PRESET_NAME_TAG in tags:
         raw_value = tags[PRESET_NAME_TAG]["data"].latest_value
         if raw_value is not None:
             preset_name = raw_value
-            logger.debug("Preset name: %s", preset_name)
+            #logger.debug("Preset name: %s", preset_name)
     
     # Get current status information
     has_fault = False
@@ -4503,12 +4503,12 @@ def get_machine_operational_data(machine_id):
     if GLOBAL_FAULT_TAG in tags:
         raw_value = tags[GLOBAL_FAULT_TAG]["data"].latest_value
         has_fault = bool(raw_value) if raw_value is not None else False
-        logger.debug("Has fault: %s", has_fault)
+        #logger.debug("Has fault: %s", has_fault)
         
     if GLOBAL_WARNING_TAG in tags:
         raw_value = tags[GLOBAL_WARNING_TAG]["data"].latest_value
         has_warning = bool(raw_value) if raw_value is not None else False
-        logger.debug("Has warning: %s", has_warning)
+        #logger.debug("Has warning: %s", has_warning)
     
     # Determine status
     if has_fault:
@@ -4518,13 +4518,13 @@ def get_machine_operational_data(machine_id):
     else:
         status_text = "GOOD"
     
-    logger.debug("Status: %s", status_text)
+    #logger.debug("Status: %s", status_text)
     
     # Get feeder status (check model type for number of feeders)
     model_type = None
     if MODEL_TAG in tags:
         model_type = tags[MODEL_TAG]["data"].latest_value
-        logger.debug("Model type: %s", model_type)
+        #logger.debug("Model type: %s", model_type)
     
     show_all_feeders = True if model_type != "RGB400" else False
     max_feeder = 4 if show_all_feeders else 2
@@ -4539,7 +4539,7 @@ def get_machine_operational_data(machine_id):
                 break
     
     feeder_text = "Running" if feeder_running else "Stopped"
-    logger.debug("Feeder status: %s", feeder_text)
+    #logger.debug("Feeder status: %s", feeder_text)
     
     # Get current production data
     total_capacity = 0
@@ -4550,7 +4550,7 @@ def get_machine_operational_data(machine_id):
         if capacity_value is not None:
             pref = load_weight_preference()
             total_capacity = convert_capacity_from_kg(capacity_value, pref)
-            logger.debug("Capacity: %s", total_capacity)
+            #logger.debug("Capacity: %s", total_capacity)
     
     reject_count = 0
     for i in range(1, 13):
@@ -4572,7 +4572,7 @@ def get_machine_operational_data(machine_id):
         diagnostic_value = tags[DIAGNOSTIC_COUNTER_TAG]["data"].latest_value
         if diagnostic_value is not None:
             diagnostic_counter = diagnostic_value
-            logger.debug("Diagnostic counter: %s", diagnostic_counter)
+            #logger.debug("Diagnostic counter: %s", diagnostic_counter)
     
     # Calculate production values
     reject_pct = (reject_count / opm) if opm else 0
@@ -4616,7 +4616,7 @@ def get_machine_operational_data(machine_id):
         }
     }
     
-    logger.debug("Returning operational data: %s", operational_data)
+    #logger.debug("Returning operational data: %s", operational_data)
     return operational_data
 
 # Enhanced callback for floor name editing
