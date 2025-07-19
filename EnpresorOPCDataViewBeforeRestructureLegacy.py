@@ -1041,6 +1041,7 @@ def opc_update_thread():
     prev_update_time = app_state.last_update_time
 
     while not app_state.thread_stop_flag:
+
         # Refresh connection info each cycle
         update_machine_connections()
 
@@ -1060,6 +1061,7 @@ def opc_update_thread():
             app_state.client = machine_connections[mid]["client"]
             app_state.tags = machine_connections[mid]["tags"]
             app_state.connected = True
+
         if prev_update_time is not None and app_state.last_update_time == prev_update_time:
             stalled_cycles += 1
             if stalled_cycles > stalled_threshold:
