@@ -59,6 +59,10 @@ SENSITIVITY_ACTIVE_TAGS = {
     "Settings.ColorSort.Primary12.IsAssigned": 12,
 }
 
+# Keep track of which sensitivity tags have already triggered a missing-tag
+# warning so we don't flood the log on every update cycle.
+warned_sensitivity_tags = set()
+
 
 def get_active_counter_flags(machine_id):
     """Return a list of booleans indicating which counters are active."""
@@ -872,7 +876,7 @@ def _register_callbacks_impl(app):
         
         # On every actual click, flip between "main" and "new"
         new_dashboard = "new" if current == "main" else "main"
-        logger.info(f"DEBUG: manage_dashboard toggled to {new_dashboard}")
+        logger.debug("manage_dashboard toggled to %s", new_dashboard)
         return new_dashboard
 
     @app.callback(
@@ -1154,7 +1158,7 @@ def _register_callbacks_impl(app):
         try:
             with open('ip_addresses.json', 'w') as f:
                 json.dump(ip_addresses, f, indent=4)
-            logger.info(f"Saved IP addresses: {ip_addresses}")
+            logger.debug("Saved IP addresses: %s", ip_addresses)
         except Exception as e:
             logger.error(f"Error saving IP addresses: {e}")
             return "Error saving IP addresses", dash.no_update
@@ -3330,7 +3334,7 @@ def _register_callbacks_impl(app):
         # Mark if user made changes in live mode
         if mode in LIVE_LIKE_MODES:
             new_data["live_mode_user_changed"] = True
-            logger.info(f"User changed {trigger_id} in live mode")
+            logger.debug("User changed %s in live mode", trigger_id)
         
         # Update the value that changed
         if trigger_id == "unit-selector" and units is not None:
@@ -5377,7 +5381,12 @@ def _register_callbacks_impl(app):
                                     
                             machine_prev_active[opc_tag] = new_val
                         else:
-                            logger.warning(f"Sensitivity tag {opc_tag} missing from app_state.tags")
+                            if opc_tag not in warned_sensitivity_tags:
+                                logger.warning(
+                                    "Sensitivity tag %s missing from app_state.tags",
+                                    opc_tag,
+                                )
+                                warned_sensitivity_tags.add(opc_tag)
                     except Exception as e:
                         logger.error(f"Error monitoring sensitivity tag {opc_tag}: {e}")
 
@@ -5405,15 +5414,23 @@ def _register_callbacks_impl(app):
             display_log = sorted(display_log, key=lambda e: e.get("timestamp"), reverse=True)
         elif mode in LIVE_LIKE_MODES:
             # Debug logging to see what's in the control log
-            logger.info(f"Total entries in machine_control_log: {len(machine_control_log)}")
-            logger.info(f"Looking for entries with machine_id={machine_id}")
+            logger.debug(
+                "Total entries in machine_control_log: %s",
+                len(machine_control_log),
+            )
+            logger.debug("Looking for entries with machine_id=%s", machine_id)
             
             # More permissive filtering - include entries that match the machine_id
             display_log = []
             for entry in machine_control_log:
                 entry_machine_id = entry.get("machine_id")
                 is_demo = entry.get("demo", False)
-                logger.info(f"Entry: machine_id={entry_machine_id}, demo={is_demo}, tag={entry.get('tag', 'N/A')}")
+                logger.debug(
+                    "Entry: machine_id=%s, demo=%s, tag=%s",
+                    entry_machine_id,
+                    is_demo,
+                    entry.get('tag', 'N/A'),
+                )
                 
                 # Include if machine_id matches (regardless of demo flag for now)
                 if str(entry_machine_id) == str(machine_id):
