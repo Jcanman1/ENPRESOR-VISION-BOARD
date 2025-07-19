@@ -51,6 +51,13 @@ python3 EnpresorOPCDataViewBeforeRestructureLegacy.py
 ```
 The script prints the local and network URLs for accessing the interface. Optionally use `--open-browser` to automatically open your web browser and `--debug` for verbose output.
 
+To reduce log noise, set the `LOG_LEVEL` environment variable. The default level is `WARNING` so informational logs are suppressed unless `LOG_LEVEL` is overridden:
+
+```bash
+export LOG_LEVEL=INFO  # show additional details
+python3 EnpresorOPCDataViewBeforeRestructureLegacy.py
+```
+
 ### Simulating Lab Mode
 
 The `scripts/lab_mode_sim.py` helper reads a CSV log and prints the values that
