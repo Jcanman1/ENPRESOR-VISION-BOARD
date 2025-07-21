@@ -209,5 +209,73 @@ def test_enhanced_calculate_stats_respects_isassigned(tmp_path):
     assert stats["removed"] == pytest.approx(generate_report.LAB_OBJECT_SCALE_FACTOR)
 
 
+def test_enhanced_calculate_stats_respects_isassigned(tmp_path):
+    machine_dir = tmp_path / "1"
+    machine_dir.mkdir()
+    csv = machine_dir / "last_24h_metrics.csv"
+    csv.write_text(
+        "timestamp,counter_1,counter_2\n"
+        "2025-01-01T00:00:00,1,2\n"
+        "2025-01-01T00:01:00,1,2\n"
+    )
+
+    settings = {
+        "Settings": {
+            "ColorSort": {
+                "Primary1": {"IsAssigned": "TRUE"},
+                "Primary2": {"IsAssigned": "FALSE"},
+            }
+        }
+    }
+
+    json.dump(settings, open(machine_dir / "settings.json", "w"))
+
+    stats = generate_report.enhanced_calculate_stats_for_machine(
+        tmp_path, "1", is_lab_mode=True
+    )
+
+    assert stats["removed"] == pytest.approx(generate_report.LAB_OBJECT_SCALE_FACTOR)
+
+
+def test_machine_pie_reject_percent_uses_objects(tmp_path):
+    machine_dir = tmp_path / "1"
+    machine_dir.mkdir()
+    csv = machine_dir / "last_24h_metrics.csv"
+    csv.write_text(
+        "timestamp,objects_per_min,counter_1\n"
+        "2025-01-01T00:00:00,10,1\n"
+        "2025-01-01T00:01:00,10,1\n"
+    )
+
+    settings = {"Settings": {"ColorSort": {"Primary1": {"IsAssigned": "TRUE"}}}}
+    json.dump(settings, open(machine_dir / "settings.json", "w"))
+
+    class DummyCanvas:
+        def __init__(self):
+            self.texts = []
+            self._pagesize = (612.0, 792.0)
+
+        def __getattr__(self, name):
+            if name in ("drawString", "drawCentredString"):
+                return lambda x, y, text: self.texts.append(text)
+            if name == "stringWidth":
+                return lambda text, font, size: len(text)
+            return lambda *a, **k: None
+
+    c = DummyCanvas()
+    generate_report.draw_machine_sections(
+        c,
+        tmp_path,
+        "1",
+        0,
+        200,
+        200,
+        100,
+        is_lab_mode=True,
+    )
+
+    assert any("10.0%" in t for t in c.texts)
+
+
 
 
