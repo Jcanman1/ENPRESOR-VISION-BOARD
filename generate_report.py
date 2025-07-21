@@ -1761,7 +1761,9 @@ def draw_machine_sections(
         p_pie.width = p_pie.height = psz
         p_pie.startAngle = -30
         p_pie.direction = 'clockwise'
-        p_pie.data = [a_val, r_val]
+        accept_obj = machine_objs - machine_rem
+        reject_obj = machine_rem
+        p_pie.data = [accept_obj, reject_obj]
         p_pie.slices[0].fillColor = colors.green
         p_pie.slices[1].fillColor = colors.red
         p_pie.sideLabels = False
