@@ -760,19 +760,9 @@ def draw_global_summary(
     # Manual labels with percentages
     total = total_accepts + total_rejects
     if total > 0:
-
-        if is_lab_mode and total_objects > 0:
-            reject_share = total_removed / total_objects
-            percentages = [
-                (1 - reject_share) * 100,
-                reject_share * 100,
-            ]
-        else:
-            values = [total_accepts, total_rejects]
-            percentages = [(val / total) * 100 for val in values]
-
-        angles = [45, -59 + 180 * (percentages[1] / 100)]
-
+        values = [total_accepts, total_rejects]
+        percentages = [(val/total)*100 for val in values]
+        angles = [180 + -59 + (360*(total_rejects/total)*100/2/100), -59 + (360*(total_rejects/total)*100/2/100)]    
         print("global angles",angles, total_rejects, total)
         labels_tr = [tr('accepts', lang), tr('rejects', lang)]
         for i, (label, pct, angle) in enumerate(zip(labels_tr, percentages, angles)):
@@ -1686,26 +1676,13 @@ def draw_machine_sections(
     a_val = df[ac_col].sum() if ac_col else 0
     r_val = df[rj_col].sum() if rj_col else 0
 
-
-    # Calculate machine totals used for pie labels and counts
-    machine_objs = 0
-    if "objects_60M" in df.columns and is_lab_mode:
-        machine_objs = last_value_scaled(df["objects_60M"], 60)
-    elif "objects_per_min" in df.columns:
-        machine_objs = last_value_scaled(df["objects_per_min"], 60)
-    elif is_lab_mode:
-        ac_tot = last_value_scaled(df[ac_col], 60) if ac_col else 0
-        rj_tot = last_value_scaled(df[rj_col], 60) if rj_col else 0
-        machine_objs = ac_tot + rj_tot
-
-    machine_rem = 0
-    for i in range(1, 13):
-        col = next((c for c in df.columns if c.lower() == f"counter_{i}"), None)
-        if not col:
-            continue
-
-        if is_lab_mode:
-
+    # In lab mode use the counters for rejects
+    if is_lab_mode:
+        r_val = 0
+        for i in range(1, 13):
+            col = next((c for c in df.columns if c.lower() == f"counter_{i}"), None)
+            if not col:
+                continue
             assigned_val = _lookup_setting(
                 settings_data,
                 f"Settings.ColorSort.Primary{i}.IsAssigned",
@@ -1713,13 +1690,7 @@ def draw_machine_sections(
             )
             if not _bool_from_setting(assigned_val):
                 continue
-
-
-        machine_rem += last_value_scaled(df[col], 60)
-
-    # In lab mode use the counters for rejects
-    if is_lab_mode:
-        r_val = machine_rem
+            r_val += df[col].sum()
 
     run_total = df[run_col].sum() if run_col else 0
     stop_total = df[stop_col].sum() if stop_col else 0
@@ -1763,17 +1734,8 @@ def draw_machine_sections(
         # Add labels with smaller fonts
         total_pie = a_val + r_val
         if total_pie > 0:
-
-            if is_lab_mode and machine_objs > 0:
-                reject_share = machine_rem / machine_objs
-                percentages = [
-                    (1 - reject_share) * 100,
-                    reject_share * 100,
-                ]
-            else:
-                percentages = [(a_val / total_pie) * 100, (r_val / total_pie) * 100]
-            angles = [45, -59 + 180 * (percentages[1] / 100)]
-
+            percentages = [(a_val/total_pie)*100, (r_val/total_pie)*100]
+            angles = [180+-59 + (360*((r_val/total_pie)*100)/2/100), -59 + (360*((r_val/total_pie)*100)/2/100)] 
             print('###############angles =',angles, r_val,total_pie) 
             labels = [tr('accepts', lang), tr('rejects', lang)]
             
@@ -1912,6 +1874,37 @@ def draw_machine_sections(
     
     # Section 3: Machine counts (full width) - SIGNIFICANTLY REDUCED HEIGHT
     y_counts = y_pie - counts_height - spacing
+    
+   
+    # Calculate machine totals
+        
+    machine_objs = 0
+    if 'objects_60M' in df.columns and is_lab_mode:
+        machine_objs = last_value_scaled(df['objects_60M'], 60)
+    elif 'objects_per_min' in df.columns:
+        machine_objs = last_value_scaled(df['objects_per_min'], 60)
+    elif is_lab_mode:
+        ac_tot = last_value_scaled(df[ac_col], 60) if ac_col else 0
+        rj_tot = last_value_scaled(df[rj_col], 60) if rj_col else 0
+        machine_objs = ac_tot + rj_tot
+
+    machine_rem = 0
+    for i in range(1, 13):
+        col = next((c for c in df.columns if c.lower() == f'counter_{i}'), None)
+        if not col:
+            continue
+
+        if is_lab_mode:
+            assigned_val = _lookup_setting(
+                settings_data,
+                f"Settings.ColorSort.Primary{i}.IsAssigned",
+                True,
+            )
+            if not _bool_from_setting(assigned_val):
+                continue
+
+        machine_rem += last_value_scaled(df[col], 60)
+
     machine_accepts = 0
     machine_rejects = 0
 
@@ -1927,15 +1920,6 @@ def draw_machine_sections(
                 is_lab_mode=is_lab_mode,
                 values_in_kg=values_in_kg,
             )
-            machine_accepts = a_stats['total_capacity_lbs']
-        if rj_col:
-            r_stats = calculate_total_capacity_from_csv_rates(
-                df[rj_col],
-                timestamps=df['timestamp'] if is_lab_mode else None,
-                is_lab_mode=is_lab_mode,
-                values_in_kg=values_in_kg,
-            )
-            machine_rejects = r_stats['total_capacity_lbs']
 
     
     # Draw SMALLER blue counts section
