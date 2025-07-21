@@ -61,7 +61,7 @@ def test_draw_sensitivity_sections_only_active(monkeypatch):
     }
 
     end_y = generate_report.draw_sensitivity_sections(
-        None, 0, 100, 50, 10, settings
+        None, 0, 100, 50, 10, settings, bar_colors=generate_report.BAR_COLORS
     )
 
     assert calls == [1, 3]
@@ -106,7 +106,7 @@ def test_primary7_typeid_label_lab_mode():
         c = DummyCanvas()
         settings = {"Settings": {"ColorSort": {"Primary7": {"TypeId": value}}}}
         generate_report.draw_sensitivity_grid(
-            c, 0, 0, 100, 20, settings, 7, is_lab_mode=True
+            c, 0, 0, 100, 20, settings, 7, is_lab_mode=True, border_color=generate_report.BAR_COLORS[6]
         )
         assert expected in c.texts
 
@@ -149,7 +149,9 @@ def test_position_text_from_axis_wave_lab_mode():
     for waves, expected in cases:
         c = DummyCanvas()
         settings = {"Settings": {"ColorSort": {"Primary1": {"TypeId": 1, **waves}}}}
-        generate_report.draw_sensitivity_grid(c, 0, 0, 100, 20, settings, 1, is_lab_mode=True)
+        generate_report.draw_sensitivity_grid(
+            c, 0, 0, 100, 20, settings, 1, is_lab_mode=True, border_color=generate_report.BAR_COLORS[0]
+        )
         assert expected in c.texts
 
 def test_enhanced_calculate_stats_respects_isassigned(tmp_path):

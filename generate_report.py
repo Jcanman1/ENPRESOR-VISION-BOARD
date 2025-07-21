@@ -38,6 +38,22 @@ LAB_WEIGHT_MULTIPLIER = 1 / 1800
 
 from i18n import tr
 
+# Colors used for bar charts and sensitivity section borders
+BAR_COLORS = [
+    colors.red,
+    colors.blue,
+    colors.green,
+    colors.orange,
+    colors.purple,
+    colors.brown,
+    colors.pink,
+    colors.gray,
+    colors.cyan,
+    colors.magenta,
+    colors.yellow,
+    colors.black,
+]
+
 
 def _lookup_setting(data: dict, dotted_key: str, default="N/A"):
     """Return a nested setting value using dotted notation.
@@ -1229,6 +1245,7 @@ def draw_sensitivity_grid(
     counter_value=None,
     lang="en",
     is_lab_mode=False,
+    border_color=colors.black,
 ):
     """Draw a grid of settings for a single sensitivity.
 
@@ -1487,6 +1504,12 @@ def draw_sensitivity_grid(
     finally:
         # Always restore state even if there was an error
         try:
+            # Draw colored border around entire section
+            c.setStrokeColor(border_color)
+            c.rect(x0, y0, total_w, section_h, fill=0, stroke=1)
+        except Exception:
+            pass
+        try:
             c.restoreState()
         except:
             # If restoreState fails, there's not much we can do
@@ -1507,6 +1530,7 @@ def draw_sensitivity_sections(
     width=None,
     height=None,
     lab_test_name: str | None = None,
+    bar_colors=BAR_COLORS,
 ):
     """Draw grids for all active sensitivities and return new y position."""
     spacing = 10
@@ -1555,6 +1579,7 @@ def draw_sensitivity_sections(
             counter_value=counter_values.get(i) if counter_values else None,
             lang=lang,
             is_lab_mode=is_lab_mode,
+            border_color=bar_colors[(i - 1) % len(bar_colors)] if bar_colors else colors.black,
         )
         current_y = y_grid - spacing
 
@@ -1887,9 +1912,7 @@ def draw_machine_sections(
         # Use global max if provided, otherwise use local max
         max_val = global_max_firing if global_max_firing and global_max_firing > 0 else max(val for _, val in counter_values)
         
-        bar_colors = [colors.red, colors.blue, colors.green, colors.orange, 
-                    colors.purple, colors.brown, colors.pink, colors.gray,
-                    colors.cyan, colors.magenta, colors.yellow, colors.black]
+        bar_colors = BAR_COLORS
         
         for i, (counter_name, val) in enumerate(counter_values):
             bar_x = chart_x + i * bar_spacing + (bar_spacing - bar_width)/2
@@ -2065,6 +2088,7 @@ def draw_machine_sections(
         width=width,
         height=height,
         lab_test_name=lab_test_name,
+        bar_colors=BAR_COLORS,
     )
 
     # Return the Y position where the next content should start
