@@ -1761,7 +1761,9 @@ def draw_machine_sections(
         p_pie.width = p_pie.height = psz
         p_pie.startAngle = -30
         p_pie.direction = 'clockwise'
-        p_pie.data = [a_val, r_val]
+        accept_obj = machine_objs - machine_rem
+        reject_obj = machine_rem
+        p_pie.data = [accept_obj, reject_obj]
         p_pie.slices[0].fillColor = colors.green
         p_pie.slices[1].fillColor = colors.red
         p_pie.sideLabels = False
@@ -1779,7 +1781,8 @@ def draw_machine_sections(
             accept_obj = machine_objs - machine_rem
             reject_obj = machine_rem
             percentages = [(accept_obj/total_pie)*100, (reject_obj/total_pie)*100]
-            angles = [180+-59 + (360*((reject_obj/total_pie)*100)/2/100), -59 + (360*((reject_obj/total_pie)*100)/2/100)]
+            angles = [180+-59 + (360*((reject_obj/total_pie)*100)/2/100),
+                      -59 + (360*((reject_obj/total_pie)*100)/2/100)]
             labels = [tr('accepts', lang), tr('rejects', lang)]
             
             for i, (label, pct, angle) in enumerate(zip(labels, percentages, angles)):
