@@ -1489,6 +1489,9 @@ def draw_sensitivity_grid(
                     tx = x + 2
                     if r >= 1 and j == cols - 1:
                         c.setFont(FONT_BOLD, SENSITIVITY_VALUE_FONT_SIZE)
+                        vw = pdfmetrics.stringWidth(text, FONT_BOLD, SENSITIVITY_VALUE_FONT_SIZE)
+                        tx = x + (w - vw) / 2
+
                         ty = y + h - SENSITIVITY_VALUE_FONT_SIZE - 2
                     else:
                         ty = y + h - 8
