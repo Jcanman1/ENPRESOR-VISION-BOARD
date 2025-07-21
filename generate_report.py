@@ -1935,7 +1935,7 @@ def draw_machine_sections(
             label_x = bar_x + bar_width/2
             c.drawCentredString(label_x, bar_y - 8, counter_name)
 
-            c.setFont(FONT_DEFAULT, 5)  # Smaller font
+            c.setFont(FONT_DEFAULT, 8)  # Smaller font
             pct_val = (val / machine_objs) * 100 if machine_objs else 0
             c.drawCentredString(label_x, bar_y + bar_height_val + 2, f"{pct_val:.1f}%")
         
