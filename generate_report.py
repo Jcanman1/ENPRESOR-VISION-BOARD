@@ -1672,30 +1672,26 @@ def draw_machine_sections(
     rj_col = next((c for c in df.columns if c.lower()=='rejects'), None)
     run_col = next((c for c in df.columns if c.lower()=='running'), None)
     stop_col = next((c for c in df.columns if c.lower()=='stopped'), None)
-    # Determine pie chart values
+
+    a_val = df[ac_col].sum() if ac_col else 0
+    r_val = df[rj_col].sum() if rj_col else 0
+
+    # In lab mode use the counters for rejects
     if is_lab_mode:
-        # Use last object and counter values to determine accepts/rejects
-        machine_objs_last = 0
-        if 'objects_60M' in df.columns:
-            machine_objs_last = last_value_scaled(df['objects_60M'], 60)
-        elif 'objects_per_min' in df.columns:
-            machine_objs_last = last_value_scaled(df['objects_per_min'], 60)
-        elif ac_col or rj_col:
-            ac_last = last_value_scaled(df[ac_col], 60) if ac_col else 0
-            rj_last = last_value_scaled(df[rj_col], 60) if rj_col else 0
-            machine_objs_last = ac_last + rj_last
-
-        machine_rem_last = 0
+        r_val = 0
         for i in range(1, 13):
-            col = next((c for c in df.columns if c.lower() == f'counter_{i}'), None)
-            if col:
-                machine_rem_last += last_value_scaled(df[col], 60)
+            col = next((c for c in df.columns if c.lower() == f"counter_{i}"), None)
+            if not col:
+                continue
+            assigned_val = _lookup_setting(
+                settings_data,
+                f"Settings.ColorSort.Primary{i}.IsAssigned",
+                True,
+            )
+            if not _bool_from_setting(assigned_val):
+                continue
+            r_val += df[col].sum()
 
-        a_val = machine_objs_last - machine_rem_last
-        r_val = machine_rem_last
-    else:
-        a_val = df[ac_col].sum() if ac_col else 0
-        r_val = df[rj_col].sum() if rj_col else 0
     run_total = df[run_col].sum() if run_col else 0
     stop_total = df[stop_col].sum() if stop_col else 0
     
