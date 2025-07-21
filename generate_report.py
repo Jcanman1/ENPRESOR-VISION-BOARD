@@ -1775,14 +1775,16 @@ def draw_machine_sections(
         renderPDF.draw(d_pie, c, -psz/2, -psz/2)
         c.restoreState()
         
-        # Add labels with smaller fonts
-        total_pie = machine_objs
+        # Add labels with smaller fonts using the same values as the pie slices
+        total_pie = a_val + r_val
         if total_pie > 0:
+
             accept_obj = machine_objs - machine_rem
             reject_obj = machine_rem
             percentages = [(accept_obj/total_pie)*100, (reject_obj/total_pie)*100]
             angles = [180+-59 + (360*((reject_obj/total_pie)*100)/2/100),
                       -59 + (360*((reject_obj/total_pie)*100)/2/100)]
+
             labels = [tr('accepts', lang), tr('rejects', lang)]
             
             for i, (label, pct, angle) in enumerate(zip(labels, percentages, angles)):
@@ -1894,7 +1896,7 @@ def draw_machine_sections(
             label_x = bar_x + bar_width/2
             c.drawCentredString(label_x, bar_y - 8, counter_name)
 
-            c.setFont(FONT_DEFAULT, 5)  # Smaller font
+            c.setFont(FONT_DEFAULT, 8)  # Smaller font
             pct_val = (val / machine_objs) * 100 if machine_objs else 0
             c.drawCentredString(label_x, bar_y + bar_height_val + 2, f"{pct_val:.1f}%")
         
