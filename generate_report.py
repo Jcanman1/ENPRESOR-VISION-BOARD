@@ -1579,7 +1579,9 @@ def draw_sensitivity_sections(
             counter_value=counter_values.get(i) if counter_values else None,
             lang=lang,
             is_lab_mode=is_lab_mode,
-            border_color=bar_colors[(i - 1) % len(bar_colors)] if bar_colors else colors.black,
+
+            border_color=bar_colors[idx % len(bar_colors)] if bar_colors else colors.black,
+
         )
         current_y = y_grid - spacing
 
