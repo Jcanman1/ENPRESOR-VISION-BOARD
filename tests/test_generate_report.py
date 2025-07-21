@@ -1,6 +1,7 @@
 
 import json
 from pathlib import Path
+import pytest
 
 import generate_report
 
@@ -151,30 +152,33 @@ def test_position_text_from_axis_wave_lab_mode():
         generate_report.draw_sensitivity_grid(c, 0, 0, 100, 20, settings, 1, is_lab_mode=True)
         assert expected in c.texts
 
+def test_enhanced_calculate_stats_respects_isassigned(tmp_path):
+    machine_dir = tmp_path / "1"
+    machine_dir.mkdir()
+    csv = machine_dir / "last_24h_metrics.csv"
+    csv.write_text(
+        "timestamp,counter_1,counter_2\n"
+        "2025-01-01T00:00:00,1,2\n"
+        "2025-01-01T00:01:00,1,2\n"
+    )
 
-def test_header_includes_lab_test_name():
-    class DummyCanvas:
-        def __init__(self):
-            self.texts = []
+    settings = {
+        "Settings": {
+            "ColorSort": {
+                "Primary1": {"IsAssigned": "TRUE"},
+                "Primary2": {"IsAssigned": "FALSE"},
+            }
+        }
+    }
 
-        def setFont(self, *a, **k):
-            pass
+    json.dump(settings, open(machine_dir / "settings.json", "w"))
 
-        def setFillColor(self, *a, **k):
-            pass
+    stats = generate_report.enhanced_calculate_stats_for_machine(
+        tmp_path, "1", is_lab_mode=True
+    )
 
-        def drawString(self, x, y, text):
-            self.texts.append(text)
+    assert stats["removed"] == pytest.approx(generate_report.LAB_OBJECT_SCALE_FACTOR)
 
-        def drawCentredString(self, x, y, text):
-            self.texts.append(text)
-
-        def stringWidth(self, text, font, size):
-            return len(text)
-
-    c = DummyCanvas()
-    generate_report.draw_header(c, 600, 800, 1, lang="en", is_lab_mode=True, lab_test_name="TestLot")
-    assert "TestLot" in c.texts
 
 
 

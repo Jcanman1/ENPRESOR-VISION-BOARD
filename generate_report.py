@@ -570,6 +570,7 @@ def draw_global_summary(
         fp = os.path.join(csv_parent_dir, m, 'last_24h_metrics.csv')
         if os.path.isfile(fp):
             df = df_processor.safe_read_csv(fp)
+            settings_data = load_machine_settings(csv_parent_dir, m)
             if 'capacity' in df.columns:
                 stats = calculate_total_capacity_from_csv_rates(
                     df['capacity'],
@@ -596,8 +597,18 @@ def draw_global_summary(
                 machine_removed = 0
                 for i in range(1, 13):
                     col = next((c for c in df.columns if c.lower() == f'counter_{i}'), None)
-                    if col:
-                        machine_removed += last_value_scaled(df[col], 60)
+                    if not col:
+                        continue
+
+                    assigned_val = _lookup_setting(
+                        settings_data,
+                        f"Settings.ColorSort.Primary{i}.IsAssigned",
+                        True,
+                    )
+                    if not _bool_from_setting(assigned_val):
+                        continue
+
+                    machine_removed += last_value_scaled(df[col], 60)
 
                 total_objects += machine_objects
                 total_removed += machine_removed
@@ -906,17 +917,26 @@ def calculate_global_max_firing_average(csv_parent_dir, machines=None, *, is_lab
         if os.path.isfile(fp):
             try:
                 df = df_processor.safe_read_csv(fp)
+                settings_data = load_machine_settings(csv_parent_dir, machine)
                 ts = df.get('timestamp') if is_lab_mode else None
                 # Find counter values for this machine
                 for i in range(1, 13):
                     col_name = next((c for c in df.columns if c.lower() == f'counter_{i}'), None)
-                    if col_name and col_name in df.columns:
-                        if is_lab_mode:
-                            val = last_value_scaled(df[col_name], 60)
-                        else:
-                            val = df[col_name].mean()
-                        if not pd.isna(val):
-                            global_max = max(global_max, val)
+                    if not col_name or col_name not in df.columns:
+                        continue
+                    if is_lab_mode:
+                        assigned_val = _lookup_setting(
+                            settings_data,
+                            f"Settings.ColorSort.Primary{i}.IsAssigned",
+                            True,
+                        )
+                        if not _bool_from_setting(assigned_val):
+                            continue
+                        val = last_value_scaled(df[col_name], 60)
+                    else:
+                        val = df[col_name].mean()
+                    if not pd.isna(val):
+                        global_max = max(global_max, val)
             except Exception as e:
                 logger.error(f"Error calculating max for machine {machine}: {e}")
     
@@ -930,6 +950,10 @@ def enhanced_calculate_stats_for_machine(csv_parent_dir, machine, *, is_lab_mode
     :func:`df_processor.safe_read_csv` and computes totals for common metrics.
     ``df_processor.process_with_cleanup`` is used when running the calculation
     helpers to ensure any temporary pandas objects are cleaned up.
+
+    When running in lab mode, counters for sensitivities whose
+    ``IsAssigned`` flag is false are ignored so that inactive sensitivities do
+    not contribute to the totals.
     """
     fp = os.path.join(csv_parent_dir, str(machine), "last_24h_metrics.csv")
     if not os.path.isfile(fp):
@@ -956,6 +980,7 @@ def enhanced_calculate_stats_for_machine(csv_parent_dir, machine, *, is_lab_mode
         }
 
     ts = df.get("timestamp") if is_lab_mode else None
+    settings_data = load_machine_settings(csv_parent_dir, machine)
 
     def calc_cap(series):
         return calculate_total_capacity_from_csv_rates(series, timestamps=ts, is_lab_mode=is_lab_mode)
@@ -984,8 +1009,19 @@ def enhanced_calculate_stats_for_machine(csv_parent_dir, machine, *, is_lab_mode
     removed_total = 0
     for i in range(1, 13):
         col = next((c for c in df.columns if c.lower() == f"counter_{i}"), None)
-        if col:
-            removed_total += df_processor.process_with_cleanup(df[col], calc_obj)["total_objects"]
+        if not col:
+            continue
+
+        if is_lab_mode:
+            assigned_val = _lookup_setting(
+                settings_data,
+                f"Settings.ColorSort.Primary{i}.IsAssigned",
+                True,
+            )
+            if not _bool_from_setting(assigned_val):
+                continue
+
+        removed_total += df_processor.process_with_cleanup(df[col], calc_obj)["total_objects"]
 
     running_mins = df.get("running", pd.Series(dtype=float)).sum() if "running" in df.columns else 0
     stopped_mins = df.get("stopped", pd.Series(dtype=float)).sum() if "stopped" in df.columns else 0
@@ -1762,13 +1798,23 @@ def draw_machine_sections(
     counter_values = []
     for i in range(1, 13):
         col_name = next((c for c in df.columns if c.lower() == f'counter_{i}'), None)
-        if col_name and col_name in df.columns:
-            if is_lab_mode:
-                val = last_value_scaled(df[col_name], 60)
-            else:
-                val = df[col_name].mean()
-            if not pd.isna(val):
-                counter_values.append((f"S{i}", val))
+        if not col_name or col_name not in df.columns:
+            continue
+
+        if is_lab_mode:
+            assigned_val = _lookup_setting(
+                settings_data,
+                f"Settings.ColorSort.Primary{i}.IsAssigned",
+                True,
+            )
+            if not _bool_from_setting(assigned_val):
+                continue
+            val = last_value_scaled(df[col_name], 60)
+        else:
+            val = df[col_name].mean()
+
+        if not pd.isna(val):
+            counter_values.append((f"S{i}", val))
 
     if counter_values:
         # UPDATED: Reduced width by 5%, increased height by 5%
@@ -1849,8 +1895,19 @@ def draw_machine_sections(
     machine_rem = 0
     for i in range(1, 13):
         col = next((c for c in df.columns if c.lower() == f'counter_{i}'), None)
-        if col:
-            machine_rem += last_value_scaled(df[col], 60)
+        if not col:
+            continue
+
+        if is_lab_mode:
+            assigned_val = _lookup_setting(
+                settings_data,
+                f"Settings.ColorSort.Primary{i}.IsAssigned",
+                True,
+            )
+            if not _bool_from_setting(assigned_val):
+                continue
+
+        machine_rem += last_value_scaled(df[col], 60)
 
     machine_accepts = 0
     machine_rejects = 0
