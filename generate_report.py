@@ -1218,6 +1218,7 @@ def draw_sensitivity_grid(
     settings,
     primary_num,
     *,
+    counter_value=None,
     lang="en",
     is_lab_mode=False,
 ):
@@ -1232,8 +1233,9 @@ def draw_sensitivity_grid(
 
         rows = 5
         base_cols = 8
-        extra_col = 1 if is_lab_mode else 0
-        cols = base_cols + extra_col
+        extra_image_col = 1 if is_lab_mode else 0
+        extra_removed_col = 1 if is_lab_mode else 0
+        cols = base_cols + extra_image_col + extra_removed_col
         row_h = section_h / rows
         col_w = total_w / cols
 
@@ -1290,6 +1292,7 @@ def draw_sensitivity_grid(
                 z_label,
                 "And Mode:",
                 get(f"Settings.ColorSort.Primary{p}.FrontAndRearLogic"),
+                "Total Removed",
             ]
         else:
             # Modify labels based on Grid type (lowercase for non-lab mode)
@@ -1322,6 +1325,7 @@ def draw_sensitivity_grid(
                 "" if is_grid_type else get(f"Settings.ColorSort.Primary{p}.EllipsoidCenterZ"),  # Blank if Grid or Z center
                 "Ej. Delay Offset:",
                 get(f"Settings.ColorSort.Primary{p}.EjectorDelayOffset"),
+                int(counter_value) if counter_value is not None else 0,
             ],
             [
                 *row_prefix,
@@ -1333,6 +1337,7 @@ def draw_sensitivity_grid(
                 "" if is_grid_type else get(f"Settings.ColorSort.Primary{p}.EllipsoidAxisLengthZ"),  # Blank if Grid
                 "Ej. Offset:",
                 get(f"Settings.ColorSort.Primary{p}.EjectorDwellOffset"),
+                "",
             ],
             [
                 *row_prefix,
@@ -1344,9 +1349,11 @@ def draw_sensitivity_grid(
                 "" if is_grid_type else get(f"Settings.ColorSort.Primary{p}.EllipsoidRotationZ"),  # Blank if Grid
                 "",
                 "",
+                "",
             ],
             [
                 *row_prefix,
+                "",
                 "",
                 "",
                 "",
@@ -1359,6 +1366,8 @@ def draw_sensitivity_grid(
         ]
 
         merges = {(0, 0): (rows, 1)} if is_lab_mode else {}
+        if is_lab_mode:
+            merges[(1, cols - 1)] = (rows - 1, 1)
 
         merged_to = {}
 
@@ -1408,6 +1417,8 @@ def draw_sensitivity_grid(
                     elif r == 3 and j == 4:  # PlaneAngle for Grid OR RotationX for Ellipsoid
                         is_data_cell = True
                     elif r == 3 and not is_grid_type and j in [5, 6]:  # RotationY/Z for Ellipsoid only
+                        is_data_cell = True
+                    elif r >= 1 and j == cols - 1:
                         is_data_cell = True
                 else:
                     # Original logic for non-lab mode
@@ -1478,6 +1489,7 @@ def draw_sensitivity_sections(
     section_h,
     settings,
     *,
+    counter_values=None,
     lang="en",
     is_lab_mode=False,
     width=None,
@@ -1528,6 +1540,7 @@ def draw_sensitivity_sections(
             section_h,
             settings,
             i,
+            counter_value=counter_values.get(i) if counter_values else None,
             lang=lang,
             is_lab_mode=is_lab_mode,
         )
@@ -1694,6 +1707,35 @@ def draw_machine_sections(
 
     run_total = df[run_col].sum() if run_col else 0
     stop_total = df[stop_col].sum() if stop_col else 0
+
+    # Calculate total objects processed and removed counts for percentages
+    machine_objs = 0
+    if 'objects_60M' in df.columns and is_lab_mode:
+        machine_objs = last_value_scaled(df['objects_60M'], 60)
+    elif 'objects_per_min' in df.columns:
+        machine_objs = last_value_scaled(df['objects_per_min'], 60)
+    elif is_lab_mode:
+        ac_tot = last_value_scaled(df[ac_col], 60) if ac_col else 0
+        rj_tot = last_value_scaled(df[rj_col], 60) if rj_col else 0
+        machine_objs = ac_tot + rj_tot
+
+    machine_rem = 0
+    sensitivity_counts = {}
+    for idx in range(1, 13):
+        col = next((c for c in df.columns if c.lower() == f'counter_{idx}'), None)
+        if not col:
+            continue
+        if is_lab_mode:
+            assigned_val = _lookup_setting(
+                settings_data,
+                f"Settings.ColorSort.Primary{idx}.IsAssigned",
+                True,
+            )
+            if not _bool_from_setting(assigned_val):
+                continue
+        cnt_val = last_value_scaled(df[col], 60)
+        machine_rem += cnt_val
+        sensitivity_counts[idx] = cnt_val
     
     # Draw pie chart section border
     c.setStrokeColor(colors.black)
@@ -1732,11 +1774,12 @@ def draw_machine_sections(
         c.restoreState()
         
         # Add labels with smaller fonts
-        total_pie = a_val + r_val
+        total_pie = machine_objs
         if total_pie > 0:
-            percentages = [(a_val/total_pie)*100, (r_val/total_pie)*100]
-            angles = [180+-59 + (360*((r_val/total_pie)*100)/2/100), -59 + (360*((r_val/total_pie)*100)/2/100)] 
-            print('###############angles =',angles, r_val,total_pie) 
+            accept_obj = machine_objs - machine_rem
+            reject_obj = machine_rem
+            percentages = [(accept_obj/total_pie)*100, (reject_obj/total_pie)*100]
+            angles = [180+-59 + (360*((reject_obj/total_pie)*100)/2/100), -59 + (360*((reject_obj/total_pie)*100)/2/100)]
             labels = [tr('accepts', lang), tr('rejects', lang)]
             
             for i, (label, pct, angle) in enumerate(zip(labels, percentages, angles)):
@@ -1877,33 +1920,7 @@ def draw_machine_sections(
     
    
     # Calculate machine totals
-        
-    machine_objs = 0
-    if 'objects_60M' in df.columns and is_lab_mode:
-        machine_objs = last_value_scaled(df['objects_60M'], 60)
-    elif 'objects_per_min' in df.columns:
-        machine_objs = last_value_scaled(df['objects_per_min'], 60)
-    elif is_lab_mode:
-        ac_tot = last_value_scaled(df[ac_col], 60) if ac_col else 0
-        rj_tot = last_value_scaled(df[rj_col], 60) if rj_col else 0
-        machine_objs = ac_tot + rj_tot
-
-    machine_rem = 0
-    for i in range(1, 13):
-        col = next((c for c in df.columns if c.lower() == f'counter_{i}'), None)
-        if not col:
-            continue
-
-        if is_lab_mode:
-            assigned_val = _lookup_setting(
-                settings_data,
-                f"Settings.ColorSort.Primary{i}.IsAssigned",
-                True,
-            )
-            if not _bool_from_setting(assigned_val):
-                continue
-
-        machine_rem += last_value_scaled(df[col], 60)
+    # (machine_objs, machine_rem) computed earlier)
 
     machine_accepts = 0
     machine_rejects = 0
@@ -2019,6 +2036,7 @@ def draw_machine_sections(
         total_w,
         grid_height,
         settings_data,
+        counter_values=sensitivity_counts,
         lang=lang,
         is_lab_mode=is_lab_mode,
         width=width,
