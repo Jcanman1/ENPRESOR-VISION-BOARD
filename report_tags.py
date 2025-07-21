@@ -19,6 +19,8 @@ REPORT_SETTINGS_TAGS = {
     "Settings.Calibration.FrontBackgroundRed",
     "Settings.Calibration.FrontBackgroundGreen",
     "Settings.Calibration.FrontBackgroundBlue",
+    "Status.Info.PresetName",
+    "Status.Info.PresetNumber",
     # Sensitivity specific tags for PDF reports
     *{
         f"Settings.ColorSort.Primary{i}.FrontAndRearLogic" for i in range(1, 13)
@@ -94,6 +96,7 @@ REPORT_SETTINGS_TAGS = {
     *{
         f"Status.ColorSort.Sort1.DefectCount{i}.Rate.60M" for i in range(1, 13)
     },
+    
 }
 
 
