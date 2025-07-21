@@ -152,7 +152,6 @@ def test_position_text_from_axis_wave_lab_mode():
         generate_report.draw_sensitivity_grid(c, 0, 0, 100, 20, settings, 1, is_lab_mode=True)
         assert expected in c.texts
 
-
 def test_enhanced_calculate_stats_respects_isassigned(tmp_path):
     machine_dir = tmp_path / "1"
     machine_dir.mkdir()
@@ -179,6 +178,7 @@ def test_enhanced_calculate_stats_respects_isassigned(tmp_path):
     )
 
     assert stats["removed"] == pytest.approx(generate_report.LAB_OBJECT_SCALE_FACTOR)
+
 
 
 

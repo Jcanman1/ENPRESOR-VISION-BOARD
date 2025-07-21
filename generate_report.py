@@ -323,9 +323,9 @@ def last_value_scaled(series, scale=1.0):
 
 from hourly_data_saving import EXPORT_DIR as METRIC_EXPORT_DIR, get_historical_data
 
-log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
+log_level = os.environ.get("LOG_LEVEL", "WARNING").upper()
 logging.basicConfig(
-    level=getattr(logging, log_level, logging.INFO),
+    level=getattr(logging, log_level, logging.WARNING),
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
@@ -334,8 +334,21 @@ if not logging.getLogger().handlers:
 
 
 
-def draw_header(c, width, height, page_number=None, *, lang="en"):
-    """Draw the header section on each page with optional page number"""
+def draw_header(
+    c,
+    width,
+    height,
+    page_number=None,
+    *,
+    lang="en",
+    is_lab_mode: bool = False,
+    lab_test_name: str | None = None,
+):
+    """Draw the header section on each page with optional page number.
+
+    When ``is_lab_mode`` is ``True`` and ``lab_test_name`` is provided the test
+    name is drawn below the date stamp.
+    """
     global FONT_DEFAULT, FONT_BOLD
     # Determine directories to search for the font
     if getattr(sys, "frozen", False):
@@ -485,6 +498,10 @@ def draw_header(c, width, height, page_number=None, *, lang="en"):
     c.setFont(FONT_DEFAULT, 10)
     c.setFillColor(colors.black)
     c.drawCentredString(x_center, height - 70, date_str)
+
+    if is_lab_mode and lab_test_name:
+        c.setFont(FONT_BOLD, 12)
+        c.drawCentredString(x_center, height - 85, lab_test_name)
     
     # Add page number in bottom right corner
     if page_number is not None:
@@ -745,7 +762,7 @@ def draw_global_summary(
     if total > 0:
         values = [total_accepts, total_rejects]
         percentages = [(val/total)*100 for val in values]
-        angles = [45, -59 + (360*(total_rejects/total)*100/2/100)]    
+        angles = [180 + -59 + (360*(total_rejects/total)*100/2/100), -59 + (360*(total_rejects/total)*100/2/100)]    
         print("global angles",angles, total_rejects, total)
         labels_tr = [tr('accepts', lang), tr('rejects', lang)]
         for i, (label, pct, angle) in enumerate(zip(labels_tr, percentages, angles)):
@@ -1465,6 +1482,7 @@ def draw_sensitivity_sections(
     is_lab_mode=False,
     width=None,
     height=None,
+    lab_test_name: str | None = None,
 ):
     """Draw grids for all active sensitivities and return new y position."""
     spacing = 10
@@ -1490,7 +1508,15 @@ def draw_sensitivity_sections(
             # Start a new page after the first five sections in lab mode
             c.showPage()
             page_number = c.getPageNumber()
-            content_start_y = draw_header(c, width, height, page_number, lang=lang)
+            content_start_y = draw_header(
+                c,
+                width,
+                height,
+                page_number,
+                lang=lang,
+                is_lab_mode=is_lab_mode,
+                lab_test_name=lab_test_name,
+            )
             current_y = content_start_y
 
         y_grid = current_y - section_h
@@ -1562,6 +1588,7 @@ def build_report(
     is_lab_mode: bool = False,
     values_in_kg: bool = False,
     lang: str = "en",
+    lab_test_name: str | None = None,
 ) -> None:
     """Generate a PDF report and write it to ``pdf_path``.
 
@@ -1578,6 +1605,7 @@ def build_report(
             lang=lang,
             is_lab_mode=is_lab_mode,
             values_in_kg=values_in_kg,
+            lab_test_name=lab_test_name,
         )
     else:
         draw_layout_standard(
@@ -1588,6 +1616,7 @@ def build_report(
             lang=lang,
             is_lab_mode=is_lab_mode,
             values_in_kg=values_in_kg,
+            lab_test_name=lab_test_name,
         )
 
 def draw_machine_sections(
@@ -1605,7 +1634,7 @@ def draw_machine_sections(
     values_in_kg=False,
     width=None,
     height=None,
-    
+    lab_test_name: str | None = None,
 ):
     width = width or (c._pagesize[0] if c else letter[0])
     height = height or (c._pagesize[1] if c else letter[1])
@@ -1643,8 +1672,30 @@ def draw_machine_sections(
     rj_col = next((c for c in df.columns if c.lower()=='rejects'), None)
     run_col = next((c for c in df.columns if c.lower()=='running'), None)
     stop_col = next((c for c in df.columns if c.lower()=='stopped'), None)
-    a_val = df[ac_col].sum() if ac_col else 0
-    r_val = df[rj_col].sum() if rj_col else 0
+    # Determine pie chart values
+    if is_lab_mode:
+        # Use last object and counter values to determine accepts/rejects
+        machine_objs_last = 0
+        if 'objects_60M' in df.columns:
+            machine_objs_last = last_value_scaled(df['objects_60M'], 60)
+        elif 'objects_per_min' in df.columns:
+            machine_objs_last = last_value_scaled(df['objects_per_min'], 60)
+        elif ac_col or rj_col:
+            ac_last = last_value_scaled(df[ac_col], 60) if ac_col else 0
+            rj_last = last_value_scaled(df[rj_col], 60) if rj_col else 0
+            machine_objs_last = ac_last + rj_last
+
+        machine_rem_last = 0
+        for i in range(1, 13):
+            col = next((c for c in df.columns if c.lower() == f'counter_{i}'), None)
+            if col:
+                machine_rem_last += last_value_scaled(df[col], 60)
+
+        a_val = machine_objs_last - machine_rem_last
+        r_val = machine_rem_last
+    else:
+        a_val = df[ac_col].sum() if ac_col else 0
+        r_val = df[rj_col].sum() if rj_col else 0
     run_total = df[run_col].sum() if run_col else 0
     stop_total = df[stop_col].sum() if stop_col else 0
     
@@ -1688,7 +1739,7 @@ def draw_machine_sections(
         total_pie = a_val + r_val
         if total_pie > 0:
             percentages = [(a_val/total_pie)*100, (r_val/total_pie)*100]
-            angles = [45, -59 + (360*((r_val/total_pie)*100)/2/100)] 
+            angles = [180+-59 + (360*((r_val/total_pie)*100)/2/100), -59 + (360*((r_val/total_pie)*100)/2/100)] 
             print('###############angles =',angles, r_val,total_pie) 
             labels = [tr('accepts', lang), tr('rejects', lang)]
             
@@ -1976,6 +2027,7 @@ def draw_machine_sections(
         is_lab_mode=is_lab_mode,
         width=width,
         height=height,
+        lab_test_name=lab_test_name,
     )
 
     # Return the Y position where the next content should start
@@ -1991,6 +2043,7 @@ def draw_layout_optimized(
     lang="en",
     is_lab_mode: bool = False,
     values_in_kg: bool = False,
+    lab_test_name: str | None = None,
 ):
     """Optimized version - CONSISTENT SIZING, 2 machines per page"""
     
@@ -2012,7 +2065,15 @@ def draw_layout_optimized(
     page_number = 0
     if include_global:
         page_number += 1
-        content_start_y = draw_header(c, width, height, page_number, lang=lang)
+        content_start_y = draw_header(
+            c,
+            width,
+            height,
+            page_number,
+            lang=lang,
+            is_lab_mode=is_lab_mode,
+            lab_test_name=lab_test_name,
+        )
         available_height = content_start_y - margin - 50
 
         # Draw global summary (takes full page)
@@ -2040,7 +2101,15 @@ def draw_layout_optimized(
         page_number += 1
         
         # Draw header with page number
-        content_start_y = draw_header(c, width, height, page_number, lang=lang)
+        content_start_y = draw_header(
+            c,
+            width,
+            height,
+            page_number,
+            lang=lang,
+            is_lab_mode=is_lab_mode,
+            lab_test_name=lab_test_name,
+        )
         available_height = content_start_y - margin - 50
         
         # INCREASED height per machine to accommodate larger sections
@@ -2064,6 +2133,7 @@ def draw_layout_optimized(
                 values_in_kg=values_in_kg,
                 width=width,
                 height=height,
+                lab_test_name=lab_test_name,
             )
                 
             # FIXED spacing between machines
@@ -2082,6 +2152,7 @@ def draw_layout_standard(
     lang="en",
     is_lab_mode: bool = False,
     values_in_kg: bool = False,
+    lab_test_name: str | None = None,
 ):
     """Standard layout - CONSISTENT SIZING with dynamic page breaks"""
   
@@ -2105,7 +2176,15 @@ def draw_layout_standard(
     page_number = 0
     if include_global:
         page_number += 1
-        content_start_y = draw_header(c, width, height, page_number, lang=lang)
+        content_start_y = draw_header(
+            c,
+            width,
+            height,
+            page_number,
+            lang=lang,
+            is_lab_mode=is_lab_mode,
+            lab_test_name=lab_test_name,
+        )
         available_height = content_start_y - margin - 50
 
         # Draw global summary (takes full page)
@@ -2135,7 +2214,15 @@ def draw_layout_standard(
             page_number += 1
             
             # Draw header on new page with page number
-            content_start_y = draw_header(c, width, height, page_number, lang=lang)
+            content_start_y = draw_header(
+                c,
+                width,
+                height,
+                page_number,
+                lang=lang,
+                is_lab_mode=is_lab_mode,
+                lab_test_name=lab_test_name,
+            )
             next_y = content_start_y
         
         # Draw machine sections with FIXED height and global max
@@ -2153,6 +2240,7 @@ def draw_layout_standard(
             values_in_kg=values_in_kg,
             width=width,
             height=height,
+            lab_test_name=lab_test_name,
         )
         
         machines_processed += 1
@@ -2170,6 +2258,7 @@ if __name__=='__main__':
     parser.add_argument("--optimized", action="store_true", help="use optimized layout")
     parser.add_argument("--lab", action="store_true", help="enable lab mode calculations")
     parser.add_argument("--log-kg", action="store_true", help="metrics in CSV are in kilograms")
+    parser.add_argument("--lab-test-name", help="lab test name to include in the report")
     args = parser.parse_args()
 
     pdf_path = generate_report_filename(sd)
@@ -2181,6 +2270,7 @@ if __name__=='__main__':
             lang="en",
             is_lab_mode=args.lab,
             values_in_kg=args.log_kg,
+            lab_test_name=args.lab_test_name,
         )
     else:
         draw_layout_standard(
@@ -2189,4 +2279,5 @@ if __name__=='__main__':
             lang="en",
             is_lab_mode=args.lab,
             values_in_kg=args.log_kg,
+            lab_test_name=args.lab_test_name,
         )
