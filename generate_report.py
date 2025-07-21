@@ -1097,8 +1097,8 @@ def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, la
     data = [
         [tr('machine_settings_title', lang), "", "Calibration", "", "", ""],
         [
-            "Ejector Delay:",
-            get("Settings.Ejectors.PrimaryDelay"),
+            "Preset:",
+            get("Status.Info.PresetName"),
             "Product Lights Target Values",
             "",
             "Background:",
@@ -1129,12 +1129,12 @@ def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, la
             get("Settings.Calibration.FrontBackgroundBlue"),
         ],
         [
-            "Erosion:",
-            get("Settings.ColorSort.Config.Erosion"),
+            "Ejector Delay:",
+            get("Settings.Ejectors.PrimaryDelay"),
             "LED Drive %:",
             get("Settings.Calibration.LedDriveForGain"),
-            "",
-            "",
+            "Erosion:",
+            get("Settings.ColorSort.Config.Erosion"),
         ],
     ]
 
