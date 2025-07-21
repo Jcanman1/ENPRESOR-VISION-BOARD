@@ -1892,7 +1892,8 @@ def draw_machine_sections(
             c.drawCentredString(label_x, bar_y - 8, counter_name)
 
             c.setFont(FONT_DEFAULT, 5)  # Smaller font
-            c.drawCentredString(label_x, bar_y + bar_height_val + 2, f"{val:.1f}")
+            pct_val = (val / machine_objs) * 100 if machine_objs else 0
+            c.drawCentredString(label_x, bar_y + bar_height_val + 2, f"{pct_val:.1f}%")
         
         # Draw axes with LARGER fonts
         c.setStrokeColor(colors.black)
