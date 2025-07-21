@@ -26,6 +26,10 @@ import math  # for label angle calculations
 # Default fonts used throughout the report
 FONT_DEFAULT = "Helvetica"
 FONT_BOLD = "Helvetica-Bold"
+# Default font size for numeric values displayed in the counts sections
+COUNT_VALUE_FONT_SIZE = 18
+# Font size for numeric values in the sensitivity grid's last column
+SENSITIVITY_VALUE_FONT_SIZE = 10
 LAB_OBJECT_SCALE_FACTOR = 1.042
 
 # Weight conversion for lab metrics: 1 lbs per 1800 pieces
@@ -902,10 +906,14 @@ def draw_global_summary(
     for i,lab in enumerate(labs4):
         lw=c.stringWidth(lab,FONT_BOLD,12)
         c.drawString(x0+half*i+(half-lw)/2,y_sec4+h4/2+8,lab)
-    c.setFont(FONT_BOLD,14)
-    for i,val in enumerate(vals4):
-        vw=c.stringWidth(val,FONT_BOLD,14)
-        c.drawString(x0+half*i+(half-vw)/2,y_sec4+h4/2-14,val)
+    c.setFont(FONT_BOLD, COUNT_VALUE_FONT_SIZE)
+    for i, val in enumerate(vals4):
+        vw = c.stringWidth(val, FONT_BOLD, COUNT_VALUE_FONT_SIZE)
+        c.drawString(
+            x0 + half * i + (half - vw) / 2,
+            y_sec4 + h4 / 2 - COUNT_VALUE_FONT_SIZE,
+            val,
+        )
     c.setFillColor(colors.black)
     c.setStrokeColor(colors.black)
     c.rect(x0, y_sec4, total_w, h4)
@@ -1479,11 +1487,15 @@ def draw_sensitivity_grid(
                 else:
                     c.setFillColor(colors.black)
                     tx = x + 2
-                    ty = y + h - 8
-                    if (j - offset) % 2 == 0:
-                        c.setFont(FONT_BOLD, 6)
+                    if r >= 1 and j == cols - 1:
+                        c.setFont(FONT_BOLD, SENSITIVITY_VALUE_FONT_SIZE)
+                        ty = y + h - SENSITIVITY_VALUE_FONT_SIZE - 2
                     else:
-                        c.setFont(FONT_DEFAULT, 6)
+                        ty = y + h - 8
+                        if (j - offset) % 2 == 0:
+                            c.setFont(FONT_BOLD, 6)
+                        else:
+                            c.setFont(FONT_DEFAULT, 6)
                     c.drawString(tx, ty, text)
 
     except Exception as e:
@@ -1567,7 +1579,9 @@ def draw_sensitivity_sections(
             counter_value=counter_values.get(i) if counter_values else None,
             lang=lang,
             is_lab_mode=is_lab_mode,
+
             border_color=bar_colors[idx % len(bar_colors)] if bar_colors else colors.black,
+
         )
         current_y = y_grid - spacing
 
@@ -1998,11 +2012,15 @@ def draw_machine_sections(
         c.drawString(center_x - lw/2, y_counts + counts_height * 0.7, lab)
     
     # Increase data text size and center over labels
-    c.setFont(FONT_BOLD, 14)  # Increased from 10 to 14
+    c.setFont(FONT_BOLD, COUNT_VALUE_FONT_SIZE)
     for i, val in enumerate(vals_top):
         center_x = x0 + half_counts * i + half_counts/2
-        vw = c.stringWidth(val, FONT_BOLD, 14)
-        c.drawString(center_x - vw/2, y_counts + counts_height * 0.7 - 14, val)
+        vw = c.stringWidth(val, FONT_BOLD, COUNT_VALUE_FONT_SIZE)
+        c.drawString(
+            center_x - vw / 2,
+            y_counts + counts_height * 0.7 - COUNT_VALUE_FONT_SIZE,
+            val,
+        )
     
 
     # BOTTOM ROW: Accepts and Rejects
@@ -2027,11 +2045,15 @@ def draw_machine_sections(
         c.drawString(center_x - lw/2, y_counts + counts_height * 0.3, lab)
 
     # Increase data text size and center over labels
-    c.setFont(FONT_BOLD, 14)
+    c.setFont(FONT_BOLD, COUNT_VALUE_FONT_SIZE)
     for i, val in enumerate(vals_bottom):
         center_x = x0 + half_counts * i + half_counts/2
-        vw = c.stringWidth(val, FONT_BOLD, 14)
-        c.drawString(center_x - vw/2, y_counts + counts_height * 0.3 - 14, val)
+        vw = c.stringWidth(val, FONT_BOLD, COUNT_VALUE_FONT_SIZE)
+        c.drawString(
+            center_x - vw / 2,
+            y_counts + counts_height * 0.3 - COUNT_VALUE_FONT_SIZE,
+            val,
+        )
     
     c.setFillColor(colors.black)
     c.setStrokeColor(colors.black)
