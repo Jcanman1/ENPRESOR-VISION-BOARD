@@ -6074,18 +6074,28 @@ def _register_callbacks_impl(app):
          Output({"type": "threshold-max-value", "index": ALL}, "value")],
         Input("auto-set-button", "n_clicks"),
         State("auto-set-percent", "value"),
+        State("counter-view-mode", "data"),
         prevent_initial_call=True,
     )
-    def auto_set_thresholds(n_clicks, percent):
+    def auto_set_thresholds(n_clicks, percent, mode):
         if not n_clicks:
             raise PreventUpdate
 
         tolerance = (percent or 20) / 100.0
         global previous_counter_values, threshold_settings
 
+        if mode == "percent":
+            total_val = sum(previous_counter_values)
+            current_values = [
+                (v / total_val * 100) if total_val else 0
+                for v in previous_counter_values
+            ]
+        else:
+            current_values = previous_counter_values
+
         new_mins = []
         new_maxs = []
-        for i, value in enumerate(previous_counter_values):
+        for i, value in enumerate(current_values):
             min_val = round(value * (1 - tolerance), 2)
             max_val = round(value * (1 + tolerance), 2)
             new_mins.append(min_val)
@@ -6106,7 +6116,6 @@ def _register_callbacks_impl(app):
     def set_counter_view_mode(value):
         """Store the user's preferred counter display mode."""
         global threshold_settings
-
         if isinstance(threshold_settings, dict):
             threshold_settings["counter_mode"] = value
         return value
