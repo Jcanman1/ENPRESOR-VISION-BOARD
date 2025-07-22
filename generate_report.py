@@ -575,6 +575,7 @@ def draw_global_summary(
     h1 = available_height * 0.1  # Totals
     h2 = available_height * 0.35  # Pie and trend
     h4 = available_height * 0.15  # Counts
+    h5 = available_height * 0.25  # Objects/Impurities donut charts
     spacing_gap = 10
     
     current_y = y0 + available_height
@@ -586,6 +587,8 @@ def draw_global_summary(
     # Aggregate global data
     total_capacity = total_accepts = total_rejects = 0
     total_objects = total_removed = 0
+    objects_per_machine = {}
+    removed_per_machine = {}
     for m in machines:
         fp = os.path.join(csv_parent_dir, m, 'last_24h_metrics.csv')
         if os.path.isfile(fp):
@@ -629,6 +632,12 @@ def draw_global_summary(
                         continue
 
                     machine_removed += last_value_scaled(df[col], 60)
+
+                objects_per_machine[m] = machine_objects
+                removed_per_machine[m] = machine_removed
+
+                objects_per_machine[m] = machine_objects
+                removed_per_machine[m] = machine_removed
 
                 total_objects += machine_objects
                 total_removed += machine_removed
@@ -917,9 +926,77 @@ def draw_global_summary(
     c.setFillColor(colors.black)
     c.setStrokeColor(colors.black)
     c.rect(x0, y_sec4, total_w, h4)
-    
+
+    # Section 5: Objects/Impurities donut charts
+    y_sec5 = y_sec4 - h5 - spacing_gap
+    c.setStrokeColor(colors.black)
+    c.rect(x0, y_sec5, total_w, h5)
+
+    half = total_w / 2
+
+    # Left donut - objects processed per machine
+    c.setFont(FONT_BOLD, 10)
+    c.setFillColor(colors.black)
+    c.drawCentredString(x0 + half/2, y_sec5 + h5 - 14,
+                        tr('objects_by_machine_title', lang))
+    if sum(objects_per_machine.values()) > 0:
+        pad = 10
+        aw, ah = half - 2*pad, h5 - 2*pad - 14
+        psz = min(aw, ah) * 0.75
+        px = x0 + pad + (aw - psz)/2
+        py = y_sec5 + pad + 14 + (ah - psz)/2
+        d_left = Drawing(psz, psz)
+        pie_left = Pie()
+        pie_left.x = pie_left.y = 0
+        pie_left.width = pie_left.height = psz
+        pie_left.startAngle = -30
+        pie_left.direction = 'clockwise'
+        pie_left.innerRadiusFraction = 0.4
+        pie_left.data = [objects_per_machine.get(m, 0) for m in machines]
+        pie_left.labels = [f"{tr('machine_label', lang)} {m}" for m in machines]
+        for i in range(len(machines)):
+            pie_left.slices[i].fillColor = BAR_COLORS[i % len(BAR_COLORS)]
+        pie_left.sideLabels = True
+        d_left.add(pie_left)
+        renderPDF.draw(d_left, c, px, py)
+    else:
+        c.setFont(FONT_DEFAULT, 8)
+        c.setFillColor(colors.gray)
+        c.drawCentredString(x0 + half/2, y_sec5 + h5/2, tr('no_data_available', lang))
+
+    # Right donut - impurities removed per machine
+    c.setFont(FONT_BOLD, 10)
+    c.setFillColor(colors.black)
+    c.drawCentredString(x0 + half + half/2, y_sec5 + h5 - 14,
+                        tr('impurities_by_machine_title', lang))
+    if sum(removed_per_machine.values()) > 0:
+        pad = 10
+        aw, ah = half - 2*pad, h5 - 2*pad - 14
+        psz = min(aw, ah) * 0.75
+        px = x0 + half + pad + (aw - psz)/2
+        py = y_sec5 + pad + 14 + (ah - psz)/2
+        d_right = Drawing(psz, psz)
+        pie_right = Pie()
+        pie_right.x = pie_right.y = 0
+        pie_right.width = pie_right.height = psz
+        pie_right.startAngle = -30
+        pie_right.direction = 'clockwise'
+        pie_right.innerRadiusFraction = 0.4
+        pie_right.data = [removed_per_machine.get(m, 0) for m in machines]
+        pie_right.labels = [f"{tr('machine_label', lang)} {m}" for m in machines]
+        for i in range(len(machines)):
+            pie_right.slices[i].fillColor = BAR_COLORS[i % len(BAR_COLORS)]
+        pie_right.sideLabels = True
+        d_right.add(pie_right)
+        renderPDF.draw(d_right, c, px, py)
+    else:
+        c.setFont(FONT_DEFAULT, 8)
+        c.setFillColor(colors.gray)
+        c.drawCentredString(x0 + half + half/2, y_sec5 + h5/2,
+                            tr('no_data_available', lang))
+
     # Return the Y position where the next content should start
-    return y_sec4 - spacing_gap
+    return y_sec5 - spacing_gap
 
 def calculate_global_max_firing_average(csv_parent_dir, machines=None, *, is_lab_mode: bool = False):
     """Calculate the global maximum firing value.
