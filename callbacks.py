@@ -6069,6 +6069,35 @@ def _register_callbacks_impl(app):
         raise PreventUpdate
 
     @app.callback(
+        [Output({"type": "threshold-min-value", "index": ALL}, "value"),
+         Output({"type": "threshold-max-value", "index": ALL}, "value")],
+        Input("auto-set-button", "n_clicks"),
+        State("auto-set-percent", "value"),
+        prevent_initial_call=True,
+    )
+    def auto_set_thresholds(n_clicks, percent):
+        if not n_clicks:
+            raise PreventUpdate
+
+        tolerance = (percent or 20) / 100.0
+        global previous_counter_values, threshold_settings
+
+        new_mins = []
+        new_maxs = []
+        for i, value in enumerate(previous_counter_values):
+            min_val = round(value * (1 - tolerance), 2)
+            max_val = round(value * (1 + tolerance), 2)
+            new_mins.append(min_val)
+            new_maxs.append(max_val)
+
+            counter_num = i + 1
+            if counter_num in threshold_settings:
+                threshold_settings[counter_num]['min_value'] = min_val
+                threshold_settings[counter_num]['max_value'] = max_val
+
+        return new_mins, new_maxs
+
+    @app.callback(
         Output("counter-view-mode", "data"),
         Input("counter-mode-toggle", "value"),
         prevent_initial_call=True,
