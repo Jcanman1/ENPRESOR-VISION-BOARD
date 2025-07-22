@@ -635,7 +635,6 @@ def draw_global_summary(
 
                 objects_per_machine[m] = machine_objects
                 removed_per_machine[m] = machine_removed
-
                 total_objects += machine_objects
                 total_removed += machine_removed
 
