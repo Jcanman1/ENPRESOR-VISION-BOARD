@@ -635,10 +635,6 @@ def draw_global_summary(
 
                 objects_per_machine[m] = machine_objects
                 removed_per_machine[m] = machine_removed
-
-                objects_per_machine[m] = machine_objects
-                removed_per_machine[m] = machine_removed
-
                 total_objects += machine_objects
                 total_removed += machine_removed
 
@@ -706,6 +702,9 @@ def draw_global_summary(
                             is_lab_mode=is_lab_mode,
                         )
                         machine_removed += c_stats['total_objects']
+
+                objects_per_machine[m] = machine_objects
+                removed_per_machine[m] = machine_removed
 
                 total_objects += machine_objects
                 total_removed += machine_removed
