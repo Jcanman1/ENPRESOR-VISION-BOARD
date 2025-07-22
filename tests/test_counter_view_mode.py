@@ -9,7 +9,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import callbacks
 
 
-
 def test_set_counter_view_mode_updates_setting(monkeypatch):
     app = dash.Dash(__name__)
     callbacks.register_callbacks(app)

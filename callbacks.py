@@ -4550,13 +4550,24 @@ def _register_callbacks_impl(app):
     def update_alarms_store(n_intervals, app_state_data):
         """Update the alarms data store from the counter values and check for threshold violations"""
         global previous_counter_values, threshold_settings, threshold_violation_state
-        
+
+        # Determine how counter values should be interpreted
+        mode = threshold_settings.get("counter_mode", "counts") if isinstance(threshold_settings, dict) else "counts"
+        if mode == "percent":
+            total_val = sum(previous_counter_values)
+            values = [
+                (v / total_val * 100) if total_val else 0
+                for v in previous_counter_values
+            ]
+        else:
+            values = previous_counter_values
+
         # Get current time
         current_time = datetime.now()
-        
+
         # Check for alarms
         alarms = []
-        for i, value in enumerate(previous_counter_values):
+        for i, value in enumerate(values):
             counter_num = i + 1
             
             # Safely check if counter_num exists in threshold_settings and is a dictionary
