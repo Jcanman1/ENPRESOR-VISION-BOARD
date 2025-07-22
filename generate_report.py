@@ -2001,80 +2001,86 @@ def draw_machine_sections(
         c.drawCentredString(x0 + w_left + w_right/2, y_pie + bar_height/2, tr('no_counter_data', lang))
     
     # Section 3: Counter trend graph (full width)
-    y_trend = y_pie - trend_height - spacing
+    if not is_lab_mode:
+        y_trend = y_pie - trend_height - spacing
 
-    # Build counter trend data
-    all_t = []
-    series = []
-    max_trend_val = 0
-    base_time = None
+        # Build counter trend data
+        all_t = []
+        series = []
+        max_trend_val = 0
+        base_time = None
 
-    if 'timestamp' in df.columns:
-        time_vals = pd.to_datetime(df['timestamp'], errors='coerce')
-        for idx in range(1, 13):
-            col_name = next((c for c in df.columns if c.lower() == f'counter_{idx}'), None)
-            if not col_name:
-                continue
-            vals = pd.to_numeric(df[col_name], errors='coerce')
-            valid = (~time_vals.isna()) & (~vals.isna())
-            if not valid.any():
-                continue
-            times = time_vals[valid]
-            if base_time is None:
-                base_time = times.min()
-            else:
-                base_time = min(base_time, times.min())
-            pts = [((t - base_time).total_seconds() / 3600.0, float(v)) for t, v in zip(times, vals[valid])]
-            series.append(pts)
-            all_t.extend(times)
-            max_trend_val = max(max_trend_val, vals[valid].max())
+        if 'timestamp' in df.columns:
+            time_vals = pd.to_datetime(df['timestamp'], errors='coerce')
+            for idx in range(1, 13):
+                col_name = next((c for c in df.columns if c.lower() == f'counter_{idx}'), None)
+                if not col_name:
+                    continue
+                vals = pd.to_numeric(df[col_name], errors='coerce')
+                valid = (~time_vals.isna()) & (~vals.isna())
+                if not valid.any():
+                    continue
+                times = time_vals[valid]
+                if base_time is None:
+                    base_time = times.min()
+                else:
+                    base_time = min(base_time, times.min())
+                pts = [((t - base_time).total_seconds() / 3600.0, float(v)) for t, v in zip(times, vals[valid])]
+                series.append(pts)
+                all_t.extend(times)
+                max_trend_val = max(max_trend_val, vals[valid].max())
 
-    c.setStrokeColor(colors.black)
-    c.rect(x0, y_trend, total_w, trend_height)
-    c.setFont(FONT_BOLD, 8)
-    c.setFillColor(colors.black)
-    c.drawCentredString(x0 + total_w/2, y_trend + trend_height - 10, tr('counter_values_trend_title', lang))
+        c.setStrokeColor(colors.black)
+        c.rect(x0, y_trend, total_w, trend_height)
+        c.setFont(FONT_BOLD, 8)
+        c.setFillColor(colors.black)
+        c.drawCentredString(x0 + total_w/2, y_trend + trend_height - 10, tr('counter_values_trend_title', lang))
 
-    if series:
-        pad = 6
-        bw, bh = total_w - 2*pad, trend_height - 2*pad - 12
-        tw, th = bw * 0.9, bh * 0.8
-        gx = x0 + pad + (bw - tw)/2
-        gy = y_trend + pad + 12 + (bh - th)/2
+        if series:
+            pad = 6
+            bw, bh = total_w - 2*pad, trend_height - 2*pad - 12
+            tw, th = bw * 0.9, bh * 0.8
+            gx = x0 + pad + (bw - tw)/2
+            gy = y_trend + pad + 12 + (bh - th)/2
 
-        d_trend = Drawing(tw, th)
-        lp = LinePlot()
-        lp.x = lp.y = 0
-        lp.width = tw
-        lp.height = th
-        lp.data = series
-        for i in range(len(series)):
-            lp.lines[i].strokeColor = BAR_COLORS[i % len(BAR_COLORS)]
-            lp.lines[i].strokeWidth = 1.5
+            d_trend = Drawing(tw, th)
+            lp = LinePlot()
+            lp.x = lp.y = 0
+            lp.width = tw
+            lp.height = th
+            lp.data = series
+            for i in range(len(series)):
+                lp.lines[i].strokeColor = BAR_COLORS[i % len(BAR_COLORS)]
+                lp.lines[i].strokeWidth = 1.5
 
-        xs = [x for pts in series for x, _ in pts]
-        if xs:
-            lp.xValueAxis.valueMin = min(xs)
-            lp.xValueAxis.valueMax = max(xs)
-            step = (max(xs) - min(xs)) / 4 if max(xs) > min(xs) else 1
-            lp.xValueAxis.valueSteps = [min(xs) + j * step for j in range(5)]
-            if base_time is not None:
-                lp.xValueAxis.labelTextFormat = lambda v: (base_time + timedelta(hours=v)).strftime('%H:%M')
-                lp.xValueAxis.labels.angle = 45
-                lp.xValueAxis.labels.boxAnchor = 'n'
+            xs = [x for pts in series for x, _ in pts]
+            if xs:
+                lp.xValueAxis.valueMin = min(xs)
+                lp.xValueAxis.valueMax = max(xs)
+                step = (max(xs) - min(xs)) / 4 if max(xs) > min(xs) else 1
+                lp.xValueAxis.valueSteps = [min(xs) + j * step for j in range(5)]
+                if base_time is not None:
+                    lp.xValueAxis.labelTextFormat = lambda v: (base_time + timedelta(hours=v)).strftime('%H:%M')
+                    lp.xValueAxis.labels.angle = 45
+                    lp.xValueAxis.labels.boxAnchor = 'n'
 
-        lp.yValueAxis.valueMin = 0
-        lp.yValueAxis.valueMax = max_trend_val * 1.1 if max_trend_val else 1
-        lp.yValueAxis.valueSteps = None
-        d_trend.add(lp)
-        renderPDF.draw(d_trend, c, gx, gy)
+            lp.yValueAxis.valueMin = 0
+            lp.yValueAxis.valueMax = max_trend_val * 1.1 if max_trend_val else 1
+            lp.yValueAxis.valueSteps = None
+            d_trend.add(lp)
+            renderPDF.draw(d_trend, c, gx, gy)
+        else:
+            c.setFont(FONT_DEFAULT, 8)
+            c.setFillColor(colors.gray)
+            c.drawCentredString(x0 + total_w/2, y_trend + trend_height/2, tr('no_counter_data', lang))
+
+        y_counts_start = y_trend
     else:
-        c.setFont(FONT_DEFAULT, 8)
-        c.setFillColor(colors.gray)
-        c.drawCentredString(x0 + total_w/2, y_trend + trend_height/2, tr('no_counter_data', lang))
+        # In lab mode, skip the trend graph entirely
+        y_counts_start = y_pie
 
     # Section 4: Machine counts (full width) - SIGNIFICANTLY REDUCED HEIGHT
-    y_counts = y_trend - counts_height - spacing
+    y_counts = y_counts_start - counts_height - spacing
     
    
     # Calculate machine totals
