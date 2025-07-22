@@ -3393,15 +3393,12 @@ def _register_callbacks_impl(app):
         rejects = production_data.get("rejects", 2500)
 
         # Determine accepts/rejects percentages for the first pie chart
-        if counter_mode == "percent":
-            # Sum the percentage values from section 5-2 counters as the reject percentage
-            rejects_percent = sum(previous_counter_values)
-            # Accept percentage is the remainder out of 100
-            accepts_percent = max(0, 100 - rejects_percent)
-        else:
-            total = accepts + rejects
-            accepts_percent = (accepts / total * 100) if total > 0 else 0
-            rejects_percent = (rejects / total * 100) if total > 0 else 0
+        # Percent view only affects display in section 5-2, not how rejects are
+        # calculated here. Always derive the percentages from the production
+        # data counts so switching display modes does not alter totals.
+        total = accepts + rejects
+        accepts_percent = (accepts / total * 100) if total > 0 else 0
+        rejects_percent = (rejects / total * 100) if total > 0 else 0
         
         # Second chart data - Use the counter values for the reject breakdown
         # Ensure previous_counter_values has a predictable baseline
@@ -4643,11 +4640,9 @@ def _register_callbacks_impl(app):
         # Define title for the section
         section_title = tr("sensitivity_rates_title", lang)
         
-        # Define pattern for tag names in live mode based on selected view mode
-        if counter_mode == "percent":
-            TAG_PATTERN = "Status.ColorSort.Sort1.DefectCount{}.Percentage.Current"
-        else:
-            TAG_PATTERN = "Status.ColorSort.Sort1.DefectCount{}.Rate.Current"
+        # Always read counter rate values from OPC. Percent view only changes
+        # how the bar chart is displayed.
+        TAG_PATTERN = "Status.ColorSort.Sort1.DefectCount{}.Rate.Current"
         
         # Define colors for each primary/counter number
         counter_colors = {
@@ -4751,17 +4746,26 @@ def _register_callbacks_impl(app):
         # Create counter names
         counter_names = [f"{i}" for i in range(1, 13)]
         
+        # Convert values for display if percent mode is selected
+        if counter_mode == "percent":
+            total_val = sum(new_counter_values)
+            display_values = [
+                (v / total_val * 100) if total_val else 0 for v in new_counter_values
+            ]
+        else:
+            display_values = new_counter_values
+
         # Create figure with our data
         fig = go.Figure()
-        
+
         # Use a single bar trace with all data
         fig.add_trace(go.Bar(
             x=counter_names,  # Use all counter names as x values
-            y=new_counter_values,  # Use all counter values as y values
+            y=display_values,  # Display values depend on view mode
             marker_color=[counter_colors.get(i, 'gray') for i in range(1, 13)],  # Set colors per bar
             hoverinfo='text',  # Keep hover info
-        hovertext=[f"Sensitivity {i}: {new_counter_values[i-1]:.2f}" for i in range(1, 13)]  # Custom hover text with 2 decimal places
-    
+            hovertext=[f"Sensitivity {i}: {display_values[i-1]:.2f}" for i in range(1, 13)]  # Custom hover text with 2 decimal places
+
         ))
         
         # Add horizontal min threshold lines for each counter if enabled
@@ -4808,11 +4812,9 @@ def _register_callbacks_impl(app):
         
         # Calculate max value for y-axis scaling
         if counter_mode == "percent":
-            # In percent mode use only the counter values to avoid
-            # count-based thresholds artificially inflating the scale
-            max_value = max(new_counter_values) if new_counter_values else 0
+            # Percent view caps the axis at 100 and uses display values
+            max_value = max(display_values) if display_values else 0
             y_max = min(max_value * 1.1, 100)
-            # Ensure a sensible minimum headroom
             if y_max < 5:
                 y_max = 5
         else:
@@ -4824,7 +4826,6 @@ def _register_callbacks_impl(app):
                         all_values.append(settings['max_value'])
 
             max_value = max(all_values) if all_values else 100
-            # Minimum 100 with 10% headroom
             y_max = max(100, max_value * 1.1)
         
         # Update layout
@@ -6103,9 +6104,8 @@ def _register_callbacks_impl(app):
         prevent_initial_call=True,
     )
     def set_counter_view_mode(value):
-        """Reset cached counter values when switching view modes."""
-        global previous_counter_values, threshold_settings
-        previous_counter_values = [0] * 12
+        """Store the user's preferred counter display mode."""
+        global threshold_settings
         if isinstance(threshold_settings, dict):
             threshold_settings["counter_mode"] = value
         return value
