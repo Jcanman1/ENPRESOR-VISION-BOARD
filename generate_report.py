@@ -1719,7 +1719,7 @@ def draw_machine_sections(
     pie_height = available_height * 0.75      # 35% for pie chart
     bar_height = available_height * 0.75      # 35% for bar chart
     counts_height = available_height * 0.30   # 25% for counts (REDUCED!)
-    trend_height = counts_height              # Trend graph same height as counts
+    trend_height = available_height * 0.75            # Trend graph same height as counts
     spacing = 1  # Reduced spacing
     
     current_y = y_start
@@ -1886,7 +1886,7 @@ def draw_machine_sections(
     # Display runtime and stop time below the pie chart
     runtime_text = (
         f"{tr('run_time_label', lang)} {_minutes_to_hm(run_total)}  "
-        #f"{tr('stop_time_label', lang)} {_minutes_to_hm(stop_total)}"
+        f"{tr('stop_time_label', lang)} {_minutes_to_hm(stop_total)}"
     )
     c.setFont(FONT_DEFAULT, 8)
     c.setFillColor(colors.black)
