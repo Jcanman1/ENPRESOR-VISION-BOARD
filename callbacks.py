@@ -6106,6 +6106,7 @@ def _register_callbacks_impl(app):
     def set_counter_view_mode(value):
         """Store the user's preferred counter display mode."""
         global threshold_settings
+
         if isinstance(threshold_settings, dict):
             threshold_settings["counter_mode"] = value
         return value
