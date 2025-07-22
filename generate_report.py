@@ -1757,7 +1757,16 @@ def draw_machine_sections(
     if 'objects_60M' in df.columns and is_lab_mode:
         machine_objs = last_value_scaled(df['objects_60M'], 60)
     elif 'objects_per_min' in df.columns:
-        machine_objs = last_value_scaled(df['objects_per_min'], 60)
+        if is_lab_mode:
+            machine_objs = last_value_scaled(df['objects_per_min'], 60)
+        else:
+            # Live mode: Use integration method
+            obj_stats = calculate_total_objects_from_csv_rates(
+                df['objects_per_min'],
+                timestamps=df['timestamp'] if is_lab_mode else None,
+                is_lab_mode=is_lab_mode,
+            )
+            machine_objs = obj_stats['total_objects']
     elif is_lab_mode:
         ac_tot = last_value_scaled(df[ac_col], 60) if ac_col else 0
         rj_tot = last_value_scaled(df[rj_col], 60) if rj_col else 0
@@ -1769,15 +1778,28 @@ def draw_machine_sections(
         col = next((c for c in df.columns if c.lower() == f'counter_{idx}'), None)
         if not col:
             continue
+        
+        # Apply active sensitivity filtering for BOTH lab and live mode
+        assigned_val = _lookup_setting(
+            settings_data,
+            f"Settings.ColorSort.Primary{idx}.IsAssigned",
+            True,
+        )
+        if not _bool_from_setting(assigned_val):
+            continue
+        
+        # Use appropriate calculation method based on mode
         if is_lab_mode:
-            assigned_val = _lookup_setting(
-                settings_data,
-                f"Settings.ColorSort.Primary{idx}.IsAssigned",
-                True,
+            cnt_val = last_value_scaled(df[col], 60)
+        else:
+            # Live mode: Use integration method
+            c_stats = calculate_total_objects_from_csv_rates(
+                df[col],
+                timestamps=df['timestamp'] if is_lab_mode else None,
+                is_lab_mode=is_lab_mode,
             )
-            if not _bool_from_setting(assigned_val):
-                continue
-        cnt_val = last_value_scaled(df[col], 60)
+            cnt_val = c_stats['total_objects']
+        
         machine_rem += cnt_val
         sensitivity_counts[idx] = cnt_val
     
@@ -1873,7 +1895,7 @@ def draw_machine_sections(
     c.setStrokeColor(colors.black)
     c.rect(x0 + w_left, y_pie, w_right, bar_height)
     
-    title_key = 'sensitivity_firing_total_title' if is_lab_mode else 'sensitivity_firing_avg_title'
+    title_key = 'sensitivity_firing_total_title' if is_lab_mode else 'sensitivity_percentage_title'
     title_bar = f"{tr('machine_label', lang)} {machine} - {tr(title_key, lang)}"
     c.setFont(FONT_BOLD, 12)  # Increased from 9 to 12
     c.setFillColor(colors.black)
@@ -1886,17 +1908,25 @@ def draw_machine_sections(
         if not col_name or col_name not in df.columns:
             continue
 
+        # Apply active sensitivity filtering for BOTH lab and live mode
+        assigned_val = _lookup_setting(
+            settings_data,
+            f"Settings.ColorSort.Primary{i}.IsAssigned",
+            True,
+        )
+        if not _bool_from_setting(assigned_val):
+            continue
+
         if is_lab_mode:
-            assigned_val = _lookup_setting(
-                settings_data,
-                f"Settings.ColorSort.Primary{i}.IsAssigned",
-                True,
-            )
-            if not _bool_from_setting(assigned_val):
-                continue
             val = last_value_scaled(df[col_name], 60)
         else:
-            val = df[col_name].mean()
+            # Live mode: Use integration method
+            c_stats = calculate_total_objects_from_csv_rates(
+                df[col_name],
+                timestamps=df['timestamp'] if is_lab_mode else None,
+                is_lab_mode=is_lab_mode,
+            )
+            val = c_stats['total_objects']
 
         if not pd.isna(val):
             counter_values.append((f"S{i}", val))
@@ -1916,27 +1946,36 @@ def draw_machine_sections(
         bar_width = chart_w / (num_bars * 1.5)
         bar_spacing = chart_w / num_bars
         
-        # Use global max if provided, otherwise use local max
-        max_val = global_max_firing if global_max_firing and global_max_firing > 0 else max(val for _, val in counter_values)
+        # Convert counter values to percentages for proper scaling
+        percentage_values = []
+        for counter_name, val in counter_values:
+            pct_val = (val / machine_objs) * 100 if machine_objs > 0 else 0
+            percentage_values.append((counter_name, pct_val))
+        
+        # Use percentage scale (0-100%) instead of raw values
+        max_val = max(pct for _, pct in percentage_values) if percentage_values else 0
+        # Ensure minimum scale for visibility
+        max_val = max(max_val, 1.0)  # At least 1% for minimum scale
         
         bar_colors = BAR_COLORS
         
-        for i, (counter_name, val) in enumerate(counter_values):
+        for i, (counter_name, pct_val) in enumerate(percentage_values):
             bar_x = chart_x + i * bar_spacing + (bar_spacing - bar_width)/2
-            bar_height_val = (val / max_val) * chart_h if max_val > 0 else 0
+            # Scale bar height based on percentage, not raw value
+            bar_height_val = (pct_val / max_val) * chart_h if max_val > 0 else 0
             bar_y = chart_y
             
             c.setFillColor(bar_colors[i % len(bar_colors)])
             c.setStrokeColor(colors.black)
             c.rect(bar_x, bar_y, bar_width, bar_height_val, fill=1, stroke=1)
             
-            c.setFont(FONT_DEFAULT, 8)  # Increased X-axis label size from 6 to 8
+            c.setFont(FONT_DEFAULT, 8)
             c.setFillColor(colors.black)
             label_x = bar_x + bar_width/2
             c.drawCentredString(label_x, bar_y - 8, counter_name)
 
-            c.setFont(FONT_DEFAULT, 8)  # Smaller font
-            pct_val = (val / machine_objs) * 100 if machine_objs else 0
+            c.setFont(FONT_DEFAULT, 8)
+            # Display the percentage value above the bar
             c.drawCentredString(label_x, bar_y + bar_height_val + 2, f"{pct_val:.1f}%")
         
         # Draw axes with LARGER fonts
@@ -1945,14 +1984,14 @@ def draw_machine_sections(
         c.line(chart_x - 5, chart_y, chart_x - 5, chart_y + chart_h)
         c.line(chart_x - 5, chart_y, chart_x + chart_w, chart_y)
         
-        # Y-axis tick marks and values with LARGER font
-        c.setFont(FONT_DEFAULT, 7)  # Increased Y-axis label size from 5 to 7
+        # Y-axis tick marks and values with percentage labels
+        c.setFont(FONT_DEFAULT, 7)
         c.setFillColor(colors.black)
-        for i in range(4):  # Reduced tick marks
+        for i in range(4):
             y_val = (max_val * i / 3) if max_val > 0 else 0
             y_pos = chart_y + (chart_h * i / 3)
             c.line(chart_x - 5, y_pos, chart_x - 2, y_pos)
-            c.drawRightString(chart_x - 6, y_pos - 1, f"{y_val:.0f}")
+            c.drawRightString(chart_x - 6, y_pos - 1, f"{y_val:.1f}%")
         
         # NOTE: Y-axis title/label has been removed as requested
     else:
@@ -1982,6 +2021,16 @@ def draw_machine_sections(
                 is_lab_mode=is_lab_mode,
                 values_in_kg=values_in_kg,
             )
+            machine_accepts = a_stats['total_capacity_lbs']  # ← ADD THIS LINE
+        
+        if rj_col:
+            r_stats = calculate_total_capacity_from_csv_rates(
+                df[rj_col],
+                timestamps=df['timestamp'] if is_lab_mode else None,
+                is_lab_mode=is_lab_mode,
+                values_in_kg=values_in_kg,
+            )
+            machine_rejects = r_stats['total_capacity_lbs'] 
 
     
     # Draw SMALLER blue counts section
