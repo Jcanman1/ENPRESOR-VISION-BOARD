@@ -1318,17 +1318,16 @@ def create_threshold_settings_form(lang=None, mode=None):
     for i in range(1, 13):
         settings = threshold_settings[i]
 
-        form_rows.append(
-            dbc.Row([
-                # Counter label
-                dbc.Col(
-                    html.Div(
-                        f"{tr('sensitivity_label', lang)} {i}:",
-                        className="fw-bold",
-                        style={"color": counter_colors.get(i, "black")},
-                    ),
-                    width=2,
+        row_children = [
+            # Counter label
+            dbc.Col(
+                html.Div(
+                    f"{tr('sensitivity_label', lang)} {i}:",
+                    className="fw-bold",
+                    style={"color": counter_colors.get(i, "black")},
                 ),
+                width=2,
+            ),
                                                 
                 # Min Value Input
                 dbc.Col(
@@ -1351,11 +1350,11 @@ def create_threshold_settings_form(lang=None, mode=None):
                         label="Min",
                         value=settings['min_enabled'],
                         className="medium"
-                    ),
-                    width=2
                 ),
+                width=2
+            ),
 
-                                
+
                 # Max Value Input
                 dbc.Col(
                     dbc.Input(
@@ -1377,11 +1376,40 @@ def create_threshold_settings_form(lang=None, mode=None):
                         label="Max",
                         value=settings['max_enabled'],
                         className="medium"
-                    ),
-                    width=2
                 ),
+                width=2
+            ),
+        ]
 
-            ], className="mb-2")
+        if i == 1:
+            row_children.extend([
+                # Tolerance input
+                dbc.Col(
+                    dbc.Input(
+                        id="auto-set-percent",
+                        type="number",
+                        min=1,
+                        max=50,
+                        step=1,
+                        value=20,
+                        size="sm",
+                    ),
+                    width=1,
+                ),
+                # Auto set button
+                dbc.Col(
+                    dbc.Button(
+                        "Auto Set",
+                        id="auto-set-button",
+                        color="secondary",
+                        size="sm",
+                    ),
+                    width="auto",
+                ),
+            ])
+
+        form_rows.append(
+            dbc.Row(row_children, className="mb-2")
         )
     
     # Add email notifications with email and minutes inputs
