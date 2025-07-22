@@ -6103,6 +6103,11 @@ def _register_callbacks_impl(app):
         prevent_initial_call=True,
     )
     def set_counter_view_mode(value):
+        """Reset cached counter values when switching view modes."""
+        global previous_counter_values, threshold_settings
+        previous_counter_values = [0] * 12
+        if isinstance(threshold_settings, dict):
+            threshold_settings["counter_mode"] = value
         return value
 
     @app.callback(
