@@ -5796,7 +5796,8 @@ def _register_callbacks_impl(app):
             if trigger == "stop-test-btn":
                 new_time = -time.time()
                 print("[LAB TEST] Grace period timer started", flush=True)
-                print(f"[LAB TEST DEBUG] returning stop_time={new_time}", flush=True)
+                print(f"[LAB TEST DEBUG] storing stop_time={new_time}", flush=True)
+
                 return new_time
             if trigger == "start-test-btn":
                 print("[LAB TEST] Grace period cleared due to start", flush=True)
@@ -5829,7 +5830,7 @@ def _register_callbacks_impl(app):
             if start_mode == "feeder" and stop_time is None:
                 new_time = time.time()
                 print("[LAB TEST] Feeders stopped - starting grace period", flush=True)
-                print(f"[LAB TEST DEBUG] returning stop_time={new_time}", flush=True)
+                print(f"[LAB TEST DEBUG] storing stop_time={new_time}", flush=True)
                 return new_time
 
         return dash.no_update
