@@ -5797,6 +5797,7 @@ def _register_callbacks_impl(app):
                 new_time = -time.time()
                 print("[LAB TEST] Grace period timer started", flush=True)
                 print(f"[LAB TEST DEBUG] storing stop_time={new_time}", flush=True)
+
                 return new_time
             if trigger == "start-test-btn":
                 print("[LAB TEST] Grace period cleared due to start", flush=True)
