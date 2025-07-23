@@ -5988,11 +5988,15 @@ def _register_callbacks_impl(app):
     @app.callback(Output("app-mode-tracker", "data"), Input("app-mode", "data"))
     def _track_app_mode(data):
         """Synchronize ``current_app_mode`` with the ``app-mode`` store."""
-        global current_app_mode
+        from EnpresorOPCDataViewBeforeRestructureLegacy import (
+            current_app_mode,
+            set_current_app_mode,
+        )
+
         if isinstance(data, dict) and "mode" in data:
             new_mode = data["mode"]
             if new_mode != current_app_mode:
-                current_app_mode = new_mode
+                set_current_app_mode(new_mode)
                 if new_mode == "lab":
                     print("[LAB TEST] Lab mode activated - pausing background threads")
                     pause_background_processes()
