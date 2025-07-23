@@ -570,6 +570,24 @@ active_machine_id = None  # This will track which machine's data to display on m
 # a Dash callback whenever the ``app-mode`` store changes so that background
 # threads can check the latest mode without needing a callback context.
 current_app_mode = "live"
+
+
+def get_current_app_mode() -> str:
+    """Return the currently selected application mode."""
+    return current_app_mode
+
+
+def set_current_app_mode(mode: str) -> None:
+    """Set the global application mode used by background threads."""
+    global current_app_mode
+    current_app_mode = mode
+
+__all__ = [
+    "current_app_mode",
+    "get_current_app_mode",
+    "set_current_app_mode",
+]
+
 pause_reconnection = False
 
 # Tag for the currently loaded preset name
