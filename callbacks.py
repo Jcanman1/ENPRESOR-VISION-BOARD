@@ -5719,6 +5719,7 @@ def _register_callbacks_impl(app):
                 logger.warning(f"Failed to prepare auto lab log: {exc}")
             return True
 
+        print(f"[LAB TEST DEBUG] running={running}, stop_time={stop_time}", flush=True)
         # Check if we should end the test based on the stop time
         if running and stop_time and (time.time() - abs(stop_time) >= 30):
             print("[LAB TEST] Grace period complete - stopping test", flush=True)
