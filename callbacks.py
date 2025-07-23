@@ -1025,6 +1025,11 @@ def _register_callbacks_impl(app):
         [State("lab-test-stop-time", "data")]
     )
     def disable_report_button(n_intervals, running, stop_time):
+        print(
+            f"[LAB TEST DEBUG] disable_report_button running={running}, "
+            f"stop_time={stop_time}",
+            flush=True,
+        )
         if running:
             return True
         if stop_time is None:
@@ -5638,11 +5643,17 @@ def _register_callbacks_impl(app):
     )
     def toggle_lab_test_buttons(running, mode, n_intervals, stop_time):
         """Enable/disable lab start/stop buttons based on test state."""
+        print(
+            f"[LAB TEST DEBUG] toggle_lab_test_buttons running={running}, "
+            f"stop_time={stop_time}",
+            flush=True,
+        )
         if mode != "lab":
             return True, "secondary", True, "secondary"
 
         # Disable both buttons during the 30s grace period after stopping
         if running and stop_time and (time.time() - abs(stop_time) < 30):
+            print("[LAB TEST DEBUG] grace period active - buttons disabled", flush=True)
             return True, "secondary", True, "secondary"
 
         if running:
