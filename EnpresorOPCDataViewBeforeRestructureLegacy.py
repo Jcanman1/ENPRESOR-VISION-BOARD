@@ -23,6 +23,7 @@ except ImportError:  # Python 3.12+ where distutils is removed
             return 0
         raise ValueError(f"invalid truth value {val!r}")
 from threading import Thread
+import threading
 from datetime import datetime, timedelta
 import csv
 import io
@@ -1201,6 +1202,7 @@ def run_async(coro):
 def pause_update_thread():
     """Stop the background update thread if running."""
     if app_state.update_thread and app_state.update_thread.is_alive():
+        print("[LAB TEST] Pausing update thread", app_state.update_thread)
         app_state.thread_stop_flag = True
         app_state.update_thread.join(timeout=5)
 
@@ -1208,6 +1210,7 @@ def pause_update_thread():
 def resume_update_thread():
     """Restart the background update thread if it is not running."""
     if app_state.update_thread is None or not app_state.update_thread.is_alive():
+        print("[LAB TEST] Resuming update thread")
         app_state.thread_stop_flag = False
         app_state.update_thread = Thread(target=opc_update_thread)
         app_state.update_thread.daemon = True
@@ -1221,6 +1224,7 @@ def resume_update_thread():
 def pause_background_processes():
     """Pause non-essential background threads for lab mode."""
     global pause_reconnection
+    print("[LAB TEST] pause_background_processes called - active threads:", [t.name for t in threading.enumerate()])
     pause_reconnection = True
     app_state_manager.set_paused(True)
 
@@ -1230,6 +1234,7 @@ def resume_background_processes():
     global pause_reconnection
     pause_reconnection = False
     app_state_manager.set_paused(False)
+    print("[LAB TEST] resume_background_processes called - active threads:", [t.name for t in threading.enumerate()])
 
 # Connect to OPC UA server
 async def connect_to_server(server_url, server_name=None):
