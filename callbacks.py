@@ -5678,9 +5678,17 @@ def _register_callbacks_impl(app):
         """Update lab running state based on start/stop actions or feeder status."""
         global current_lab_filename
         ctx = callback_context
-        trigger = ctx.triggered[0]["prop_id"].split(".")[0] if ctx.triggered else "interval"
+        triggers = [t["prop_id"].split(".")[0] for t in ctx.triggered] if ctx.triggered else []
+        trigger = "interval"
+        if "stop-test-btn" in triggers:
+            trigger = "stop-test-btn"
+        elif "start-test-btn" in triggers:
+            trigger = "start-test-btn"
+        elif triggers:
+            trigger = triggers[0]
         print(
-            f"[LAB TEST DEBUG] update_lab_running trigger={trigger} running={running}, stop_time={stop_time}",
+            f"[LAB TEST DEBUG] update_lab_running triggers={triggers} selected={trigger} running={running}, stop_time={stop_time}",
+
             flush=True,
         )
 
@@ -5797,9 +5805,18 @@ def _register_callbacks_impl(app):
     )
     def update_lab_test_stop_time(start_click, stop_click, n_intervals, running, stop_time, mode, active_machine_data, start_mode):
         ctx = callback_context
-        trigger = ctx.triggered[0]["prop_id"].split(".")[0] if ctx.triggered else "interval"
+
+        triggers = [t["prop_id"].split(".")[0] for t in ctx.triggered] if ctx.triggered else []
+        trigger = "interval"
+        if "stop-test-btn" in triggers:
+            trigger = "stop-test-btn"
+        elif "start-test-btn" in triggers:
+            trigger = "start-test-btn"
+        elif triggers:
+            trigger = triggers[0]
         print(
-            f"[LAB TEST DEBUG] update_lab_test_stop_time trigger={trigger} running={running}, stop_time={stop_time}",
+            f"[LAB TEST DEBUG] update_lab_test_stop_time triggers={triggers} selected={trigger} running={running}, stop_time={stop_time}",
+
             flush=True,
         )
 
@@ -5808,7 +5825,6 @@ def _register_callbacks_impl(app):
                 new_time = -time.time()
                 print("[LAB TEST] Grace period timer started", flush=True)
                 print(f"[LAB TEST DEBUG] storing stop_time={new_time}", flush=True)
-
                 return new_time
             if trigger == "start-test-btn":
                 print("[LAB TEST] Grace period cleared due to start", flush=True)
