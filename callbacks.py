@@ -5667,12 +5667,16 @@ def _register_callbacks_impl(app):
         """Update lab running state based on start/stop actions or feeder status."""
         global current_lab_filename
         ctx = callback_context
+        trigger = ctx.triggered[0]["prop_id"].split(".")[0] if ctx.triggered else "interval"
+        print(
+            f"[LAB TEST DEBUG] update_lab_running trigger={trigger} running={running}, stop_time={stop_time}",
+            flush=True,
+        )
 
         if mode != "lab":
             return False
 
         if ctx.triggered:
-            trigger = ctx.triggered[0]["prop_id"].split(".")[0]
             if start_mode != "feeder":
                 if trigger == "start-test-btn":
                     print("[LAB TEST] Start button pressed", flush=True)
@@ -5782,8 +5786,13 @@ def _register_callbacks_impl(app):
     )
     def update_lab_test_stop_time(start_click, stop_click, n_intervals, running, stop_time, mode, active_machine_data, start_mode):
         ctx = callback_context
+        trigger = ctx.triggered[0]["prop_id"].split(".")[0] if ctx.triggered else "interval"
+        print(
+            f"[LAB TEST DEBUG] update_lab_test_stop_time trigger={trigger} running={running}, stop_time={stop_time}",
+            flush=True,
+        )
+
         if ctx.triggered:
-            trigger = ctx.triggered[0]["prop_id"].split(".")[0]
             if trigger == "stop-test-btn":
                 print("[LAB TEST] Grace period timer started", flush=True)
                 return -time.time()
