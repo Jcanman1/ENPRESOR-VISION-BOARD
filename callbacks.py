@@ -4058,7 +4058,7 @@ def _register_callbacks_impl(app):
             "height": "50px",
             "width": "50px",
             "marginRight": "0px",
-            "border": "2px solid #ccc",  # Increased default border thickness
+            "border": "4px solid #ccc",  # Increased default border thickness
             "borderRadius": "3px",
             "display": "flex",
             "alignItems": "center",
@@ -4101,7 +4101,7 @@ def _register_callbacks_impl(app):
                 if not is_active:
                     text_style["fontStyle"] = "italic"
                 image_style_current = image_container_style.copy()
-                image_style_current["border"] = f"2px solid {border_color}"
+                image_style_current["border"] = f"4px solid {border_color}"
                 
                 # Create item with appropriate image or empty container
                 if i <= 8 and i in base64_image_strings:  # First 8 items with images in demo mode
