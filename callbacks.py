@@ -98,6 +98,11 @@ last_logged_capacity = defaultdict(lambda: None)
 # Filename used for the active lab test session
 current_lab_filename = None
 
+# Track the last observed stop button click count so we can detect new
+# presses even if the interval triggers the callback before Dash reports
+# it as the callback context trigger.
+last_stop_click = 0
+
 # Any metric whose absolute value is below this threshold will be logged as 0.
 SMALL_VALUE_THRESHOLD = 1e-3
 
@@ -5833,6 +5838,7 @@ def _register_callbacks_impl(app):
     )
     def update_lab_test_stop_time(start_click, stop_click, n_intervals, running, stop_time, mode, active_machine_data, start_mode):
         ctx = callback_context
+        global last_stop_click
 
         triggers = [t["prop_id"].split(".")[0] for t in ctx.triggered] if ctx.triggered else []
         trigger = "interval"
@@ -5850,6 +5856,7 @@ def _register_callbacks_impl(app):
 
         if ctx.triggered:
             if trigger == "stop-test-btn":
+                last_stop_click = stop_click or 0
                 new_time = -time.time()
 
                 _debug("[LAB TEST] Grace period timer started")
@@ -5857,10 +5864,23 @@ def _register_callbacks_impl(app):
                 _debug(f"[LAB TEST DEBUG] update_lab_test_stop_time returning {new_time}")
                 return new_time
             if trigger == "start-test-btn":
+                last_stop_click = stop_click or 0
                 _debug("[LAB TEST] Grace period cleared due to start")
                 _debug("[LAB TEST DEBUG] clearing stop_time")
                 _debug("[LAB TEST DEBUG] update_lab_test_stop_time returning None")
                 return None
+
+        # Detect a stop button press even if the interval was recorded as the
+        # trigger. Dash can occasionally group events, so compare the click
+        # count to our last seen value.
+        if stop_click and stop_click != last_stop_click:
+            last_stop_click = stop_click
+            new_time = -time.time()
+
+            _debug("[LAB TEST] Grace period timer started (catch-up)")
+            _debug(f"[LAB TEST DEBUG] storing stop_time={new_time}")
+            _debug(f"[LAB TEST DEBUG] update_lab_test_stop_time returning {new_time}")
+            return new_time
 
         if not running:
             _debug("[LAB TEST DEBUG] not running - stop_time unchanged")
