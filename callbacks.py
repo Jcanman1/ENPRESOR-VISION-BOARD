@@ -1025,11 +1025,13 @@ def _register_callbacks_impl(app):
         [State("lab-test-stop-time", "data")]
     )
     def disable_report_button(n_intervals, running, stop_time):
+
         elapsed = None
         if stop_time:
             elapsed = time.time() - abs(stop_time)
         print(
             f"[LAB TEST DEBUG] disable_report_button running={running}, stop_time={stop_time}, elapsed={elapsed}",
+
             flush=True,
         )
         if running:
@@ -5645,11 +5647,13 @@ def _register_callbacks_impl(app):
     )
     def toggle_lab_test_buttons(running, mode, n_intervals, stop_time):
         """Enable/disable lab start/stop buttons based on test state."""
+
         elapsed = None
         if stop_time:
             elapsed = time.time() - abs(stop_time)
         print(
             f"[LAB TEST DEBUG] toggle_lab_test_buttons running={running}, stop_time={stop_time}, elapsed={elapsed}",
+
             flush=True,
         )
         if mode != "lab":
@@ -5692,6 +5696,8 @@ def _register_callbacks_impl(app):
             trigger = triggers[0]
         print(
             f"[LAB TEST DEBUG] update_lab_running triggers={triggers} selected={trigger} running={running}, stop_time={stop_time}",
+
+
             flush=True,
         )
 
@@ -5745,6 +5751,7 @@ def _register_callbacks_impl(app):
                 logger.warning(f"Failed to prepare auto lab log: {exc}")
             return True
 
+
         elapsed = None
         if stop_time:
             elapsed = time.time() - abs(stop_time)
@@ -5752,6 +5759,7 @@ def _register_callbacks_impl(app):
             f"[LAB TEST DEBUG] running={running}, stop_time={stop_time}, elapsed={elapsed}",
             flush=True,
         )
+
         # Check if we should end the test based on the stop time
         if running and stop_time and (time.time() - abs(stop_time) >= 30):
             print("[LAB TEST] Grace period complete - stopping test", flush=True)
@@ -5814,6 +5822,8 @@ def _register_callbacks_impl(app):
     )
     def update_lab_test_stop_time(start_click, stop_click, n_intervals, running, stop_time, mode, active_machine_data, start_mode):
         ctx = callback_context
+
+
         triggers = [t["prop_id"].split(".")[0] for t in ctx.triggered] if ctx.triggered else []
         trigger = "interval"
         if "stop-test-btn" in triggers:
@@ -5824,6 +5834,8 @@ def _register_callbacks_impl(app):
             trigger = triggers[0]
         print(
             f"[LAB TEST DEBUG] update_lab_test_stop_time triggers={triggers} selected={trigger} running={running}, stop_time={stop_time}",
+
+
             flush=True,
         )
 
@@ -5876,6 +5888,7 @@ def _register_callbacks_impl(app):
                 print(f"[LAB TEST DEBUG] storing stop_time={new_time}", flush=True)
                 return new_time
 
+
         elapsed = None
         if stop_time:
             elapsed = time.time() - abs(stop_time)
@@ -5883,6 +5896,7 @@ def _register_callbacks_impl(app):
             f"[LAB TEST DEBUG] no update to stop_time (running={running}, elapsed={elapsed})",
             flush=True,
         )
+
         return dash.no_update
 
     @app.callback(
