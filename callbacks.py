@@ -943,7 +943,7 @@ def _register_callbacks_impl(app):
         if not n_clicks:
             raise PreventUpdate
 
-        print("[LAB TEST] Generate report button clicked")
+        print("[LAB TEST] Generate report button clicked", flush=True)
 
         export_dir = generate_report.METRIC_EXPORT_DIR
         lang = lang_store or load_language_preference()
@@ -990,7 +990,7 @@ def _register_callbacks_impl(app):
             is_lab_mode = False  # Set to False for regular mode
 
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
-            print("[LAB TEST] Report generation started")
+            print("[LAB TEST] Report generation started", flush=True)
             generate_report.build_report(
                 data,
                 tmp.name,
@@ -1004,7 +1004,7 @@ def _register_callbacks_impl(app):
             with open(tmp.name, "rb") as f:
                 pdf_bytes = f.read()
 
-        print("[LAB TEST] Report generation completed")
+        print("[LAB TEST] Report generation completed", flush=True)
 
         # FIXED: Complete the truncated temp directory cleanup
         if temp_dir:  # This was the truncated line: "if temp"
@@ -5675,8 +5675,8 @@ def _register_callbacks_impl(app):
             trigger = ctx.triggered[0]["prop_id"].split(".")[0]
             if start_mode != "feeder":
                 if trigger == "start-test-btn":
-                    print("[LAB TEST] Start button pressed")
-                    print("[LAB TEST] Active threads:", [t.name for t in threading.enumerate()])
+                    print("[LAB TEST] Start button pressed", flush=True)
+                    print("[LAB TEST] Active threads:", [t.name for t in threading.enumerate()], flush=True)
                     try:
                         if active_machine_id is not None:
                             _reset_lab_session(active_machine_id)
@@ -5686,8 +5686,8 @@ def _register_callbacks_impl(app):
                 elif trigger == "stop-test-btn":
                     # Do not end the test immediately; allow a 30s grace period
                     # so logging can continue before finalizing.
-                    print("[LAB TEST] Stop button pressed - entering grace period")
-                    print("[LAB TEST] Active threads:", [t.name for t in threading.enumerate()])
+                    print("[LAB TEST] Stop button pressed - entering grace period", flush=True)
+                    print("[LAB TEST] Active threads:", [t.name for t in threading.enumerate()], flush=True)
                     return True
 
         feeders_running = False
@@ -5704,7 +5704,7 @@ def _register_callbacks_impl(app):
 
         if start_mode == "feeder" and feeders_running and not running:
 
-            print("[LAB TEST] Auto-starting test because feeders are running")
+            print("[LAB TEST] Auto-starting test because feeders are running", flush=True)
 
             try:
                 if active_machine_id is not None:
@@ -5721,7 +5721,7 @@ def _register_callbacks_impl(app):
 
         # Check if we should end the test based on the stop time
         if running and stop_time and (time.time() - abs(stop_time) >= 30):
-            print("[LAB TEST] Grace period complete - stopping test")
+            print("[LAB TEST] Grace period complete - stopping test", flush=True)
             current_lab_filename = None
             try:
                 refresh_lab_cache(active_machine_id)
@@ -5784,10 +5784,10 @@ def _register_callbacks_impl(app):
         if ctx.triggered:
             trigger = ctx.triggered[0]["prop_id"].split(".")[0]
             if trigger == "stop-test-btn":
-                print("[LAB TEST] Grace period timer started")
+                print("[LAB TEST] Grace period timer started", flush=True)
                 return -time.time()
             if trigger == "start-test-btn":
-                print("[LAB TEST] Grace period cleared due to start")
+                print("[LAB TEST] Grace period cleared due to start", flush=True)
                 return None
 
         if not running:
@@ -5813,7 +5813,7 @@ def _register_callbacks_impl(app):
                 return None
         else:
             if start_mode == "feeder" and stop_time is None:
-                print("[LAB TEST] Feeders stopped - starting grace period")
+                print("[LAB TEST] Feeders stopped - starting grace period", flush=True)
                 return time.time()
 
         return dash.no_update
@@ -5998,10 +5998,10 @@ def _register_callbacks_impl(app):
             if new_mode != current_app_mode:
                 set_current_app_mode(new_mode)
                 if new_mode == "lab":
-                    print("[LAB TEST] Lab mode activated - pausing background threads")
+                    print("[LAB TEST] Lab mode activated - pausing background threads", flush=True)
                     pause_background_processes()
                 else:
-                    print("[LAB TEST] Exiting lab mode - resuming background threads")
+                    print("[LAB TEST] Exiting lab mode - resuming background threads", flush=True)
                     resume_background_processes()
         return dash.no_update
 
