@@ -18,6 +18,16 @@ import time
 import csv
 import re
 import threading
+
+def _debug(message: str) -> None:
+    """Helper to print debug messages and persist them to a file."""
+    try:
+        print(message, flush=True)
+        with open("debug.log", "a", encoding="utf-8") as fh:
+            fh.write(message + "\n")
+    except Exception:
+        # Ignore file I/O errors to avoid breaking callbacks
+        pass
 import hourly_data_saving
 import autoconnect
 import image_manager as img_utils
@@ -1026,14 +1036,12 @@ def _register_callbacks_impl(app):
     )
     def disable_report_button(n_intervals, running, stop_time):
 
-
         elapsed = None
         if stop_time:
             elapsed = time.time() - abs(stop_time)
-        print(
-            f"[LAB TEST DEBUG] disable_report_button running={running}, stop_time={stop_time}, elapsed={elapsed}",
+        _debug(
+            f"[LAB TEST DEBUG] disable_report_button running={running}, stop_time={stop_time}, elapsed={elapsed}"
 
-            flush=True,
         )
         if running:
             return True
@@ -5652,17 +5660,18 @@ def _register_callbacks_impl(app):
         elapsed = None
         if stop_time:
             elapsed = time.time() - abs(stop_time)
-        print(
-            f"[LAB TEST DEBUG] toggle_lab_test_buttons running={running}, stop_time={stop_time}, elapsed={elapsed}",
+        _debug(
+            f"[LAB TEST DEBUG] toggle_lab_test_buttons running={running}, stop_time={stop_time}, elapsed={elapsed}"
 
-            flush=True,
         )
         if mode != "lab":
             return True, "secondary", True, "secondary"
 
         # Disable both buttons during the 30s grace period after stopping
         if running and stop_time and (time.time() - abs(stop_time) < 30):
-            print("[LAB TEST DEBUG] grace period active - buttons disabled", flush=True)
+
+            _debug("[LAB TEST DEBUG] grace period active - buttons disabled")
+
             return True, "secondary", True, "secondary"
 
         if running:
@@ -5695,10 +5704,10 @@ def _register_callbacks_impl(app):
             trigger = "start-test-btn"
         elif triggers:
             trigger = triggers[0]
-        print(
-            f"[LAB TEST DEBUG] update_lab_running triggers={triggers} selected={trigger} running={running}, stop_time={stop_time}",
 
-            flush=True,
+        _debug(
+            f"[LAB TEST DEBUG] update_lab_running triggers={triggers} selected={trigger} running={running}, stop_time={stop_time}"
+
         )
 
         if mode != "lab":
@@ -5755,9 +5764,8 @@ def _register_callbacks_impl(app):
         elapsed = None
         if stop_time:
             elapsed = time.time() - abs(stop_time)
-        print(
-            f"[LAB TEST DEBUG] running={running}, stop_time={stop_time}, elapsed={elapsed}",
-            flush=True,
+        _debug(
+            f"[LAB TEST DEBUG] running={running}, stop_time={stop_time}, elapsed={elapsed}"
         )
 
         # Check if we should end the test based on the stop time
@@ -5768,10 +5776,11 @@ def _register_callbacks_impl(app):
                 refresh_lab_cache(active_machine_id)
             except Exception as exc:
                 logger.warning(f"Failed to refresh lab cache: {exc}")
-            print("[LAB TEST DEBUG] update_lab_running returning False", flush=True)
-            return False
 
-        print(f"[LAB TEST DEBUG] update_lab_running returning {running}", flush=True)
+            _debug("[LAB TEST DEBUG] update_lab_running returning False")
+            return False
+        _debug(f"[LAB TEST DEBUG] update_lab_running returning {running}")
+
         return running
 
     @app.callback(
@@ -5833,44 +5842,46 @@ def _register_callbacks_impl(app):
             trigger = "start-test-btn"
         elif triggers:
             trigger = triggers[0]
-        print(
-            f"[LAB TEST DEBUG] update_lab_test_stop_time triggers={triggers} selected={trigger} running={running}, stop_time={stop_time}",
 
-            flush=True,
+        _debug(
+            f"[LAB TEST DEBUG] update_lab_test_stop_time triggers={triggers} selected={trigger} running={running}, stop_time={stop_time}"
+
         )
 
         if ctx.triggered:
             if trigger == "stop-test-btn":
                 new_time = -time.time()
-                print("[LAB TEST] Grace period timer started", flush=True)
-                print(f"[LAB TEST DEBUG] storing stop_time={new_time}", flush=True)
 
+                _debug("[LAB TEST] Grace period timer started")
+                _debug(f"[LAB TEST DEBUG] storing stop_time={new_time}")
+                _debug(f"[LAB TEST DEBUG] update_lab_test_stop_time returning {new_time}")
                 return new_time
             if trigger == "start-test-btn":
-                print("[LAB TEST] Grace period cleared due to start", flush=True)
-                print("[LAB TEST DEBUG] clearing stop_time", flush=True)
-
+                _debug("[LAB TEST] Grace period cleared due to start")
+                _debug("[LAB TEST DEBUG] clearing stop_time")
+                _debug("[LAB TEST DEBUG] update_lab_test_stop_time returning None")
                 return None
 
         if not running:
-            print("[LAB TEST DEBUG] not running - stop_time unchanged", flush=True)
-
+            _debug("[LAB TEST DEBUG] not running - stop_time unchanged")
+            _debug("[LAB TEST DEBUG] update_lab_test_stop_time returning dash.no_update")
             return dash.no_update
 
         if not mode or mode.get("mode") != "lab":
-            print(
-                f"[LAB TEST DEBUG] not in lab mode ({mode}) - stop_time unchanged",
-                flush=True,
+            _debug(
+                f"[LAB TEST DEBUG] not in lab mode ({mode}) - stop_time unchanged"
             )
+            _debug("[LAB TEST DEBUG] update_lab_test_stop_time returning dash.no_update")
 
             return dash.no_update
 
         active_id = active_machine_data.get("machine_id") if active_machine_data else None
         if not active_id or active_id not in machine_connections:
-            print(
-                f"[LAB TEST DEBUG] invalid active machine {active_id} - stop_time unchanged",
-                flush=True,
+
+            _debug(
+                f"[LAB TEST DEBUG] invalid active machine {active_id} - stop_time unchanged"
             )
+            _debug("[LAB TEST DEBUG] update_lab_test_stop_time returning dash.no_update")
 
             return dash.no_update
 
@@ -5884,28 +5895,27 @@ def _register_callbacks_impl(app):
 
         if any_running:
             if stop_time is not None and stop_time >= 0:
-                print("[LAB TEST DEBUG] feeders running - clearing stop time", flush=True)
+
+                _debug("[LAB TEST DEBUG] feeders running - clearing stop time")
+                _debug("[LAB TEST DEBUG] update_lab_test_stop_time returning None")
 
                 return None
         else:
             if start_mode == "feeder" and stop_time is None:
                 new_time = time.time()
-                print("[LAB TEST] Feeders stopped - starting grace period", flush=True)
-                print(f"[LAB TEST DEBUG] storing stop_time={new_time}", flush=True)
 
-                print(f"[LAB TEST DEBUG] update_lab_test_stop_time returning {new_time}", flush=True)
+                _debug("[LAB TEST] Feeders stopped - starting grace period")
+                _debug(f"[LAB TEST DEBUG] storing stop_time={new_time}")
+                _debug(f"[LAB TEST DEBUG] update_lab_test_stop_time returning {new_time}")
                 return new_time
-
 
         elapsed = None
         if stop_time:
             elapsed = time.time() - abs(stop_time)
-        print(
-            f"[LAB TEST DEBUG] no update to stop_time (running={running}, elapsed={elapsed})",
-            flush=True,
+        _debug(
+            f"[LAB TEST DEBUG] no update to stop_time (running={running}, elapsed={elapsed})"
         )
-
-        print("[LAB TEST DEBUG] update_lab_test_stop_time returning dash.no_update", flush=True)
+        _debug("[LAB TEST DEBUG] update_lab_test_stop_time returning dash.no_update")
 
         return dash.no_update
 
