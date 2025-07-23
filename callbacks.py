@@ -5685,7 +5685,7 @@ def _register_callbacks_impl(app):
         return False, "success", True, "secondary"
 
     @app.callback(
-        Output("lab-test-running", "data"),
+        [Output("lab-test-running", "data"), Output("lab-test-stop-time", "data")],
         [Input("start-test-btn", "n_clicks"),
          Input("stop-test-btn", "n_clicks"),
          Input("mode-selector", "value"),
@@ -5693,13 +5693,16 @@ def _register_callbacks_impl(app):
         [State("lab-test-running", "data"),
          State("lab-test-stop-time", "data"),
          State("lab-test-name", "value"),
+         State("app-mode", "data"),
+         State("active-machine-store", "data"),
          State("lab-start-selector", "value")],
         prevent_initial_call=True,
     )
 
-    def update_lab_running(start_click, stop_click, mode, n_intervals, running, stop_time, test_name, start_mode):
-        """Update lab running state based on start/stop actions or feeder status."""
-        global current_lab_filename
+    def update_lab_state(start_click, stop_click, mode, n_intervals, running, stop_time, test_name, app_mode, active_machine_data, start_mode):
+        """Manage lab running state and stop time atomically."""
+        global current_lab_filename, last_stop_click
+
         ctx = callback_context
         triggers = [t["prop_id"].split(".")[0] for t in ctx.triggered] if ctx.triggered else []
         trigger = "interval"
@@ -5711,16 +5714,20 @@ def _register_callbacks_impl(app):
             trigger = triggers[0]
 
         _debug(
-            f"[LAB TEST DEBUG] update_lab_running triggers={triggers} selected={trigger} running={running}, stop_time={stop_time}"
+            f"[LAB TEST DEBUG] update_lab_state triggers={triggers} selected={trigger} running={running}, stop_time={stop_time}"
 
         )
 
         if mode != "lab":
-            return False
+            return False, stop_time
+
+        new_running = running
+        new_stop_time = stop_time
 
         if ctx.triggered:
-            if start_mode != "feeder":
-                if trigger == "start-test-btn":
+            if trigger == "start-test-btn":
+                last_stop_click = stop_click or 0
+                if start_mode != "feeder":
                     print("[LAB TEST] Start button pressed", flush=True)
                     print("[LAB TEST] Active threads:", [t.name for t in threading.enumerate()], flush=True)
                     try:
@@ -5728,13 +5735,22 @@ def _register_callbacks_impl(app):
                             _reset_lab_session(active_machine_id)
                     except Exception as exc:
                         logger.warning(f"Failed to reset lab session: {exc}")
-                    return True
-                elif trigger == "stop-test-btn":
-                    # Do not end the test immediately; allow a 30s grace period
-                    # so logging can continue before finalizing.
+                    new_running = True
+                new_stop_time = None
+            elif trigger == "stop-test-btn":
+                last_stop_click = stop_click or 0
+                if start_mode != "feeder":
                     print("[LAB TEST] Stop button pressed - entering grace period", flush=True)
                     print("[LAB TEST] Active threads:", [t.name for t in threading.enumerate()], flush=True)
-                    return True
+                    new_running = True
+                new_stop_time = -time.time()
+                _debug("[LAB TEST] Grace period timer started")
+                _debug(f"[LAB TEST DEBUG] storing stop_time={new_stop_time}")
+        elif stop_click and stop_click != last_stop_click:
+            last_stop_click = stop_click
+            new_stop_time = -time.time()
+            _debug("[LAB TEST] Grace period timer started (catch-up)")
+            _debug(f"[LAB TEST DEBUG] storing stop_time={new_stop_time}")
 
         feeders_running = False
         if (
@@ -5748,7 +5764,7 @@ def _register_callbacks_impl(app):
                     feeders_running = True
                     break
 
-        if start_mode == "feeder" and feeders_running and not running:
+        if start_mode == "feeder" and feeders_running and not new_running:
 
             print("[LAB TEST] Auto-starting test because feeders are running", flush=True)
 
@@ -5763,30 +5779,44 @@ def _register_callbacks_impl(app):
                     _reset_lab_session(active_machine_id)
             except Exception as exc:
                 logger.warning(f"Failed to prepare auto lab log: {exc}")
-            return True
+            new_running = True
 
+        valid_machine = active_machine_data.get("machine_id") if active_machine_data else None
+        if new_running and app_mode and isinstance(app_mode, dict) and app_mode.get("mode") == "lab" and valid_machine and valid_machine in machine_connections:
+            tags = machine_connections[valid_machine].get("tags", {})
+            any_running = False
+            for i in range(1, 5):
+                tag = f"Status.Feeders.{i}IsRunning"
+                if bool(tags.get(tag, {}).get("data", {}).latest_value if tag in tags else False):
+                    any_running = True
+                    break
+            if any_running:
+                if new_stop_time is not None and new_stop_time >= 0:
+                    _debug("[LAB TEST DEBUG] feeders running - clearing stop time")
+                    new_stop_time = None
+            else:
+                if start_mode == "feeder" and new_stop_time is None:
+                    new_stop_time = time.time()
+                    _debug("[LAB TEST] Feeders stopped - starting grace period")
+                    _debug(f"[LAB TEST DEBUG] storing stop_time={new_stop_time}")
 
         elapsed = None
-        if stop_time:
-            elapsed = time.time() - abs(stop_time)
+        if new_stop_time:
+            elapsed = time.time() - abs(new_stop_time)
         _debug(
-            f"[LAB TEST DEBUG] running={running}, stop_time={stop_time}, elapsed={elapsed}"
+            f"[LAB TEST DEBUG] running={new_running}, stop_time={new_stop_time}, elapsed={elapsed}"
         )
 
-        # Check if we should end the test based on the stop time
-        if running and stop_time and (time.time() - abs(stop_time) >= 30):
+        if new_running and new_stop_time and elapsed >= 30:
             print("[LAB TEST] Grace period complete - stopping test", flush=True)
             current_lab_filename = None
             try:
                 refresh_lab_cache(active_machine_id)
             except Exception as exc:
                 logger.warning(f"Failed to refresh lab cache: {exc}")
+            new_running = False
 
-            _debug("[LAB TEST DEBUG] update_lab_running returning False")
-            return False
-        _debug(f"[LAB TEST DEBUG] update_lab_running returning {running}")
-
-        return running
+        return new_running, new_stop_time
 
     @app.callback(
         Output("lab-test-info", "data"),
@@ -5824,120 +5854,6 @@ def _register_callbacks_impl(app):
             return 1000, not running
         return 60000, False
 
-    @app.callback(
-        Output("lab-test-stop-time", "data"),
-        [Input("start-test-btn", "n_clicks"),
-         Input("stop-test-btn", "n_clicks"),
-         Input("status-update-interval", "n_intervals")],
-        [State("lab-test-running", "data"),
-         State("lab-test-stop-time", "data"),
-         State("app-mode", "data"),
-         State("active-machine-store", "data"),
-         State("lab-start-selector", "value")],
-        prevent_initial_call=True,
-    )
-    def update_lab_test_stop_time(start_click, stop_click, n_intervals, running, stop_time, mode, active_machine_data, start_mode):
-        ctx = callback_context
-        global last_stop_click
-
-        triggers = [t["prop_id"].split(".")[0] for t in ctx.triggered] if ctx.triggered else []
-        trigger = "interval"
-        if "stop-test-btn" in triggers:
-            trigger = "stop-test-btn"
-        elif "start-test-btn" in triggers:
-            trigger = "start-test-btn"
-        elif triggers:
-            trigger = triggers[0]
-
-        _debug(
-            f"[LAB TEST DEBUG] update_lab_test_stop_time triggers={triggers} selected={trigger} running={running}, stop_time={stop_time}"
-
-        )
-
-        if ctx.triggered:
-            if trigger == "stop-test-btn":
-                last_stop_click = stop_click or 0
-                new_time = -time.time()
-
-                _debug("[LAB TEST] Grace period timer started")
-                _debug(f"[LAB TEST DEBUG] storing stop_time={new_time}")
-                _debug(f"[LAB TEST DEBUG] update_lab_test_stop_time returning {new_time}")
-                return new_time
-            if trigger == "start-test-btn":
-                last_stop_click = stop_click or 0
-                _debug("[LAB TEST] Grace period cleared due to start")
-                _debug("[LAB TEST DEBUG] clearing stop_time")
-                _debug("[LAB TEST DEBUG] update_lab_test_stop_time returning None")
-                return None
-
-        # Detect a stop button press even if the interval was recorded as the
-        # trigger. Dash can occasionally group events, so compare the click
-        # count to our last seen value.
-        if stop_click and stop_click != last_stop_click:
-            last_stop_click = stop_click
-            new_time = -time.time()
-
-            _debug("[LAB TEST] Grace period timer started (catch-up)")
-            _debug(f"[LAB TEST DEBUG] storing stop_time={new_time}")
-            _debug(f"[LAB TEST DEBUG] update_lab_test_stop_time returning {new_time}")
-            return new_time
-
-        if not running:
-            _debug("[LAB TEST DEBUG] not running - stop_time unchanged")
-            _debug("[LAB TEST DEBUG] update_lab_test_stop_time returning dash.no_update")
-            return dash.no_update
-
-        if not mode or mode.get("mode") != "lab":
-            _debug(
-                f"[LAB TEST DEBUG] not in lab mode ({mode}) - stop_time unchanged"
-            )
-            _debug("[LAB TEST DEBUG] update_lab_test_stop_time returning dash.no_update")
-
-            return dash.no_update
-
-        active_id = active_machine_data.get("machine_id") if active_machine_data else None
-        if not active_id or active_id not in machine_connections:
-
-            _debug(
-                f"[LAB TEST DEBUG] invalid active machine {active_id} - stop_time unchanged"
-            )
-            _debug("[LAB TEST DEBUG] update_lab_test_stop_time returning dash.no_update")
-
-            return dash.no_update
-
-        tags = machine_connections[active_id].get("tags", {})
-        any_running = False
-        for i in range(1, 5):
-            tag = f"Status.Feeders.{i}IsRunning"
-            if bool(tags.get(tag, {}).get("data", {}).latest_value if tag in tags else False):
-                any_running = True
-                break
-
-        if any_running:
-            if stop_time is not None and stop_time >= 0:
-
-                _debug("[LAB TEST DEBUG] feeders running - clearing stop time")
-                _debug("[LAB TEST DEBUG] update_lab_test_stop_time returning None")
-
-                return None
-        else:
-            if start_mode == "feeder" and stop_time is None:
-                new_time = time.time()
-
-                _debug("[LAB TEST] Feeders stopped - starting grace period")
-                _debug(f"[LAB TEST DEBUG] storing stop_time={new_time}")
-                _debug(f"[LAB TEST DEBUG] update_lab_test_stop_time returning {new_time}")
-                return new_time
-
-        elapsed = None
-        if stop_time:
-            elapsed = time.time() - abs(stop_time)
-        _debug(
-            f"[LAB TEST DEBUG] no update to stop_time (running={running}, elapsed={elapsed})"
-        )
-        _debug("[LAB TEST DEBUG] update_lab_test_stop_time returning dash.no_update")
-
-        return dash.no_update
 
     @app.callback(
         [Output("display-modal", "is_open"),

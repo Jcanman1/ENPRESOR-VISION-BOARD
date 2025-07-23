@@ -212,7 +212,7 @@ def test_lab_auto_start(monkeypatch):
     app = dash.Dash(__name__)
     callbacks.register_callbacks(app)
 
-    func = app.callback_map["lab-test-running.data"]["callback"]
+    func = app.callback_map["..lab-test-running.data...lab-test-stop-time.data.."]["callback"]
 
     tag = callbacks.TagData("Status.Feeders.1IsRunning")
     tag.latest_value = True
@@ -227,8 +227,8 @@ def test_lab_auto_start(monkeypatch):
 
     monkeypatch.setattr(callbacks, "callback_context", DummyCtx("status-update-interval.n_intervals"))
 
-    res = func.__wrapped__(None, None, "lab", 1, False, None, "AutoTest", "feeder")
-    assert res is True
+    res = func.__wrapped__(None, None, "lab", 1, False, None, "AutoTest", {"mode": "lab"}, {"machine_id": 1}, "feeder")
+    assert res[0] is True
 
 
 def test_lab_local_mode_no_auto_start(monkeypatch):
@@ -237,7 +237,7 @@ def test_lab_local_mode_no_auto_start(monkeypatch):
     app = dash.Dash(__name__)
     callbacks.register_callbacks(app)
 
-    func = app.callback_map["lab-test-running.data"]["callback"]
+    func = app.callback_map["..lab-test-running.data...lab-test-stop-time.data.."]["callback"]
 
     tag = callbacks.TagData("Status.Feeders.1IsRunning")
     tag.latest_value = True
@@ -252,8 +252,8 @@ def test_lab_local_mode_no_auto_start(monkeypatch):
 
     monkeypatch.setattr(callbacks, "callback_context", DummyCtx("status-update-interval.n_intervals"))
 
-    res = func.__wrapped__(None, None, "lab", 1, False, None, "AutoTest", "local")
-    assert res is False
+    res = func.__wrapped__(None, None, "lab", 1, False, None, "AutoTest", {"mode": "lab"}, {"machine_id": 1}, "local")
+    assert res[0] is False
 
 
 
@@ -263,7 +263,7 @@ def test_lab_auto_stop_sets_time(monkeypatch):
     app = dash.Dash(__name__)
     callbacks.register_callbacks(app)
 
-    func = app.callback_map["lab-test-stop-time.data"]["callback"]
+    func = app.callback_map["..lab-test-running.data...lab-test-stop-time.data.."]["callback"]
 
     tag = callbacks.TagData("Status.Feeders.1IsRunning")
     tag.latest_value = False
@@ -278,8 +278,8 @@ def test_lab_auto_stop_sets_time(monkeypatch):
 
     monkeypatch.setattr(callbacks, "callback_context", DummyCtx("status-update-interval.n_intervals"))
     monkeypatch.setattr(callbacks.time, "time", lambda: 123.0)
-    res = func.__wrapped__(None, None, 1, True, None, {"mode": "lab"}, {"machine_id": 1}, "feeder")
-    assert res == 123.0
+    res = func.__wrapped__(None, None, "lab", 1, True, None, "AutoTest", {"mode": "lab"}, {"machine_id": 1}, "feeder")
+    assert res[1] == 123.0
 
 
 def test_lab_restart_clears_stop_time(monkeypatch):
@@ -287,7 +287,7 @@ def test_lab_restart_clears_stop_time(monkeypatch):
     app = dash.Dash(__name__)
     callbacks.register_callbacks(app)
 
-    func = app.callback_map["lab-test-stop-time.data"]["callback"]
+    func = app.callback_map["..lab-test-running.data...lab-test-stop-time.data.."]["callback"]
 
     tag = callbacks.TagData("Status.Feeders.1IsRunning")
     tag.latest_value = True
@@ -301,8 +301,8 @@ def test_lab_restart_clears_stop_time(monkeypatch):
             self.triggered = [{"prop_id": prop_id}]
 
     monkeypatch.setattr(callbacks, "callback_context", DummyCtx("status-update-interval.n_intervals"))
-    res = func.__wrapped__(None, None, 1, True, 100.0, {"mode": "lab"}, {"machine_id": 1}, "feeder")
-    assert res is None
+    res = func.__wrapped__(None, None, "lab", 1, True, 100.0, "AutoTest", {"mode": "lab"}, {"machine_id": 1}, "feeder")
+    assert res[1] is None
 
 
 def test_manual_stop_sets_negative_time(monkeypatch):
@@ -310,7 +310,7 @@ def test_manual_stop_sets_negative_time(monkeypatch):
     app = dash.Dash(__name__)
     callbacks.register_callbacks(app)
 
-    func = app.callback_map["lab-test-stop-time.data"]["callback"]
+    func = app.callback_map["..lab-test-running.data...lab-test-stop-time.data.."]["callback"]
 
     class DummyCtx:
         def __init__(self, prop_id):
@@ -319,5 +319,5 @@ def test_manual_stop_sets_negative_time(monkeypatch):
     monkeypatch.setattr(callbacks, "callback_context", DummyCtx("stop-test-btn.n_clicks"))
     monkeypatch.setattr(callbacks.time, "time", lambda: 456.0)
 
-    res = func.__wrapped__(None, 1, 0, True, None, {"mode": "lab"}, {"machine_id": 1}, "feeder")
-    assert res == -456.0
+    res = func.__wrapped__(None, 1, "lab", 0, True, None, "AutoTest", {"mode": "lab"}, {"machine_id": 1}, "feeder")
+    assert res[1] == -456.0
