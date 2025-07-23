@@ -5794,10 +5794,13 @@ def _register_callbacks_impl(app):
 
         if ctx.triggered:
             if trigger == "stop-test-btn":
+                new_time = -time.time()
                 print("[LAB TEST] Grace period timer started", flush=True)
-                return -time.time()
+                print(f"[LAB TEST DEBUG] returning stop_time={new_time}", flush=True)
+                return new_time
             if trigger == "start-test-btn":
                 print("[LAB TEST] Grace period cleared due to start", flush=True)
+                print("[LAB TEST DEBUG] clearing stop_time", flush=True)
                 return None
 
         if not running:
@@ -5820,11 +5823,14 @@ def _register_callbacks_impl(app):
 
         if any_running:
             if stop_time is not None and stop_time >= 0:
+                print("[LAB TEST DEBUG] feeders running - clearing stop time", flush=True)
                 return None
         else:
             if start_mode == "feeder" and stop_time is None:
+                new_time = time.time()
                 print("[LAB TEST] Feeders stopped - starting grace period", flush=True)
-                return time.time()
+                print(f"[LAB TEST DEBUG] returning stop_time={new_time}", flush=True)
+                return new_time
 
         return dash.no_update
 
