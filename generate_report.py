@@ -1587,6 +1587,7 @@ def draw_sensitivity_grid(
         try:
             # Draw colored border around entire section
             c.setStrokeColor(border_color)
+            c.setLineWidth(2)
             c.rect(x0, y0, total_w, section_h, fill=0, stroke=1)
         except Exception:
             pass
