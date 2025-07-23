@@ -5689,6 +5689,7 @@ def _register_callbacks_impl(app):
         print(
             f"[LAB TEST DEBUG] update_lab_running triggers={triggers} selected={trigger} running={running}, stop_time={stop_time}",
 
+
             flush=True,
         )
 
@@ -5817,6 +5818,7 @@ def _register_callbacks_impl(app):
         print(
             f"[LAB TEST DEBUG] update_lab_test_stop_time triggers={triggers} selected={trigger} running={running}, stop_time={stop_time}",
 
+
             flush=True,
         )
 
@@ -5832,13 +5834,22 @@ def _register_callbacks_impl(app):
                 return None
 
         if not running:
+            print("[LAB TEST DEBUG] not running - stop_time unchanged", flush=True)
             return dash.no_update
 
         if not mode or mode.get("mode") != "lab":
+            print(
+                f"[LAB TEST DEBUG] not in lab mode ({mode}) - stop_time unchanged",
+                flush=True,
+            )
             return dash.no_update
 
         active_id = active_machine_data.get("machine_id") if active_machine_data else None
         if not active_id or active_id not in machine_connections:
+            print(
+                f"[LAB TEST DEBUG] invalid active machine {active_id} - stop_time unchanged",
+                flush=True,
+            )
             return dash.no_update
 
         tags = machine_connections[active_id].get("tags", {})
@@ -5860,6 +5871,7 @@ def _register_callbacks_impl(app):
                 print(f"[LAB TEST DEBUG] storing stop_time={new_time}", flush=True)
                 return new_time
 
+        print("[LAB TEST DEBUG] no update to stop_time", flush=True)
         return dash.no_update
 
     @app.callback(
