@@ -76,6 +76,13 @@ warned_sensitivity_tags = set()
 _lab_running_state = False      # Global state for lab running
 _lab_stop_time_state = None     # Global state for stop time
 
+_lab_state = {
+    "running": False,
+    "stop_time": None,
+    "test_name": None,
+    "machine_id": None
+}
+
 def get_active_counter_flags(machine_id):
     """Return a list of booleans indicating which counters are active."""
     flags = [True] * 12
@@ -549,6 +556,32 @@ def load_lab_average_capacity_and_accepts(machine_id):
 
     return cap_avg, acc_total, elapsed_seconds
 
+_background_thread_lock = threading.Lock()
+_active_background_threads = set()
+
+def _cleanup_finished_threads():
+    """Remove finished threads from tracking."""
+    global _active_background_threads
+    finished = [t for t in _active_background_threads if not t.is_alive()]
+    for t in finished:
+        _active_background_threads.remove(t)
+
+def _reset_lab_session_safe(machine_id):
+    """Thread-safe version that prevents accumulation."""
+    global _active_background_threads
+    
+    with _background_thread_lock:
+        _cleanup_finished_threads()
+        
+        # Don't start new thread if too many active
+        if len(_active_background_threads) > 5:
+            print("[LAB WARNING] Too many background threads, skipping")
+            return
+            
+        thread = threading.Thread(target=_reset_lab_session, args=(machine_id,), daemon=True)
+        _active_background_threads.add(thread)
+        thread.start()
+
 
 def load_lab_totals_metrics(machine_id, active_counters=None):
     """Return total capacity, accepts, rejects and elapsed seconds from the latest lab log.
@@ -937,8 +970,8 @@ def _register_callbacks_impl(app):
     def monitor_store_changes(stop_time):
         import traceback
         stack = ''.join(traceback.format_stack()[-3:-1])
-        print(f"[STORE MONITOR] stop_time changed to: {stop_time}")
-        print(f"[STORE MONITOR] Called from:\n{stack}")
+        #print(f"[STORE MONITOR] stop_time changed to: {stop_time}")
+        #print(f"[STORE MONITOR] Called from:\n{stack}")
 
 
     @app.callback(
@@ -1082,22 +1115,38 @@ def _register_callbacks_impl(app):
 
     @app.callback(
         Output("generate-report-btn", "disabled"),
-        [Input("status-update-interval", "n_intervals"), Input("lab-test-running", "data")],
-        [State("lab-test-stop-time", "data")]
+        [Input("status-update-interval", "n_intervals"), 
+        Input("lab-test-running", "data")],  # Keep as trigger but don't use the value
+        [State("lab-test-stop-time", "data")]  # Keep as trigger but don't use the value
     )
-    def disable_report_button(n_intervals, running, stop_time):
-
+    def disable_report_button(n_intervals, running_store, stop_time_store):
+        """
+        FIXED VERSION: Use global variables as source of truth instead of store values.
+        This ensures consistency with toggle_lab_test_buttons.
+        """
+        global _lab_running_state, _lab_stop_time_state
+        
+        # Use global variables instead of store parameters
+        running = _lab_running_state
+        stop_time = _lab_stop_time_state
+        
         elapsed = None
         if stop_time:
             elapsed = time.time() - abs(stop_time)
+        
         _debug(
-            f"[LAB TEST DEBUG] disable_report_button running={running}, stop_time={stop_time}, elapsed={elapsed}"
-
+            f"[LAB TEST DEBUG] disable_report_button running={running}, stop_time={stop_time}, elapsed={elapsed} (from globals)"
         )
+        
+        # Report button disabled if test is running
         if running:
             return True
+        
+        # Report button enabled if no stop time (test never ran)
         if stop_time is None:
             return False
+        
+        # Report button disabled during 30s grace period, enabled afterwards
         return (time.time() - abs(stop_time)) < 30
 
     @app.callback(
@@ -5697,39 +5746,30 @@ def _register_callbacks_impl(app):
         return cls, cls
 
     @app.callback(
-        [Output("start-test-btn", "disabled"),
-         Output("start-test-btn", "color"),
-         Output("stop-test-btn", "disabled"),
-         Output("stop-test-btn", "color")],
-        [Input("lab-test-running", "data"),
-         Input("mode-selector", "value"),
-         Input("status-update-interval", "n_intervals")],
-        [State("lab-test-stop-time", "data")],
+        Output("interval-debug-store", "data"),  # Use any unused output
+        [Input("status-update-interval", "n_intervals"),
+        Input("metric-logging-interval", "n_intervals")], 
+        [State("lab-test-running", "data"),
+        State("mode-selector", "value")],
+        prevent_initial_call=True,
     )
-    def toggle_lab_test_buttons(running, mode, n_intervals, stop_time):
-        """Enable/disable lab start/stop buttons based on test state."""
-
+    def debug_intervals(status_intervals, metric_intervals, lab_running, mode):
+        """Debug what's happening to intervals during grace period"""
+        global _lab_running_state, _lab_stop_time_state
+        
         elapsed = None
-        if stop_time:
-            elapsed = time.time() - abs(stop_time)
-        _debug(
-            f"[LAB TEST DEBUG] toggle_lab_test_buttons running={running}, stop_time={stop_time}, elapsed={elapsed}"
+        if _lab_stop_time_state and _lab_stop_time_state < 0:
+            elapsed = time.time() + _lab_stop_time_state
+        
+        print(f"[INTERVAL DEBUG] status_intervals={status_intervals}, metric_intervals={metric_intervals}")
+        print(f"[INTERVAL DEBUG] mode={mode}, lab_running={lab_running}, elapsed={elapsed}")
+        
+        return {"status": status_intervals, "metric": metric_intervals}
 
-        )
-        if mode != "lab":
-            return True, "secondary", True, "secondary"
 
-        # Disable both buttons during the 30s grace period after stopping
-        if running and stop_time and (time.time() - abs(stop_time) < 30):
+    
 
-            _debug("[LAB TEST DEBUG] grace period active - buttons disabled")
-
-            return True, "secondary", True, "secondary"
-
-        if running:
-            return True, "secondary", False, "danger"
-
-        return False, "success", True, "secondary"
+    
 
     # Add this temporary callback for debugging
     @app.callback(
@@ -5771,6 +5811,69 @@ def _register_callbacks_impl(app):
         return f"Debug: stop_time={stop_time}, running={running} at {timestamp}"
 
     @app.callback(
+        Output("debug-state-monitor", "data"),  # Use any unused output
+        [Input("lab-test-running", "data"),
+        Input("lab-test-stop-time", "data")],
+        prevent_initial_call=False,
+    )
+    def monitor_state_changes(running, stop_time):
+        """Monitor what values actually reach the stores."""
+        print(f"[STORE MONITOR] running={running}, stop_time={stop_time}")
+        return {"running": running, "stop_time": stop_time}
+
+
+
+    @app.callback(
+        [Input("lab-test-running", "data")],
+        prevent_initial_call=False,
+    )
+    def monitor_running_changes(running):
+        import traceback
+        import time
+        timestamp = time.strftime("%H:%M:%S")
+        stack = ''.join(traceback.format_stack()[-3:-1])
+        #print(f"[RUNNING MONITOR {timestamp}] running changed to: {running}")
+        #print(f"[RUNNING MONITOR {timestamp}] Called from:\n{stack}")
+
+    @app.callback(
+        Output("lab-test-info", "data"),
+        [Input("start-test-btn", "n_clicks"), Input("stop-test-btn", "n_clicks")],
+        [State("lab-test-name", "value")],
+        prevent_initial_call=True,
+    )
+    def manage_lab_test_info(start_click, stop_click, name):
+        ctx = callback_context
+        if not ctx.triggered:
+            raise PreventUpdate
+        trigger = ctx.triggered[0]["prop_id"].split(".")[0]
+        global current_lab_filename
+        if trigger == "start-test-btn":
+            test_name = name or "Test"
+            filename = (
+                f"Lab_Test_{test_name}_{datetime.now().strftime('%m_%d_%Y')}.csv"
+            )
+            current_lab_filename = filename
+            try:
+                if active_machine_id is not None:
+                    _create_empty_lab_log(active_machine_id, filename)
+                    _reset_lab_session(active_machine_id)
+            except Exception as exc:
+                logger.warning(f"Failed to prepare new lab log: {exc}")
+            return {"filename": filename}
+        return {}
+
+    @app.callback(
+        [Output("metric-logging-interval", "interval"), Output("metric-logging-interval", "disabled")],
+        [Input("mode-selector", "value")],  # Only depend on mode
+    )
+    def adjust_logging_interval_fixed(mode):
+        """Simplified - no complex dependencies."""
+        if mode == "lab":
+            return 1000, False  # 1 second, always enabled
+        return 60000, False
+
+
+    @app.callback(
         [Output("lab-test-running", "data"), Output("lab-test-stop-time", "data")],
         [Input("start-test-btn", "n_clicks"),
         Input("stop-test-btn", "n_clicks"),
@@ -5784,7 +5887,7 @@ def _register_callbacks_impl(app):
         State("lab-start-selector", "value")],
         prevent_initial_call=True,
     )
-    def update_lab_state(start_click, stop_click, mode, n_intervals, running, stop_time, test_name, app_mode, active_machine_data, start_mode):
+    def update_lab_state_fixed(start_click, stop_click, mode, n_intervals, running, stop_time, test_name, app_mode, active_machine_data, start_mode):
         """Manage lab running state and stop time using reliable global variables."""
         global current_lab_filename, last_stop_click, _lab_running_state, _lab_stop_time_state
         
@@ -5893,58 +5996,81 @@ def _register_callbacks_impl(app):
         
         _debug(f"[LAB TEST DEBUG] FINAL: new_running={new_running}, new_stop_time={new_stop_time} (globals updated)")
         
-        # Return values to keep stores in sync (but globals are the real source of truth)
+        # IMPORTANT: Return values to keep stores in sync AND trigger dependent callbacks
+        # This ensures button callbacks get triggered when the state changes
         return new_running, new_stop_time
-
     @app.callback(
-        [Input("lab-test-running", "data")],
-        prevent_initial_call=False,
-    )
-    def monitor_running_changes(running):
-        import traceback
-        import time
-        timestamp = time.strftime("%H:%M:%S")
-        stack = ''.join(traceback.format_stack()[-3:-1])
-        print(f"[RUNNING MONITOR {timestamp}] running changed to: {running}")
-        print(f"[RUNNING MONITOR {timestamp}] Called from:\n{stack}")
-
-    @app.callback(
-        Output("lab-test-info", "data"),
-        [Input("start-test-btn", "n_clicks"), Input("stop-test-btn", "n_clicks")],
-        [State("lab-test-name", "value")],
+        Output("mode-change-monitor", "data"),  # Use any unused output
+        [Input("mode-selector", "value")],
         prevent_initial_call=True,
     )
-    def manage_lab_test_info(start_click, stop_click, name):
-        ctx = callback_context
-        if not ctx.triggered:
-            raise PreventUpdate
-        trigger = ctx.triggered[0]["prop_id"].split(".")[0]
-        global current_lab_filename
-        if trigger == "start-test-btn":
-            test_name = name or "Test"
-            filename = (
-                f"Lab_Test_{test_name}_{datetime.now().strftime('%m_%d_%Y')}.csv"
-            )
-            current_lab_filename = filename
-            try:
-                if active_machine_id is not None:
-                    _create_empty_lab_log(active_machine_id, filename)
-                    _reset_lab_session(active_machine_id)
-            except Exception as exc:
-                logger.warning(f"Failed to prepare new lab log: {exc}")
-            return {"filename": filename}
-        return {}
+    def monitor_mode_changes(mode):
+        """Monitor what happens during mode changes."""
+        print(f"[MODE MONITOR] Mode selector triggered: {mode} at {time.time()}")
+        return {"mode": mode}
+        
+        # No change
+        return running, stop_time
 
     @app.callback(
-        [Output("metric-logging-interval", "interval"), Output("metric-logging-interval", "disabled")],
-        [Input("lab-test-running", "data"), Input("mode-selector", "value")],
+        [Output("start-test-btn", "disabled"),
+        Output("start-test-btn", "color"),
+        Output("stop-test-btn", "disabled"),
+        Output("stop-test-btn", "color")],
+        [Input("lab-test-running", "data"),
+        Input("lab-test-stop-time", "data"),
+        Input("mode-selector", "value")],
+        prevent_initial_call=True,
     )
-    def adjust_logging_interval(running, mode):
+    def toggle_lab_buttons_fixed(running, stop_time, mode):
+        """Fixed button state - much simpler."""
+        
+        # ADD THIS DEBUG
+        print(f"[BUTTON CALLBACK] running={running}, stop_time={stop_time}, mode={mode}")
+        
+        if mode != "lab":
+            print("[BUTTON CALLBACK] Not lab mode - disabling all")
+            return True, "secondary", True, "secondary"
+        
+        # Grace period - both buttons disabled/grey
+        if running and stop_time and stop_time < 0 and (time.time() + stop_time < 30):
+            print("[BUTTON CALLBACK] Grace period active - both disabled")
+            return True, "secondary", True, "secondary"
+        
+        # Test running - start disabled, stop red
+        if running:
+            print("[BUTTON CALLBACK] Test running - stop red")
+            return True, "secondary", False, "danger"
+        
+        # Test stopped - start green, stop disabled  
+        print("[BUTTON CALLBACK] Test stopped - start green") 
+        return False, "success", True, "secondary"
+
+    @app.callback(
+        Output("debug-monitor-store", "data"),  # Use any unused output
+        [Input("status-update-interval", "n_intervals")],
+        [State("lab-test-running", "data"),
+        State("lab-test-stop-time", "data"),
+        State("mode-selector", "value")],
+        prevent_initial_call=True,
+    )
+    def monitor_lab_health(n_intervals, running, stop_time, mode):
+        """Monitor lab mode health during longer tests."""
         if mode == "lab":
-            return 1000, not running
-        return 60000, False
-
-
+            thread_count = threading.active_count()
+            
+            if running:
+                print(f"[LAB MONITOR] Test running for {n_intervals}s, {thread_count} threads active")
+                
+                # Alert if too many threads
+                if thread_count > 20:
+                    print(f"[LAB WARNING] Too many threads: {thread_count}")
+                    
+                # Alert if stop button should work but isn't
+                if n_intervals > 60:  # After 1 minute
+                    print(f"[LAB MONITOR] Long test detected - monitoring for issues")
+        
+        return {"intervals": n_intervals, "threads": threading.active_count()}
     @app.callback(
         [Output("display-modal", "is_open"),
          Output("display-form-container", "children")],
