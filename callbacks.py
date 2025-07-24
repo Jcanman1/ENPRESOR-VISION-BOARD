@@ -6043,8 +6043,22 @@ def _register_callbacks_impl(app):
         prevent_initial_call=True,
     )
 
-    def toggle_lab_buttons_fixed(n_intervals, running, stop_time, mode):
-        """Fixed button state with periodic failsafe."""
+    def toggle_lab_buttons_fixed(*args):
+        """Fixed button state with periodic failsafe.
+
+        Accepts either ``(n_intervals, running, stop_time, mode)`` or the legacy
+        ``(running, stop_time, mode)`` argument order used in older tests.
+        """
+
+        if len(args) == 4:
+            n_intervals, running, stop_time, mode = args
+        elif len(args) == 3:
+            n_intervals = 0
+            running, stop_time, mode = args
+        else:
+            raise TypeError(
+                "toggle_lab_buttons_fixed() requires 3 or 4 positional arguments"
+            )
 
         global _lab_running_state, _lab_stop_time_state
 
@@ -6090,21 +6104,28 @@ def _register_callbacks_impl(app):
         prevent_initial_call=True,
     )
     def monitor_lab_health(n_intervals, running, stop_time, mode):
-        """Monitor lab mode health during longer tests."""
+        """Monitor lab mode health and restart stalled update threads."""
         if mode == "lab":
             thread_count = threading.active_count()
-            
+
             if running:
-                print(f"[LAB MONITOR] Test running for {n_intervals}s, {thread_count} threads active")
-                
-                # Alert if too many threads
+                print(
+                    f"[LAB MONITOR] Test running for {n_intervals}s, {thread_count} threads active"
+                )
+
                 if thread_count > 20:
                     print(f"[LAB WARNING] Too many threads: {thread_count}")
-                    
-                # Alert if stop button should work but isn't
-                if n_intervals > 60:  # After 1 minute
-                    print(f"[LAB MONITOR] Long test detected - monitoring for issues")
-        
+
+                if n_intervals > 60:
+                    print("[LAB MONITOR] Long test detected - monitoring for issues")
+
+                    last_update = app_state.last_update_time
+                    if last_update is None or (
+                        datetime.now() - last_update
+                    ).total_seconds() > 10:
+                        print("[LAB MONITOR] Update thread stalled - restarting")
+                        resume_update_thread()
+
         return {"intervals": n_intervals, "threads": threading.active_count()}
     @app.callback(
         [Output("display-modal", "is_open"),
