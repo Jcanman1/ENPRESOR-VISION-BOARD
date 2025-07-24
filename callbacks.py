@@ -1129,6 +1129,12 @@ def _register_callbacks_impl(app):
         # Use global variables instead of store parameters
         running = _lab_running_state
         stop_time = _lab_stop_time_state
+
+        # FAILSAFE: if grace period should have expired, treat test as stopped
+        if running and stop_time and stop_time < 0:
+            if time.time() + stop_time >= 30:
+                running = False
+                stop_time = None
         
         elapsed = None
         if stop_time:
@@ -6024,9 +6030,14 @@ def _register_callbacks_impl(app):
     )
     def toggle_lab_buttons_fixed(running, stop_time, mode):
         """Fixed button state - much simpler."""
-        
+
         # ADD THIS DEBUG
         print(f"[BUTTON CALLBACK] running={running}, stop_time={stop_time}, mode={mode}")
+
+        # FAILSAFE: if grace period should have expired, force stopped state
+        if running and stop_time and stop_time < 0 and (time.time() + stop_time >= 30):
+            running = False
+            stop_time = None
         
         if mode != "lab":
             print("[BUTTON CALLBACK] Not lab mode - disabling all")
