@@ -69,7 +69,11 @@ def startup_auto_connect_machines():
                         connected_count += 1
                     else:
                         logger.warning(f"✗ Failed to auto-connect to machine {machine_id} - connection returned False")
-
+                    if trigger == "mode-selector":
+                        _debug("[LAB TEST DEBUG] Mode selector changed to lab - lab already prepared!")
+                        # Lab environment was prepared when machine connected - just reset state
+                        new_running = False
+                        new_stop_time = None
                 except Exception as conn_error:
                     logger.warning(f"✗ Failed to auto-connect to machine {machine_id}: {conn_error}")
                 finally:
