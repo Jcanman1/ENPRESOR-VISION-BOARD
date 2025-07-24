@@ -381,3 +381,27 @@ def test_grace_period_failsafe(monkeypatch):
 
     # Report button should be enabled
     assert report_func.__wrapped__(0, False, -50.0) is False
+
+def test_update_lab_state_failsafe(monkeypatch):
+    """update_lab_state should clear stale grace period even without interval."""
+    monkeypatch.setattr(autoconnect, "initialize_autoconnect", lambda: None)
+    app = dash.Dash(__name__)
+    callbacks.register_callbacks(app)
+
+    func = app.callback_map["..lab-test-running.data...lab-test-stop-time.data.."]["callback"]
+
+    callbacks._lab_running_state = True
+    callbacks._lab_stop_time_state = -50.0
+
+    class DummyCtx:
+        def __init__(self, prop_id):
+            self.triggered = [{"prop_id": prop_id}]
+
+    monkeypatch.setattr(callbacks, "callback_context", DummyCtx("start-test-btn.n_clicks"))
+    monkeypatch.setattr(callbacks.time, "time", lambda: 100.0)
+
+    # Failsafe should mark test stopped before handling new start click
+    res = func.__wrapped__(1, 0, "lab", 0, True, -50.0, "AutoTest", {"mode": "lab"}, {"machine_id": 1}, "feeder")
+
+    assert res == (True, None)
+

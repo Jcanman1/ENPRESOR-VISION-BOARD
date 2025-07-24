@@ -5905,6 +5905,15 @@ def _register_callbacks_impl(app):
         # Override store values with global state
         running = _lab_running_state
         stop_time = _lab_stop_time_state
+
+        # FAILSAFE: if grace period should already be complete, clear state
+        if running and stop_time and stop_time < 0:
+            elapsed = time.time() + stop_time
+            if elapsed >= 30.0:
+                running = False
+                stop_time = None
+                _lab_running_state = False
+                _lab_stop_time_state = None
         
         _debug(f"[LAB TEST DEBUG] ENTRY: running={running}, stop_time={stop_time} (from globals)")
         
@@ -6042,7 +6051,6 @@ def _register_callbacks_impl(app):
         # Use global state as source of truth
         running = _lab_running_state
         stop_time = _lab_stop_time_state
-
 
         # ADD THIS DEBUG
         print(f"[BUTTON CALLBACK] running={running}, stop_time={stop_time}, mode={mode}")
