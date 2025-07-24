@@ -140,13 +140,15 @@ def test_lab_buttons_callback(monkeypatch):
 
     callbacks._lab_running_state = False
     callbacks._lab_stop_time_state = None
-    res = func.__wrapped__(0, False, None, "lab")
+    res = func.__wrapped__(False, None, "lab")
+
     assert res == (False, "success", True, "secondary")
 
     # Running
     callbacks._lab_running_state = True
     callbacks._lab_stop_time_state = None
-    res = func.__wrapped__(0, True, None, "lab")
+
+    res = func.__wrapped__(True, None, "lab")
 
     assert res == (True, "secondary", False, "danger")
 
@@ -155,13 +157,15 @@ def test_lab_buttons_callback(monkeypatch):
     callbacks._lab_stop_time_state = -90.0
     monkeypatch.setattr(callbacks.time, "time", lambda: 100.0)
 
-    res = func.__wrapped__(0, True, -90.0, "lab")
+    res = func.__wrapped__(True, -90.0, "lab")
+
     assert res == (True, "secondary", True, "secondary")
 
     # Other mode
     callbacks._lab_running_state = False
     callbacks._lab_stop_time_state = None
-    res = func.__wrapped__(0, False, None, "live")
+
+    res = func.__wrapped__(False, None, "live")
 
     assert res == (True, "secondary", True, "secondary")
 
@@ -209,7 +213,9 @@ def test_generate_report_disable_callback(monkeypatch):
     func = app.callback_map[key]["callback"]
 
     callbacks._lab_running_state = True
-    callbacks._lab_stop_time_state = None
+
+    callbacks._lab_stop_time_state = 90
+
     monkeypatch.setattr(callbacks.time, "time", lambda: 100.0)
     assert func.__wrapped__(0, True, 90) is True
 
