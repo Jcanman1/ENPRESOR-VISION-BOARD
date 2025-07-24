@@ -1240,19 +1240,65 @@ def resume_update_thread():
 
 
 def pause_background_processes():
-    """Pause non-essential background threads for lab mode."""
-    global pause_reconnection
-    print("[LAB TEST] pause_background_processes called - active threads:", [t.name for t in threading.enumerate()], flush=True)
-    pause_reconnection = True
-    app_state_manager.set_paused(True)
+    """Enhanced version to properly pause ALL background threads during lab mode"""
+    global app_state
+    
+    logger.info("[LAB MODE] Starting enhanced background thread pause...")
+    
+    # 1. Set global pause flags FIRST
+    app_state.lab_mode_active = True
+    app_state.background_paused = True
+    
+    # 2. Stop OPC update thread gracefully
+    if hasattr(app_state, 'update_thread') and app_state.update_thread and app_state.update_thread.is_alive():
+        logger.info("[LAB MODE] Stopping OPC update thread...")
+        app_state.thread_stop_flag = True
+        app_state.update_thread.join(timeout=2.0)  # Wait max 2 seconds
+        if app_state.update_thread.is_alive():
+            logger.warning("[LAB MODE] OPC update thread did not stop gracefully")
+        else:
+            logger.info("[LAB MODE] OPC update thread stopped successfully")
+    
+    # 3. Pause auto-reconnection attempts
+    if hasattr(app_state, 'reconnection_thread') and app_state.reconnection_thread and app_state.reconnection_thread.is_alive():
+        app_state.reconnection_paused = True
+        logger.info("[LAB MODE] Auto-reconnection paused")
+    
+    # 4. Clear any pending OPC operations
+    app_state.pending_opc_operations = []
+    
+    # 5. Reduce logging frequency during lab mode
+    app_state.log_interval_seconds = 10  # Reduce from default 1 second
+    
+    logger.info("[LAB MODE] Background processes paused successfully")
 
 
 def resume_background_processes():
-    """Resume paused background threads when exiting lab mode."""
-    global pause_reconnection
-    pause_reconnection = False
-    app_state_manager.set_paused(False)
-    print("[LAB TEST] resume_background_processes called - active threads:", [t.name for t in threading.enumerate()], flush=True)
+    """Enhanced version to properly resume background threads when leaving lab mode"""
+    global app_state
+    
+    logger.info("[LAB MODE] Resuming background processes...")
+    
+    # 1. Clear lab mode flags
+    app_state.lab_mode_active = False
+    app_state.background_paused = False
+    
+    # 2. Restart OPC update thread if needed
+    if active_machine_id and active_machine_id in machine_connections:
+        if not hasattr(app_state, 'update_thread') or not app_state.update_thread.is_alive():
+            logger.info("[LAB MODE] Restarting OPC update thread...")
+            app_state.thread_stop_flag = False
+            app_state.update_thread = Thread(target=opc_update_thread)
+            app_state.update_thread.daemon = True
+            app_state.update_thread.start()
+    
+    # 3. Resume auto-reconnection
+    app_state.reconnection_paused = False
+    
+    # 4. Restore normal logging frequency
+    app_state.log_interval_seconds = 1
+    
+    logger.info("[LAB MODE] Background processes resumed successfully")
 
 # Connect to OPC UA server
 async def connect_to_server(server_url, server_name=None):
@@ -1890,6 +1936,12 @@ if dash is not None:
         suppress_callback_exceptions=True,
     )
     app.title = tr("dashboard_title")
+    
+    # ADD THIS CSP FIX HERE:
+    @app.server.after_request
+    def add_csp(response):
+        response.headers['Content-Security-Policy'] = "script-src 'self' 'unsafe-eval' 'unsafe-inline'"
+        return response
     
     # ADD THESE LINES AFTER APP CREATION:
     try:
