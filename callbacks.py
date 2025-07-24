@@ -1135,8 +1135,10 @@ def _register_callbacks_impl(app):
             if time.time() + stop_time >= 30:
                 running = False
                 stop_time = None
+
                 _lab_running_state = False
                 _lab_stop_time_state = None
+
         
         elapsed = None
         if stop_time:
@@ -6040,6 +6042,7 @@ def _register_callbacks_impl(app):
          Input("mode-selector", "value")],
         prevent_initial_call=True,
     )
+
     def toggle_lab_buttons_fixed(n_intervals, running, stop_time, mode):
         """Fixed button state with periodic failsafe."""
 
@@ -6058,6 +6061,7 @@ def _register_callbacks_impl(app):
             stop_time = None
             _lab_running_state = False
             _lab_stop_time_state = None
+
         
         if mode != "lab":
             print("[BUTTON CALLBACK] Not lab mode - disabling all")

@@ -137,6 +137,7 @@ def test_lab_buttons_callback(monkeypatch):
     func = app.callback_map[key]["callback"]
 
     # Not running yet
+
     callbacks._lab_running_state = False
     callbacks._lab_stop_time_state = None
     res = func.__wrapped__(0, False, None, "lab")
@@ -146,12 +147,14 @@ def test_lab_buttons_callback(monkeypatch):
     callbacks._lab_running_state = True
     callbacks._lab_stop_time_state = None
     res = func.__wrapped__(0, True, None, "lab")
+
     assert res == (True, "secondary", False, "danger")
 
     # Grace period after stopping
     callbacks._lab_running_state = True
     callbacks._lab_stop_time_state = -90.0
     monkeypatch.setattr(callbacks.time, "time", lambda: 100.0)
+
     res = func.__wrapped__(0, True, -90.0, "lab")
     assert res == (True, "secondary", True, "secondary")
 
@@ -159,6 +162,7 @@ def test_lab_buttons_callback(monkeypatch):
     callbacks._lab_running_state = False
     callbacks._lab_stop_time_state = None
     res = func.__wrapped__(0, False, None, "live")
+
     assert res == (True, "secondary", True, "secondary")
 
 
@@ -366,7 +370,9 @@ def test_grace_period_failsafe(monkeypatch):
     monkeypatch.setattr(callbacks.time, "time", lambda: 100.0)
 
     # Toggle buttons should treat test as stopped
+
     assert toggle_func.__wrapped__(0, True, -50.0, "lab") == (
+
         False,
         "success",
         True,
@@ -375,7 +381,6 @@ def test_grace_period_failsafe(monkeypatch):
 
     # Report button should be enabled
     assert report_func.__wrapped__(0, False, -50.0) is False
-
 
 def test_update_lab_state_failsafe(monkeypatch):
     """update_lab_state should clear stale grace period even without interval."""
@@ -399,3 +404,4 @@ def test_update_lab_state_failsafe(monkeypatch):
     res = func.__wrapped__(1, 0, "lab", 0, True, -50.0, "AutoTest", {"mode": "lab"}, {"machine_id": 1}, "feeder")
 
     assert res == (True, None)
+
