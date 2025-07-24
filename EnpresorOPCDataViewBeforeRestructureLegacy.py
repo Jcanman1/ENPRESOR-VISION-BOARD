@@ -1890,8 +1890,12 @@ if dash is not None:
         suppress_callback_exceptions=True,
     )
     app.title = tr("dashboard_title")
-else:  # pragma: no cover - optional dependency
-    app = None
+    
+    # ADD THESE LINES AFTER APP CREATION:
+    try:
+        app.enable_dev_tools(debug=True, dev_tools_hot_reload=True)
+    except:
+        print("Dev tools not available in this Dash version")
 
 # Create the modal for threshold settings - to be included in the app layout
 threshold_modal = dbc.Modal([
@@ -5215,6 +5219,12 @@ if __name__ == "__main__":
 
         if args.debug:
             logging.getLogger().setLevel(logging.DEBUG)
+            
+            try:
+                app.enable_dev_tools(debug=True, dev_tools_hot_reload=True)
+                print("Dev tools enabled with hot reload")
+            except:
+                print("Dev tools not available in this Dash version")
 
         logger.info("Starting dashboard application...")
 
@@ -5260,7 +5270,13 @@ if __name__ == "__main__":
                 webbrowser.open_new("http://127.0.0.1:8050/")
 
             threading.Thread(target=open_browser).start()
-
+         # ADD THIS DEBUG CODE HERE (before app.run):
+        print("=== CALLBACK REGISTRATIONS ===")
+        for callback_id, callback_info in app.callback_map.items():
+            if "lab-test" in callback_id:
+                print(f"Callback: {callback_id}")
+                print(f"Function: {callback_info['callback']}")
+        print("=== END CALLBACK REGISTRATIONS ===")
         # Start the Dash app
         app.run(debug=args.debug, use_reloader=False, host='0.0.0.0', port=8050)
         
