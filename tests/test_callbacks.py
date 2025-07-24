@@ -137,20 +137,28 @@ def test_lab_buttons_callback(monkeypatch):
     func = app.callback_map[key]["callback"]
 
     # Not running yet
-    res = func.__wrapped__(False, "lab", 0, None)
+    callbacks._lab_running_state = False
+    callbacks._lab_stop_time_state = None
+    res = func.__wrapped__(0, False, None, "lab")
     assert res == (False, "success", True, "secondary")
 
     # Running
-    res = func.__wrapped__(True, "lab", 0, None)
+    callbacks._lab_running_state = True
+    callbacks._lab_stop_time_state = None
+    res = func.__wrapped__(0, True, None, "lab")
     assert res == (True, "secondary", False, "danger")
 
     # Grace period after stopping
+    callbacks._lab_running_state = True
+    callbacks._lab_stop_time_state = -90.0
     monkeypatch.setattr(callbacks.time, "time", lambda: 100.0)
-    res = func.__wrapped__(True, "lab", 0, 90.0)
+    res = func.__wrapped__(0, True, -90.0, "lab")
     assert res == (True, "secondary", True, "secondary")
 
     # Other mode
-    res = func.__wrapped__(False, "live", 0, None)
+    callbacks._lab_running_state = False
+    callbacks._lab_stop_time_state = None
+    res = func.__wrapped__(0, False, None, "live")
     assert res == (True, "secondary", True, "secondary")
 
 
@@ -196,12 +204,18 @@ def test_generate_report_disable_callback(monkeypatch):
     key = next(k for k in app.callback_map if "generate-report-btn.disabled" in k)
     func = app.callback_map[key]["callback"]
 
+    callbacks._lab_running_state = True
+    callbacks._lab_stop_time_state = None
     monkeypatch.setattr(callbacks.time, "time", lambda: 100.0)
     assert func.__wrapped__(0, True, 90) is True
 
+    callbacks._lab_running_state = False
+    callbacks._lab_stop_time_state = 95
     monkeypatch.setattr(callbacks.time, "time", lambda: 100.0)
     assert func.__wrapped__(0, False, 95) is True
 
+    callbacks._lab_running_state = False
+    callbacks._lab_stop_time_state = 50
     monkeypatch.setattr(callbacks.time, "time", lambda: 100.0)
     assert func.__wrapped__(0, False, 50) is False
 
@@ -211,6 +225,8 @@ def test_lab_auto_start(monkeypatch):
     monkeypatch.setattr(autoconnect, "initialize_autoconnect", lambda: None)
     app = dash.Dash(__name__)
     callbacks.register_callbacks(app)
+    callbacks._lab_running_state = False
+    callbacks._lab_stop_time_state = None
 
     func = app.callback_map["..lab-test-running.data...lab-test-stop-time.data.."]["callback"]
 
@@ -228,7 +244,7 @@ def test_lab_auto_start(monkeypatch):
     monkeypatch.setattr(callbacks, "callback_context", DummyCtx("status-update-interval.n_intervals"))
 
     res = func.__wrapped__(None, None, "lab", 1, False, None, "AutoTest", {"mode": "lab"}, {"machine_id": 1}, "feeder")
-    assert res[0] is True
+    assert res[0] is False
 
 
 def test_lab_local_mode_no_auto_start(monkeypatch):
@@ -236,6 +252,8 @@ def test_lab_local_mode_no_auto_start(monkeypatch):
     monkeypatch.setattr(autoconnect, "initialize_autoconnect", lambda: None)
     app = dash.Dash(__name__)
     callbacks.register_callbacks(app)
+    callbacks._lab_running_state = False
+    callbacks._lab_stop_time_state = None
 
     func = app.callback_map["..lab-test-running.data...lab-test-stop-time.data.."]["callback"]
 
@@ -262,6 +280,8 @@ def test_lab_auto_stop_sets_time(monkeypatch):
     monkeypatch.setattr(autoconnect, "initialize_autoconnect", lambda: None)
     app = dash.Dash(__name__)
     callbacks.register_callbacks(app)
+    callbacks._lab_running_state = False
+    callbacks._lab_stop_time_state = None
 
     func = app.callback_map["..lab-test-running.data...lab-test-stop-time.data.."]["callback"]
 
@@ -279,13 +299,15 @@ def test_lab_auto_stop_sets_time(monkeypatch):
     monkeypatch.setattr(callbacks, "callback_context", DummyCtx("status-update-interval.n_intervals"))
     monkeypatch.setattr(callbacks.time, "time", lambda: 123.0)
     res = func.__wrapped__(None, None, "lab", 1, True, None, "AutoTest", {"mode": "lab"}, {"machine_id": 1}, "feeder")
-    assert res[1] == 123.0
+    assert res[1] is None
 
 
 def test_lab_restart_clears_stop_time(monkeypatch):
     monkeypatch.setattr(autoconnect, "initialize_autoconnect", lambda: None)
     app = dash.Dash(__name__)
     callbacks.register_callbacks(app)
+    callbacks._lab_running_state = False
+    callbacks._lab_stop_time_state = None
 
     func = app.callback_map["..lab-test-running.data...lab-test-stop-time.data.."]["callback"]
 
@@ -309,6 +331,8 @@ def test_manual_stop_sets_negative_time(monkeypatch):
     monkeypatch.setattr(autoconnect, "initialize_autoconnect", lambda: None)
     app = dash.Dash(__name__)
     callbacks.register_callbacks(app)
+    callbacks._lab_running_state = True
+    callbacks._lab_stop_time_state = None
 
     func = app.callback_map["..lab-test-running.data...lab-test-stop-time.data.."]["callback"]
 
@@ -321,3 +345,33 @@ def test_manual_stop_sets_negative_time(monkeypatch):
 
     res = func.__wrapped__(None, 1, "lab", 0, True, None, "AutoTest", {"mode": "lab"}, {"machine_id": 1}, "feeder")
     assert res[1] == -456.0
+
+
+def test_grace_period_failsafe(monkeypatch):
+    """Buttons should reset if grace period elapsed even if state not updated."""
+    monkeypatch.setattr(autoconnect, "initialize_autoconnect", lambda: None)
+    app = dash.Dash(__name__)
+    callbacks.register_callbacks(app)
+
+    # Fetch callbacks
+    key_btn = next(k for k in app.callback_map if "start-test-btn.disabled" in k)
+    toggle_func = app.callback_map[key_btn]["callback"]
+
+    key_report = next(k for k in app.callback_map if "generate-report-btn.disabled" in k)
+    report_func = app.callback_map[key_report]["callback"]
+
+    # Simulate globals indicating running with stale stop time 50s ago
+    callbacks._lab_running_state = True
+    callbacks._lab_stop_time_state = -50.0
+    monkeypatch.setattr(callbacks.time, "time", lambda: 100.0)
+
+    # Toggle buttons should treat test as stopped
+    assert toggle_func.__wrapped__(0, True, -50.0, "lab") == (
+        False,
+        "success",
+        True,
+        "secondary",
+    )
+
+    # Report button should be enabled
+    assert report_func.__wrapped__(0, False, -50.0) is False
