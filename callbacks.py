@@ -2954,14 +2954,19 @@ def _register_callbacks_impl(app):
                 if metrics:
                     tot_cap_lbs, acc_lbs, rej_lbs, _ = metrics
 
-                    counter_totals, _, object_totals = load_lab_totals(
-                        mid, active_counters=active_flags
-                    )
+
+                    # Refresh cached totals so last-value helpers return
+                    # up-to-date data while respecting active sensitivities
+                    load_lab_totals(mid, active_counters=active_flags)
+
+                    counter_rates = load_last_lab_counters(mid)
+                    capacity_rate = load_last_lab_objects(mid)
 
                     reject_count = sum(
-                        val for val, active in zip(counter_totals, active_flags) if active
-                    )
-                    capacity_count = object_totals[-1] if object_totals else 0
+                        rate for rate, active in zip(counter_rates, active_flags) if active
+                    ) * 60
+                    capacity_count = capacity_rate * 60
+
                     accepts_count = max(0, capacity_count - reject_count)
 
                     total_capacity = convert_capacity_from_lbs(tot_cap_lbs, weight_pref)
