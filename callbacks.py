@@ -73,15 +73,11 @@ SENSITIVITY_ACTIVE_TAGS = {
 # Keep track of which sensitivity tags have already triggered a missing-tag
 # warning so we don't flood the log on every update cycle.
 warned_sensitivity_tags = set()
-_lab_running_state = False      # Global state for lab running
-_lab_stop_time_state = None     # Global state for stop time
 
-_lab_state = {
-    "running": False,
-    "stop_time": None,
-    "test_name": None,
-    "machine_id": None
-}
+# Simplified lab test state management
+_lab_running_state = False      # True while the test is active
+_grace_start_time = None        # When stop button was pressed
+_last_ui_update_time = None     # Last time lab callbacks updated
 
 def get_active_counter_flags(machine_id):
     """Return a list of booleans indicating which counters are active."""
@@ -1124,28 +1120,27 @@ def _register_callbacks_impl(app):
         FIXED VERSION: Use global variables as source of truth instead of store values.
         This ensures consistency with toggle_lab_test_buttons.
         """
-        global _lab_running_state, _lab_stop_time_state
-        
+        global _lab_running_state, _grace_start_time
+
         # Use global variables instead of store parameters
         running = _lab_running_state
-        stop_time = _lab_stop_time_state
+        grace_start = _grace_start_time
 
         # FAILSAFE: if grace period should have expired, treat test as stopped
-        if running and stop_time and stop_time < 0:
-            if time.time() + stop_time >= 30:
-                running = False
-                stop_time = None
+        if grace_start and time.time() - grace_start >= 30:
+            running = False
+            grace_start = None
 
-                _lab_running_state = False
-                _lab_stop_time_state = None
+            _lab_running_state = False
+            _grace_start_time = None
 
-        
+
         elapsed = None
-        if stop_time:
-            elapsed = time.time() - abs(stop_time)
+        if grace_start is not None:
+            elapsed = time.time() - grace_start
         
         _debug(
-            f"[LAB TEST DEBUG] disable_report_button running={running}, stop_time={stop_time}, elapsed={elapsed} (from globals)"
+            f"[LAB TEST DEBUG] disable_report_button running={running}, grace_start={grace_start}, elapsed={elapsed} (from globals)"
         )
         
         # Report button disabled if test is running
@@ -1153,11 +1148,11 @@ def _register_callbacks_impl(app):
             return True
         
         # Report button enabled if no stop time (test never ran)
-        if stop_time is None:
+        if grace_start is None:
             return False
-        
+
         # Report button disabled during 30s grace period, enabled afterwards
-        return (time.time() - abs(stop_time)) < 30
+        return (time.time() - grace_start) < 30
 
     @app.callback(
         [Output("delete-confirmation-modal", "is_open"),
@@ -5765,11 +5760,11 @@ def _register_callbacks_impl(app):
     )
     def debug_intervals(status_intervals, metric_intervals, lab_running, mode):
         """Debug what's happening to intervals during grace period"""
-        global _lab_running_state, _lab_stop_time_state
-        
+        global _lab_running_state, _grace_start_time
+
         elapsed = None
-        if _lab_stop_time_state and _lab_stop_time_state < 0:
-            elapsed = time.time() + _lab_stop_time_state
+        if _grace_start_time is not None:
+            elapsed = time.time() - _grace_start_time
         
         print(f"[INTERVAL DEBUG] status_intervals={status_intervals}, metric_intervals={metric_intervals}")
         print(f"[INTERVAL DEBUG] mode={mode}, lab_running={lab_running}, elapsed={elapsed}")
@@ -5899,23 +5894,21 @@ def _register_callbacks_impl(app):
     )
     def update_lab_state_fixed(start_click, stop_click, mode, n_intervals, running, stop_time, test_name, app_mode, active_machine_data, start_mode):
         """Manage lab running state and stop time using reliable global variables."""
-        global current_lab_filename, last_stop_click, _lab_running_state, _lab_stop_time_state
-        
-        # CRITICAL FIX: Use global variables as the source of truth
-        # Override store values with global state
-        running = _lab_running_state
-        stop_time = _lab_stop_time_state
+        global current_lab_filename, last_stop_click, _lab_running_state, _grace_start_time, _last_ui_update_time
 
-        # FAILSAFE: if grace period should already be complete, clear state
-        if running and stop_time and stop_time < 0:
-            elapsed = time.time() + stop_time
-            if elapsed >= 30.0:
-                running = False
-                stop_time = None
-                _lab_running_state = False
-                _lab_stop_time_state = None
-        
-        _debug(f"[LAB TEST DEBUG] ENTRY: running={running}, stop_time={stop_time} (from globals)")
+        # Record this callback time for watchdog purposes
+        _last_ui_update_time = time.time()
+
+        # CRITICAL FIX: Use global variables as the source of truth
+        running = _lab_running_state
+        grace_start = _grace_start_time
+
+        # FAILSAFE: clear grace period if elapsed
+        if grace_start and time.time() - grace_start >= 30:
+            grace_start = None
+            _grace_start_time = None
+
+        _debug(f"[LAB TEST DEBUG] ENTRY: running={running}, grace_start={grace_start} (from globals)")
         
         ctx = callback_context
         triggers = [t["prop_id"].split(".")[0] for t in ctx.triggered] if ctx.triggered else []
@@ -5935,17 +5928,17 @@ def _register_callbacks_impl(app):
         if mode != "lab":
             _debug("[LAB TEST DEBUG] Switched away from lab mode - clearing lab state")
             _lab_running_state = False
-            _lab_stop_time_state = None
+            _grace_start_time = None
             return False, None
 
         new_running = running
-        new_stop_time = stop_time
+        new_grace_start = grace_start
 
         # Handle mode selector switching TO lab mode - clear any previous state
         if trigger == "mode-selector":
             _debug("[LAB TEST DEBUG] Switched to lab mode - clearing previous state")
             new_running = False
-            new_stop_time = None
+            new_grace_start = None
         
         # Only allow state changes on button presses or interval grace period checks
         elif ctx.triggered and len(ctx.triggered) > 0:
@@ -5966,26 +5959,26 @@ def _register_callbacks_impl(app):
 
                 resume_update_thread()
                 new_running = True
-                new_stop_time = None
-                _debug(f"[LAB TEST DEBUG] START: new_running={new_running}, new_stop_time={new_stop_time}")
+                new_grace_start = None
+                _debug(f"[LAB TEST DEBUG] START: new_running={new_running}, grace_start={new_grace_start}")
                 
             elif trigger == "stop-test-btn":
                 last_stop_click = stop_click or 0
                 if start_mode != "feeder":
                     print("[LAB TEST] Stop button pressed - entering grace period", flush=True)
                     print("[LAB TEST] Active threads:", [t.name for t in threading.enumerate()], flush=True)
-                new_running = True
-                new_stop_time = -time.time()
+                new_running = False
+                new_grace_start = time.time()
                 _debug("[LAB TEST] Grace period timer started")
-                _debug(f"[LAB TEST DEBUG] STOP: storing stop_time={new_stop_time}")
+                _debug(f"[LAB TEST DEBUG] STOP: grace_start={new_grace_start}")
                 
             elif trigger == "status-update-interval":
                 # Interval should ONLY check for grace period completion
                 _debug("[LAB TEST DEBUG] Interval trigger - checking grace period only")
                 
                 # Check if grace period has elapsed
-                if new_running and new_stop_time and new_stop_time < 0:
-                    elapsed = time.time() + new_stop_time  # stop_time is negative
+                if new_grace_start:
+                    elapsed = time.time() - new_grace_start
                     _debug(f"[LAB TEST DEBUG] Grace period check: elapsed={elapsed:.2f}s")
                     
                     if elapsed >= 30.0:
@@ -6003,26 +5996,26 @@ def _register_callbacks_impl(app):
                             _debug(f"[LAB TEST DEBUG] Cache refresh failed but continuing: {exc}")
                         
                         new_running = False
-                        new_stop_time = None
+                        new_grace_start = None
                         _debug("[LAB TEST DEBUG] Grace period completed - test stopped")
         
         # Special handling for catch-up stop button presses
         elif stop_click and stop_click != last_stop_click:
             last_stop_click = stop_click
-            new_stop_time = -time.time()
-            new_running = True
+            new_grace_start = time.time()
+            new_running = False
             _debug("[LAB TEST] Grace period timer started (catch-up)")
-            _debug(f"[LAB TEST DEBUG] CATCH-UP: storing stop_time={new_stop_time}")
+            _debug(f"[LAB TEST DEBUG] CATCH-UP: grace_start={new_grace_start}")
 
         # CRITICAL FIX: Update global variables as the source of truth
         _lab_running_state = new_running
-        _lab_stop_time_state = new_stop_time
+        _grace_start_time = new_grace_start
         
-        _debug(f"[LAB TEST DEBUG] FINAL: new_running={new_running}, new_stop_time={new_stop_time} (globals updated)")
+        _debug(f"[LAB TEST DEBUG] FINAL: new_running={new_running}, grace_start={new_grace_start} (globals updated)")
         
         # IMPORTANT: Return values to keep stores in sync AND trigger dependent callbacks
         # This ensures button callbacks get triggered when the state changes
-        return new_running, new_stop_time
+        return new_running, new_grace_start
     @app.callback(
         Output("mode-change-monitor", "data"),  # Use any unused output
         [Input("mode-selector", "value")],
@@ -6065,21 +6058,21 @@ def _register_callbacks_impl(app):
                 "toggle_lab_buttons_fixed() requires 3 or 4 positional arguments"
             )
 
-        global _lab_running_state, _lab_stop_time_state
+        global _lab_running_state, _grace_start_time
 
         # Use global state as source of truth
         running = _lab_running_state
-        stop_time = _lab_stop_time_state
+        grace_start = _grace_start_time
 
         # ADD THIS DEBUG
-        print(f"[BUTTON CALLBACK] running={running}, stop_time={stop_time}, mode={mode}")
+        print(f"[BUTTON CALLBACK] running={running}, grace_start={grace_start}, mode={mode}")
 
         # FAILSAFE: if grace period should have expired, force stopped state
-        if running and stop_time and stop_time < 0 and (time.time() + stop_time >= 30):
+        if grace_start and time.time() - grace_start >= 30:
             running = False
-            stop_time = None
+            grace_start = None
             _lab_running_state = False
-            _lab_stop_time_state = None
+            _grace_start_time = None
 
         
         if mode != "lab":
@@ -6087,7 +6080,7 @@ def _register_callbacks_impl(app):
             return True, "secondary", True, "secondary"
         
         # Grace period - both buttons disabled/grey
-        if running and stop_time and stop_time < 0 and (time.time() + stop_time < 30):
+        if grace_start and (time.time() - grace_start < 30):
             print("[BUTTON CALLBACK] Grace period active - both disabled")
             return True, "secondary", True, "secondary"
         
@@ -6097,7 +6090,7 @@ def _register_callbacks_impl(app):
             return True, "secondary", False, "danger"
         
         # Test stopped - start green, stop disabled  
-        print("[BUTTON CALLBACK] Test stopped - start green") 
+        print("[BUTTON CALLBACK] Test stopped - start green")
         return False, "success", True, "secondary"
 
     @app.callback(
@@ -6110,6 +6103,8 @@ def _register_callbacks_impl(app):
     )
     def monitor_lab_health(n_intervals, running, stop_time, mode):
         """Monitor lab mode health and restart stalled update threads."""
+        global _last_ui_update_time
+
         if mode == "lab":
             thread_count = threading.active_count()
 
@@ -6130,6 +6125,12 @@ def _register_callbacks_impl(app):
                     ).total_seconds() > 10:
                         print("[LAB MONITOR] Update thread stalled - restarting")
                         resume_update_thread()
+
+            # Watchdog: restart if UI callbacks have not run recently
+            if _last_ui_update_time and time.time() - _last_ui_update_time > 10:
+                print("[LAB MONITOR] UI updates stalled - restarting")
+                resume_update_thread()
+                _last_ui_update_time = time.time()
 
         return {"intervals": n_intervals, "threads": threading.active_count()}
     @app.callback(
