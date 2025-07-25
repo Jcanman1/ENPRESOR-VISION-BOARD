@@ -3015,9 +3015,14 @@ def _register_callbacks_impl(app):
             rejects = production_data.get("rejects", 2500)
         
         # Calculate percentages
-        total = accepts + rejects
-        accepts_percent = (accepts / total * 100) if total > 0 else 0
-        rejects_percent = (rejects / total * 100) if total > 0 else 0
+        if mode == "lab" and _lab_running_state:
+            total = capacity_count
+            accepts_percent = (accepts_count / total * 100) if total > 0 else 0
+            rejects_percent = (reject_count / total * 100) if total > 0 else 0
+        else:
+            total = accepts + rejects
+            accepts_percent = (accepts / total * 100) if total > 0 else 0
+            rejects_percent = (rejects / total * 100) if total > 0 else 0
         
         # Format values with commas for thousands separator and limited decimal places
         if total_capacity_formatted is None:
