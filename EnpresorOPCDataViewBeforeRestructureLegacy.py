@@ -271,7 +271,9 @@ FAST_UPDATE_TAGS = {
 } | {f"Status.Feeders.{i}IsRunning" for i in range(1, 5)} \
   | {f"Status.Feeders.{i}Rate" for i in range(1, 5)} \
   | {f"Status.ColorSort.Sort1.DefectCount{i}.Rate.Current" for i in range(1, 13)} \
-  | {f"Status.ColorSort.Sort1.DefectCount{i}.Percentage.Current" for i in range(1, 13)}
+  | {f"Status.ColorSort.Sort1.DefectCount{i}.Rate.60M" for i in range(1, 13)} \
+  | {f"Status.ColorSort.Sort1.DefectCount{i}.Percentage.Current" for i in range(1, 13)} \
+  | {"Status.ColorSort.Sort1.Throughput.ObjectPerMin.60M"}
 
 # How often non fast-update tags should be polled when not in live mode.
 SLOW_UPDATE_EVERY = 10
