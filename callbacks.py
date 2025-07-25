@@ -2945,22 +2945,26 @@ def _register_callbacks_impl(app):
                 accepts_count = cache_entry.get("accepts_count", 0)
                 reject_count = cache_entry.get("reject_count", 0)
             else:
+                active_flags = get_active_counter_flags(mid)
                 metrics = (
-                    load_lab_totals_metrics(mid, active_counters=get_active_counter_flags(mid))
+                    load_lab_totals_metrics(mid, active_counters=active_flags)
                     if path
                     else None
                 )
                 if metrics:
                     tot_cap_lbs, acc_lbs, rej_lbs, _ = metrics
 
-                    load_lab_totals(
-                        mid, active_counters=get_active_counter_flags(mid)
-                    )
+                    # Refresh cached totals so last-value helpers return
+                    # up-to-date data while respecting active sensitivities
+                    load_lab_totals(mid, active_counters=active_flags)
 
                     counter_rates = load_last_lab_counters(mid)
-                    reject_count = sum(counter_rates) * 60
-                    capacity_count = load_last_lab_objects(mid) * 60
+                    capacity_rate = load_last_lab_objects(mid)
 
+                    reject_count = sum(
+                        rate for rate, active in zip(counter_rates, active_flags) if active
+                    ) * 60
+                    capacity_count = capacity_rate * 60
                     accepts_count = max(0, capacity_count - reject_count)
 
                     total_capacity = convert_capacity_from_lbs(tot_cap_lbs, weight_pref)
@@ -3015,7 +3019,7 @@ def _register_callbacks_impl(app):
             rejects = production_data.get("rejects", 2500)
         
         # Calculate percentages
-        if mode == "lab" and _lab_running_state:
+        if mode == "lab" and capacity_count is not None:
             total = capacity_count
             accepts_percent = (accepts_count / total * 100) if total > 0 else 0
             rejects_percent = (reject_count / total * 100) if total > 0 else 0
@@ -3541,8 +3545,10 @@ def _register_callbacks_impl(app):
             # Start counters at zero instead of random demo values
             previous_counter_values = [0] * 12
         
-        # Calculate the total of all counter values
-        total_counter_value = sum(previous_counter_values)
+        active_flags = get_active_counter_flags(globals().get("active_machine_id"))
+        # Calculate the total of all counter values for active counters only
+        filtered_values = [v for v, flag in zip(previous_counter_values, active_flags) if flag]
+        total_counter_value = sum(filtered_values)
         
         if total_counter_value > 0:
             # Create percentage breakdown for each counter relative to total rejects
@@ -3550,13 +3556,13 @@ def _register_callbacks_impl(app):
             reject_counters = {}
             counter_indices = {}  # Track which counter number each entry corresponds to
             for i, value in enumerate(previous_counter_values):
-                if value > 0:  # Only include counters with values greater than 0
-                    counter_name = f"Counter {i+1}"
-                    counter_number = i + 1  # Store the actual counter number
-                    # This counter's percentage of the total rejects
-                    counter_percent_of_rejects = (value / total_counter_value) * 100
-                    reject_counters[counter_name] = counter_percent_of_rejects
-                    counter_indices[counter_name] = counter_number
+                if not active_flags[i] or value <= 0:
+                    continue
+                counter_name = f"Counter {i+1}"
+                counter_number = i + 1  # Store the actual counter number
+                counter_percent_of_rejects = (value / total_counter_value) * 100
+                reject_counters[counter_name] = counter_percent_of_rejects
+                counter_indices[counter_name] = counter_number
         else:
             # Fallback if counter values sum to zero - create empty dict
             reject_counters = {}
