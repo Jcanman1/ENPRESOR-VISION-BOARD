@@ -2945,22 +2945,26 @@ def _register_callbacks_impl(app):
                 accepts_count = cache_entry.get("accepts_count", 0)
                 reject_count = cache_entry.get("reject_count", 0)
             else:
+                active_flags = get_active_counter_flags(mid)
                 metrics = (
-                    load_lab_totals_metrics(mid, active_counters=get_active_counter_flags(mid))
+                    load_lab_totals_metrics(mid, active_counters=active_flags)
                     if path
                     else None
                 )
                 if metrics:
                     tot_cap_lbs, acc_lbs, rej_lbs, _ = metrics
 
-                    load_lab_totals(
-                        mid, active_counters=get_active_counter_flags(mid)
-                    )
+                    # Refresh cached totals so last-value helpers return
+                    # up-to-date data while respecting active sensitivities
+                    load_lab_totals(mid, active_counters=active_flags)
 
                     counter_rates = load_last_lab_counters(mid)
-                    reject_count = sum(counter_rates) * 60
-                    capacity_count = load_last_lab_objects(mid) * 60
+                    capacity_rate = load_last_lab_objects(mid)
 
+                    reject_count = sum(
+                        rate for rate, active in zip(counter_rates, active_flags) if active
+                    ) * 60
+                    capacity_count = capacity_rate * 60
                     accepts_count = max(0, capacity_count - reject_count)
 
                     total_capacity = convert_capacity_from_lbs(tot_cap_lbs, weight_pref)
