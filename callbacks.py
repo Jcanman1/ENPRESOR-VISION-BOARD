@@ -2954,12 +2954,15 @@ def _register_callbacks_impl(app):
                 if metrics:
                     tot_cap_lbs, acc_lbs, rej_lbs, _ = metrics
 
+
                     # Refresh cached totals so last-value helpers return
                     # up-to-date data while respecting active sensitivities
                     load_lab_totals(mid, active_counters=active_flags)
 
                     counter_rates = load_last_lab_counters(mid)
                     capacity_rate = load_last_lab_objects(mid)
+
+
 
                     reject_count = sum(
                         rate for rate, active in zip(counter_rates, active_flags) if active
