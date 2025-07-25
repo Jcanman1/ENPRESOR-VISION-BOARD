@@ -5960,8 +5960,10 @@ def _register_callbacks_impl(app):
                             _reset_lab_session(active_machine_id)
                     except Exception as exc:
                         logger.warning(f"Failed to reset lab session: {exc}")
+
                 # Resume the background update thread immediately so lab mode
                 # continues updating without waiting for the monitor watchdog.
+
                 resume_update_thread()
                 new_running = True
                 new_stop_time = None
