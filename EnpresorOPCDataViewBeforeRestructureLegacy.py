@@ -3151,6 +3151,8 @@ app.layout = html.Div([
     dcc.Store(id="email-settings-store",   data=load_email_settings()),
     # Store to toggle counter display between counts and percent
     dcc.Store(id="counter-view-mode",       data="counts"),
+    # Latest counter values from section 5-2 for reuse in other sections
+    dcc.Store(id="counter-values-store",    data=[0]*12),
     # Store selection for production rate units (objects or capacity)
     dcc.Store(id="production-rate-unit",    data="objects"),
     dcc.Store(id="floors-data", data=initial_floors_data),
