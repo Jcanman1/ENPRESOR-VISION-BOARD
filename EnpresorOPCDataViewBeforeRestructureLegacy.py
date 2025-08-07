@@ -4273,12 +4273,16 @@ def create_enhanced_machine_card_with_selection(machine, ip_options, floors_data
         # Disconnected - light grey background
         card_class = "mb-2 machine-card-disconnected"
 
+    # Ensure all machine cards grow to the height of the tallest card
+    card_class += " h-100"
+
     # Base style for positioning
     card_style = {
         "position": "relative",
         "cursor": "pointer",
         "transition": "all 0.2s ease-in-out",
-        "flexWrap": "wrap"
+        "flexWrap": "wrap",
+        "height": "100%"
     }
     
     # Get operational data ONLY if actually connected
