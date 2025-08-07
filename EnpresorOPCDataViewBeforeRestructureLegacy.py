@@ -5195,7 +5195,8 @@ def create_display_settings_form(lang=_initial_lang):
     # Add header
     header = html.Div(
         tr("display_settings_header", lang),
-        className="mb-3 fw-bold"
+        className="mb-3 fw-bold",
+        id="display-modal-description"
     )
     
     # Return the form with header
