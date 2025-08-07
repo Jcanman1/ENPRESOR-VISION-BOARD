@@ -2054,7 +2054,7 @@ def draw_machine_sections(
 
             c.setFont(FONT_DEFAULT, 8)
             # Display the percentage value above the bar
-            c.drawCentredString(label_x, bar_y + bar_height_val + 2, f"{pct_val:.1f}%")
+            c.drawCentredString(label_x, bar_y + bar_height_val + 2, f"{pct_val:.2f}%")
         
         # Draw axes with LARGER fonts
         c.setStrokeColor(colors.black)
