@@ -36,6 +36,7 @@ def test_update_section_1_1_lab_running_counts(monkeypatch):
         {"mode": "lab"},
         {"capacity": 0, "accepts": 0, "rejects": 0},
         {"unit": "kg"},
+        {"machines": []},
     )
 
     accept_row = section.children[2]
@@ -72,9 +73,53 @@ def test_update_section_1_1_lab_stopped_counts(monkeypatch):
         {"mode": "lab"},
         {"capacity": 0, "accepts": 0, "rejects": 0},
         {"unit": "kg"},
+        {"machines": []},
     )
 
     accept_row = section.children[2]
     reject_row = section.children[3]
     assert accept_row.children[-1].children == "(50.00%)"
     assert reject_row.children[-1].children == "(50.00%)"
+
+
+def test_update_section_1_1_demo_matches_machine(monkeypatch):
+    monkeypatch.setattr(autoconnect, "initialize_autoconnect", lambda: None)
+    app = dash.Dash(__name__)
+    callbacks.register_callbacks(app)
+    key = next(k for k in app.callback_map if 'section-1-1' in k)
+    func = app.callback_map[key]["callback"]
+
+    callbacks.active_machine_id = 1
+    machines_data = {
+        "machines": [
+            {
+                "id": 1,
+                "operational_data": {
+                    "production": {
+                        "capacity": 100.0,
+                        "accepts": 94.0,
+                        "rejects": 6.0,
+                    }
+                },
+            }
+        ]
+    }
+
+    section, prod = func.__wrapped__(
+        0,
+        "main",
+        {},
+        {},
+        "en",
+        {"connected": True},
+        {"mode": "demo"},
+        {"capacity": 0, "accepts": 0, "rejects": 0},
+        {"unit": "kg"},
+        machines_data,
+    )
+
+    reject_row = section.children[3]
+    reject_display = reject_row.children[2].children
+    assert "pcs" not in reject_display
+    assert "6.00" in reject_display
+    assert prod == {"capacity": 100.0, "accepts": 94.0, "rejects": 6.0}
