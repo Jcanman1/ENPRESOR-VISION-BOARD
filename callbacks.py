@@ -2805,6 +2805,7 @@ def _register_callbacks_impl(app):
             State("app-mode", "data"),
             State("production-data-store", "data"),
             State("weight-preference-store", "data"),
+            State("machines-data", "data"),
         ],
     
     
@@ -2813,7 +2814,7 @@ def _register_callbacks_impl(app):
     
     
     
-    def update_section_1_1(n, which, state_data, historical_data, lang, app_state_data, app_mode, production_data, weight_pref):
+    def update_section_1_1(n, which, state_data, historical_data, lang, app_state_data, app_mode, production_data, weight_pref, machines_data):
     
         """Update section 1-1 with capacity information and update shared production data"""
     
@@ -2997,18 +2998,32 @@ def _register_callbacks_impl(app):
                 }
 
         elif mode == "demo":
-    
-            # Demo mode: generate realistic random capacity value
-            demo_lbs = random.uniform(47000, 53000)
-            total_capacity = convert_capacity_from_kg(demo_lbs / 2.205, weight_pref)
-    
-            # Rejects come from section 5-2 counter totals
-            reject_count = sum(previous_counter_values) if previous_counter_values else 0
-            rejects = convert_capacity_from_kg(reject_count * 46, weight_pref)
-    
-            # Calculate accepts as the difference
-            accepts = total_capacity - rejects
-    
+
+            # Demo mode: use production data from the active machine so that
+            # section 1-1 matches the machine card in the new layout.
+            machines_list = machines_data.get("machines", []) if isinstance(machines_data, dict) else []
+            active_id = globals().get("active_machine_id")
+            active_machine = next((m for m in machines_list if m.get("id") == active_id), None)
+
+            if active_machine and active_machine.get("operational_data"):
+                prod = active_machine["operational_data"].get("production", {})
+                total_capacity = prod.get("capacity", 0)
+                rejects = prod.get("rejects", 0)
+                accepts = prod.get("accepts", total_capacity - rejects)
+            else:
+                # Fallback to synthetic values if machine data is missing
+                demo_lbs = random.uniform(47000, 53000)
+                total_capacity = convert_capacity_from_kg(demo_lbs / 2.205, weight_pref)
+                temp_count = sum(previous_counter_values) if previous_counter_values else 0
+                rejects = convert_capacity_from_kg(temp_count * 46, weight_pref)
+                accepts = total_capacity - rejects
+
+            if accepts < 0:
+                accepts = 0
+
+            # Do not display counts in demo mode
+            reject_count = None
+
             # Update the shared data store
             production_data = {
                 "capacity": total_capacity,
