@@ -26,6 +26,7 @@ def test_update_section_1_2_filters_inactive(monkeypatch):
         {},
         {},
         "counts",
+        [10, 20] + [0] * 10,
         {"connected": True},
         {"mode": "lab"}
     )
