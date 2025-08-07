@@ -2957,6 +2957,9 @@ def _register_callbacks_impl(app):
                     tot_cap_lbs, acc_lbs, rej_lbs, _ = metrics
 
 
+
+
+                    
                     # Refresh cached totals so last-value helpers return
                     # up-to-date data while respecting active sensitivities
                     load_lab_totals(mid, active_counters=active_flags)
@@ -2964,14 +2967,11 @@ def _register_callbacks_impl(app):
                     counter_rates = load_last_lab_counters(mid)
                     capacity_rate = load_last_lab_objects(mid)
 
-
-
                     reject_count = sum(
                         rate for rate, active in zip(counter_rates, active_flags) if active
                     ) * 60
                     capacity_count = capacity_rate * 60
                     accepts_count = max(0, capacity_count - reject_count)
-
                     total_capacity = convert_capacity_from_lbs(tot_cap_lbs, weight_pref)
                     accepts = convert_capacity_from_lbs(acc_lbs, weight_pref)
                     rejects = convert_capacity_from_lbs(rej_lbs, weight_pref)
@@ -3000,7 +3000,7 @@ def _register_callbacks_impl(app):
 
         elif mode == "demo":
 
-            # Demo mode: use production data from the active machine so that
+           # Demo mode: use production data from the active machine so that
             # section 1-1 matches the machine card in the new layout.
             machines_list = machines_data.get("machines", []) if isinstance(machines_data, dict) else []
             active_id = globals().get("active_machine_id")
@@ -3024,7 +3024,7 @@ def _register_callbacks_impl(app):
 
             # Do not display counts in demo mode
             reject_count = None
-
+            
             # Update the shared data store
             production_data = {
                 "capacity": total_capacity,
@@ -3511,7 +3511,7 @@ def _register_callbacks_impl(app):
          Input("current-dashboard", "data"),
          Input("historical-time-index", "data"),
          Input("historical-data-cache", "data"),
-         Input("counter-view-mode", "data")],
+         Input("counter-view-mode", "data"),
          Input("counter-values-store", "data")],
         [State("app-state", "data"),
          State("app-mode", "data")],
