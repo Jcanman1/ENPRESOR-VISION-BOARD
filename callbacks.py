@@ -18,6 +18,7 @@ import time
 import csv
 import re
 import threading
+import random
 
 def _debug(message: str) -> None:
     """Helper to print debug messages and persist them to a file."""
@@ -3511,11 +3512,12 @@ def _register_callbacks_impl(app):
          Input("historical-time-index", "data"),
          Input("historical-data-cache", "data"),
          Input("counter-view-mode", "data")],
+         Input("counter-values-store", "data")],
         [State("app-state", "data"),
          State("app-mode", "data")],
         prevent_initial_call=True
     )
-    def update_section_1_2(production_data, n_intervals, which, state_data, historical_data, counter_mode, app_state_data, app_mode):
+    def update_section_1_2(production_data, n_intervals, which, state_data, historical_data, counter_mode, counter_values, app_state_data, app_mode):
 
         """Update section 1-2 with side-by-side pie charts for accepts/rejects and reject breakdown.
 
@@ -3558,14 +3560,12 @@ def _register_callbacks_impl(app):
         rejects_percent = (rejects / total * 100) if total > 0 else 0
         
         # Second chart data - Use the counter values for the reject breakdown
-        # Ensure previous_counter_values has a predictable baseline
-        if 'previous_counter_values' not in globals() or not previous_counter_values:
-            # Start counters at zero instead of random demo values
-            previous_counter_values = [0] * 12
+        counter_values = counter_values or previous_counter_values or [0] * 12
+        previous_counter_values = counter_values
         
         active_flags = get_active_counter_flags(globals().get("active_machine_id"))
         # Calculate the total of all counter values for active counters only
-        filtered_values = [v for v, flag in zip(previous_counter_values, active_flags) if flag]
+        filtered_values = [v for v, flag in zip(counter_values, active_flags) if flag]
         total_counter_value = sum(filtered_values)
         
         if total_counter_value > 0:
@@ -3573,7 +3573,7 @@ def _register_callbacks_impl(app):
             # Filter out counters with zero values and track their original counter numbers
             reject_counters = {}
             counter_indices = {}  # Track which counter number each entry corresponds to
-            for i, value in enumerate(previous_counter_values):
+            for i, value in enumerate(counter_values):
                 if not active_flags[i] or value <= 0:
                     continue
                 counter_name = f"Counter {i+1}"
@@ -4782,7 +4782,8 @@ def _register_callbacks_impl(app):
         return {"alarms": alarms}
 
     @app.callback(
-        Output("section-5-2", "children"),
+        [Output("section-5-2", "children"),
+        Output("counter-values-store", "data")],
         [Input("status-update-interval", "n_intervals"),
          Input("current-dashboard",       "data"),
          Input("historical-time-index",   "data"),
@@ -5044,7 +5045,7 @@ def _register_callbacks_impl(app):
         ])
         
         # Return the section content
-        return section_content
+        return section_content, new_counter_values
 
     @app.callback(
         Output("section-6-1", "children"),
