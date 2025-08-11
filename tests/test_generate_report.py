@@ -220,6 +220,28 @@ def test_enhanced_calculate_stats_respects_isassigned(tmp_path):
     assert stats["removed"] == pytest.approx(generate_report.LAB_OBJECT_SCALE_FACTOR)
 
 
+@pytest.mark.parametrize(
+    "unit,value",
+    [
+        ("lb", 1),
+        ("oz", 16),
+        ("g", 453.59237),
+        ("kg", 0.45359237),
+    ],
+)
+def test_lab_weight_multiplier_from_settings(unit, value):
+    settings = {
+        "Settings": {
+            "ColorSort": {
+                "TestWeightCount": 1800,
+                "TestWeightValue": value,
+                "TestWeightUnit": unit,
+            }
+        }
+    }
+    mult = generate_report.lab_weight_multiplier_from_settings(settings)
+    assert mult == pytest.approx(1 / 1800)
+
 
 def test_enhanced_calculate_stats_respects_isassigned(tmp_path):
     machine_dir = tmp_path / "1"
