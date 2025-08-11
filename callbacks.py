@@ -6569,6 +6569,7 @@ def _register_callbacks_impl(app):
         OPM_TAG = "Status.ColorSort.Sort1.Throughput.ObjectPerMin.Current"
         OPM_60M_TAG = "Status.ColorSort.Sort1.Throughput.ObjectPerMin.60M"
         COUNTER_TAG = "Status.ColorSort.Sort1.DefectCount{}.Rate.60M"
+        FEEDERS_SWITCH_TAG = "Status.Feeders.MainSwitchIsOn"
         mode = "demo"
         if app_mode and isinstance(app_mode, dict) and "mode" in app_mode:
             mode = app_mode["mode"]
@@ -6633,6 +6634,14 @@ def _register_callbacks_impl(app):
             if not info.get("connected", False):
                 continue
             tags = info["tags"]
+            main_switch_on = False
+            if FEEDERS_SWITCH_TAG in tags:
+                try:
+                    main_switch_on = bool(tags[FEEDERS_SWITCH_TAG]["data"].latest_value)
+                except Exception:
+                    main_switch_on = False
+            if mode == "lab" and not main_switch_on:
+                continue
             capacity_value = tags.get(CAPACITY_TAG, {}).get("data").latest_value if CAPACITY_TAG in tags else None
 
             capacity_lbs = capacity_value * 2.205 if capacity_value is not None else 0
@@ -6668,7 +6677,10 @@ def _register_callbacks_impl(app):
                         feeder_running = True
                         break
 
-            metrics = {
+            metrics = {}
+            if mode == "lab":
+                metrics["main_switch_on"] = 1 if main_switch_on else 0
+            metrics.update({
                 "capacity": capacity_lbs,
                 "accepts": accepts_lbs,
                 "rejects": rejects_lbs,
@@ -6676,7 +6688,7 @@ def _register_callbacks_impl(app):
                 "objects_60M": opm60,
                 "running": 1 if feeder_running else 0,
                 "stopped": 0 if feeder_running else 1,
-            }
+            })
             metrics.update(counters)
 
             log_mode = "Lab" if mode == "lab" else "Live"
