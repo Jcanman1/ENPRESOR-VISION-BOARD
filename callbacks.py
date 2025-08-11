@@ -870,9 +870,8 @@ def _register_callbacks_impl(app):
                 localStorage.setItem("satake-theme", "light");
             }
 
-            // Sync card borders with the Bootstrap primary color
-            const primaryColor = getComputedStyle(root).getPropertyValue("--bs-primary").trim();
-            root.style.setProperty("--bs-card-border-color", primaryColor);
+            // Ensure card borders use a muted gray
+            root.style.setProperty("--bs-card-border-color", "#6c757d");
 
             // Update all Plotly charts with new theme
             if (window.Plotly) {
