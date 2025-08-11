@@ -2013,7 +2013,7 @@ app.index_string = """<!DOCTYPE html>
                 --bs-body-bg: #f0f0f0;
                 --bs-body-color: #212529;
                 --bs-card-bg: #ffffff;
-                
+                --bs-card-border-color: #6c757d;
                 --chart-bg: rgba(255,255,255,0.9);
             }
             
@@ -2049,7 +2049,7 @@ app.index_string = """<!DOCTYPE html>
                 box-shadow: 0 2px 5px rgba(0,0,0,0.1);
                 background-color: var(--bs-card-bg) !important;
 
-                border: 2px solid var(--bs-primary) !important;
+                border: 2px solid var(--bs-card-border-color) !important;
 
                 color: var(--bs-body-color) !important;
                 transition: background-color 0.3s, color 0.3s, border-color 0.3s;
