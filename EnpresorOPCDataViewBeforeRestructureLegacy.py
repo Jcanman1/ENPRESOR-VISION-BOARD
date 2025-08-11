@@ -2014,7 +2014,9 @@ app.index_string = """<!DOCTYPE html>
                 --bs-body-color: #212529;
                 --bs-card-bg: #ffffff;
 
+
                 --bs-card-border-color: var(--bs-primary);
+
 
                 --chart-bg: rgba(255,255,255,0.9);
             }
@@ -2045,12 +2047,14 @@ app.index_string = """<!DOCTYPE html>
                 border: 1px solid var(--bs-body-color);
             }
             
-            /* Card styling with variables */
+            /* Card styling */
             .card {
                 margin-bottom: 0.5rem;
                 box-shadow: 0 2px 5px rgba(0,0,0,0.1);
                 background-color: var(--bs-card-bg) !important;
+
                 border: 2px solid var(--bs-card-border-color) !important;
+
                 color: var(--bs-body-color) !important;
                 transition: background-color 0.3s, color 0.3s, border-color 0.3s;
             }
