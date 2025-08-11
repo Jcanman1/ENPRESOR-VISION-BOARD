@@ -829,12 +829,16 @@ def _register_callbacks_impl(app):
                     backgroundColor: "#f0f0f0",
                     cardBackgroundColor: "#ffffff",
                     textColor: "#212529",
+
+
                     chartBackgroundColor: "rgba(255,255,255,0.9)"
                 },
                 dark: {
                     backgroundColor: "#202124",
                     cardBackgroundColor: "#2d2d30",
                     textColor: "#e8eaed",
+
+
                     chartBackgroundColor: "rgba(45,45,48,0.9)"
                 }
             };

@@ -2013,7 +2013,9 @@ app.index_string = """<!DOCTYPE html>
                 --bs-body-bg: #f0f0f0;
                 --bs-body-color: #212529;
                 --bs-card-bg: #ffffff;
+
                 --bs-card-border-color: var(--bs-primary);
+
                 --chart-bg: rgba(255,255,255,0.9);
             }
             
