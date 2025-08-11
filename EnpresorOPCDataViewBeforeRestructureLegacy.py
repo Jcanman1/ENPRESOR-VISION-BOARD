@@ -3090,6 +3090,8 @@ def render_main_dashboard(lang=_initial_lang):
         # Hidden placeholder so callbacks referencing this ID don't warn when
         # the main dashboard is active
         html.Button(id="add-floor-btn", style={"display": "none"}),
+        # Hidden placeholder for callbacks that depend on add-machine-btn
+        html.Button(id="add-machine-btn", style={"display": "none"}),
     ],
     style={
         'backgroundColor': '#f0f0f0',
