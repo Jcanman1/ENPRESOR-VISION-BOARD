@@ -2503,7 +2503,9 @@ def _render_new_dashboard():
             html.Div(id="section-6-2", children=[], style={"display": "none"}),
             html.Div(id="section-7-1", children=[], style={"display": "none"}),
             html.Div(id="section-7-2", children=[], style={"display": "none"}),
-        ])
+        ]),
+        # Hidden placeholder for callbacks that reference add-machine-btn
+        html.Button(id="add-machine-btn", style={"display": "none"})
     ])
 
 
@@ -5808,7 +5810,7 @@ def show_floor_save_status(add_clicks, save_clicks, delete_clicks):
 
 @app.callback(
     Output("save-status", "children", allow_duplicate=True),
-    [Input("add-machine-btn", "n_clicks", allow_optional=True),
+    [Input("add-machine-btn", "n_clicks"),
      Input({"type": "machine-ip-dropdown", "index": ALL}, "value")],
     prevent_initial_call=True
 )
@@ -5862,7 +5864,7 @@ def manual_save_layout(n_clicks, floors_data, machines_data):
 # Enhanced callback for adding machines with auto-save
 @app.callback(
     Output("machines-data", "data", allow_duplicate=True),
-    [Input("add-machine-btn", "n_clicks", allow_optional=True)],
+    [Input("add-machine-btn", "n_clicks")],
     [State("machines-data", "data"),
      State("floors-data", "data")],
     prevent_initial_call=True
