@@ -5808,7 +5808,7 @@ def show_floor_save_status(add_clicks, save_clicks, delete_clicks):
 
 @app.callback(
     Output("save-status", "children", allow_duplicate=True),
-    [Input("add-machine-btn", "n_clicks"),
+    [Input("add-machine-btn", "n_clicks", allow_optional=True),
      Input({"type": "machine-ip-dropdown", "index": ALL}, "value")],
     prevent_initial_call=True
 )
@@ -5862,7 +5862,7 @@ def manual_save_layout(n_clicks, floors_data, machines_data):
 # Enhanced callback for adding machines with auto-save
 @app.callback(
     Output("machines-data", "data", allow_duplicate=True),
-    [Input("add-machine-btn", "n_clicks")],
+    [Input("add-machine-btn", "n_clicks", allow_optional=True)],
     [State("machines-data", "data"),
      State("floors-data", "data")],
     prevent_initial_call=True

@@ -2641,7 +2641,7 @@ def _register_callbacks_impl(app):
 
     @app.callback(
         Output("save-status", "children", allow_duplicate=True),
-        [Input("add-machine-btn", "n_clicks"),
+        [Input("add-machine-btn", "n_clicks", allow_optional=True),
          Input({"type": "machine-ip-dropdown", "index": ALL}, "value")],
         prevent_initial_call=True
     )
@@ -2674,7 +2674,7 @@ def _register_callbacks_impl(app):
 
     @app.callback(
         Output("machines-data", "data", allow_duplicate=True),
-        [Input("add-machine-btn", "n_clicks")],
+        [Input("add-machine-btn", "n_clicks", allow_optional=True)],
         [State("machines-data", "data"),
          State("floors-data", "data")],
         prevent_initial_call=True
