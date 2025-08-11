@@ -829,12 +829,14 @@ def _register_callbacks_impl(app):
                     backgroundColor: "#f0f0f0",
                     cardBackgroundColor: "#ffffff",
                     textColor: "#212529",
+
                     chartBackgroundColor: "rgba(255,255,255,0.9)"
                 },
                 dark: {
                     backgroundColor: "#202124",
                     cardBackgroundColor: "#2d2d30",
                     textColor: "#e8eaed",
+
                     chartBackgroundColor: "rgba(45,45,48,0.9)"
                 }
             };
@@ -867,6 +869,10 @@ def _register_callbacks_impl(app):
                 // Store theme preference in localStorage
                 localStorage.setItem("satake-theme", "light");
             }
+
+            // Sync card borders with the Bootstrap primary color
+            const primaryColor = getComputedStyle(root).getPropertyValue("--bs-primary").trim();
+            root.style.setProperty("--bs-card-border-color", primaryColor);
 
             // Update all Plotly charts with new theme
             if (window.Plotly) {
