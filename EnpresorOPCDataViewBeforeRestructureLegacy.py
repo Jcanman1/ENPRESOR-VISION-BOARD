@@ -149,10 +149,12 @@ KNOWN_TAGS = {
     # Faults and warnings
     "Status.Faults.GlobalFault": "ns=2;s=Status.Faults.GlobalFault",
     "Status.Faults.GlobalWarning": "ns=2;s=Status.Faults.GlobalWarning",
-    
+
     # Feeders (1-4)
     **{f"Status.Feeders.{i}IsRunning": f"ns=2;s=Status.Feeders.{i}IsRunning" for i in range(1, 5)},
     **{f"Status.Feeders.{i}Rate": f"ns=2;s=Status.Feeders.{i}Rate" for i in range(1, 5)},
+    "Status.Feeders.MainSwitchIsOn": "ns=2;s=Status.Feeders.MainSwitchIsOn",
+    "Status.Ejectors.MainSwitchIsOn": "ns=2;s=Status.Ejectors.MainSwitchIsOn",
     
     # Counter rates (1-12)
     **{f"Status.ColorSort.Sort1.DefectCount{i}.Rate.Current": f"ns=2;s=Status.ColorSort.Sort1.DefectCount{i}.Rate.Current" for i in range(1, 13)},
@@ -217,6 +219,8 @@ FAST_UPDATE_TAGS = {
     "Status.ColorSort.Sort1.Total.Percentage.Current",
     "Status.ColorSort.Sort1.Throughput.ObjectPerMin.Current",
     "Status.ColorSort.Primary.ObjectPerMin",
+    "Status.Feeders.MainSwitchIsOn",
+    "Status.Ejectors.MainSwitchIsOn",
     "Settings.ColorSort.TestWeightValue",
     "Settings.ColorSort.TestWeightCount",
     "Diagnostic.Counter",

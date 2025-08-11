@@ -3724,6 +3724,8 @@ def _register_callbacks_impl(app):
         FEEDER_TAG_PREFIX = "Status.Feeders."
         FEEDER_TAG_SUFFIX = "IsRunning"
         MODEL_TAG = "Status.Info.Type"  # Added this tag to check model type
+        FEEDERS_SWITCH_TAG = "Status.Feeders.MainSwitchIsOn"
+        EJECTORS_SWITCH_TAG = "Status.Ejectors.MainSwitchIsOn"
         
         # Determine if we're in Live or Demo mode
         mode = "demo"  # Default to demo mode
@@ -3736,7 +3738,13 @@ def _register_callbacks_impl(app):
         danger_style = {"backgroundColor": "#dc3545", "color": "white"}   # Red
         warning_style = {"backgroundColor": "#ffc107", "color": "black"}  # Yellow
         secondary_style = {"backgroundColor": "#6c757d", "color": "white"}  # Gray
-        
+
+        # Default indicator styles
+        feeders_switch_text = tr("feeders_off", lang)
+        feeders_switch_style = secondary_style
+        ejectors_switch_text = tr("ejectors_off", lang)
+        ejectors_switch_style = secondary_style
+
         # Check model type to determine number of gauges to show
         show_all_gauges = True  # Default to showing all 4 gauges
         model_type = None
@@ -3755,6 +3763,11 @@ def _register_callbacks_impl(app):
             
             # In demo mode, show all gauges
             show_all_gauges = True
+
+            feeders_switch_text = tr("feeders_on", lang)
+            feeders_switch_style = success_style
+            ejectors_switch_text = tr("ejectors_on", lang)
+            ejectors_switch_style = success_style
             
         elif not app_state_data.get("connected", False):
             # Not connected - all gray
@@ -3766,7 +3779,12 @@ def _register_callbacks_impl(app):
             
             feeder_text = "Unknown"
             feeder_style = secondary_style
-            
+
+            feeders_switch_text = tr("feeders_off", lang)
+            feeders_switch_style = secondary_style
+            ejectors_switch_text = tr("ejectors_off", lang)
+            ejectors_switch_style = secondary_style
+
             # When not connected, show all gauges
             show_all_gauges = True
             
@@ -3827,7 +3845,7 @@ def _register_callbacks_impl(app):
                 
             # Check feeder status - FIXED to use proper app_state reference
             feeder_running = False
-            
+
             # Check only the appropriate number of feeders based on model
             max_feeder = 2 if not show_all_gauges else 4
             for feeder_num in range(1, max_feeder + 1):
@@ -3836,13 +3854,25 @@ def _register_callbacks_impl(app):
                     if bool(app_state.tags[tag_name]["data"].latest_value):
                         feeder_running = True
                         break
-                        
+
             if feeder_running:
                 feeder_text = tr("running_state", lang)
                 feeder_style = success_style
             else:
                 feeder_text = tr("stopped_state", lang)
                 feeder_style = secondary_style
+
+            feeders_on = False
+            ejectors_on = False
+            if FEEDERS_SWITCH_TAG in app_state.tags:
+                feeders_on = bool(app_state.tags[FEEDERS_SWITCH_TAG]["data"].latest_value)
+            if EJECTORS_SWITCH_TAG in app_state.tags:
+                ejectors_on = bool(app_state.tags[EJECTORS_SWITCH_TAG]["data"].latest_value)
+
+            feeders_switch_text = tr("feeders_on", lang) if feeders_on else tr("feeders_off", lang)
+            feeders_switch_style = success_style if feeders_on else secondary_style
+            ejectors_switch_text = tr("ejectors_on", lang) if ejectors_on else tr("ejectors_off", lang)
+            ejectors_switch_style = success_style if ejectors_on else secondary_style
             
             # Add debug logging for live mode
             #logger.debug(
@@ -3888,7 +3918,21 @@ def _register_callbacks_impl(app):
                     ], className="h7"),
                 ], className="p-3"),
             ], className="mb-2", style={"borderRadius": "0.25rem", **feeder_style}),
-    
+
+            # Indicators for Feeder and Ejector main switches
+            html.Div([
+                html.Div(
+                    feeders_switch_text,
+                    className="text-center p-2 flex-fill",
+                    style={"borderRadius": "0.25rem", **feeders_switch_style},
+                ),
+                html.Div(
+                    ejectors_switch_text,
+                    className="text-center p-2 flex-fill",
+                    style={"borderRadius": "0.25rem", **ejectors_switch_style},
+                ),
+            ], className="mb-2", style={"display": "flex", "gap": "0.5rem"}),
+
             # Row of feeder rate boxes
             feeder_boxes,
         ])
