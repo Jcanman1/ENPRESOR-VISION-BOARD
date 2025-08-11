@@ -2605,8 +2605,13 @@ def connection_controls(lang=_initial_lang):
                 ),
             ], width=0, style={"display": "none"}),
         ], className="gx-2 align-items-center"),
-    ], className="py-1 px-2"),
-    className="mb-1 mt-0",
+    ], className="py-1 px-2", style={"backgroundColor": "var(--bs-card-bg)"}),
+    className="mb-2 mt-0",
+    style={
+        "boxShadow": "none",
+        "backgroundColor": "var(--bs-card-bg)",
+        "borderColor": "var(--bs-border-color)",
+    },
     )
 settings_modal = dbc.Modal([
     dbc.ModalHeader(html.Span(tr("system_settings_title"), id="settings-modal-header")),
@@ -3258,7 +3263,7 @@ app.layout = html.Div([
         children=render_new_dashboard()
     ),
 
-], className="main-app-container")
+], className="main-app-container", style={"backgroundColor": "var(--bs-card-bg)"})
 from callbacks import register_callbacks
 
 def load_historical_data(timeframe="24h", machine_id=None):
