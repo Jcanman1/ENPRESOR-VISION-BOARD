@@ -2503,7 +2503,9 @@ def _render_new_dashboard():
             html.Div(id="section-6-2", children=[], style={"display": "none"}),
             html.Div(id="section-7-1", children=[], style={"display": "none"}),
             html.Div(id="section-7-2", children=[], style={"display": "none"}),
-        ])
+        ]),
+        # Hidden placeholder for callbacks that reference add-machine-btn
+        html.Button(id="add-machine-btn", style={"display": "none"})
     ])
 
 
