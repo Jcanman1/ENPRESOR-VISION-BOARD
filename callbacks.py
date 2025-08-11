@@ -829,14 +829,12 @@ def _register_callbacks_impl(app):
                     backgroundColor: "#f0f0f0",
                     cardBackgroundColor: "#ffffff",
                     textColor: "#212529",
-                    borderColor: "rgba(0,0,0,0.125)",
                     chartBackgroundColor: "rgba(255,255,255,0.9)"
                 },
                 dark: {
                     backgroundColor: "#202124",
                     cardBackgroundColor: "#2d2d30",
                     textColor: "#e8eaed",
-                    borderColor: "rgba(255,255,255,0.125)",
                     chartBackgroundColor: "rgba(45,45,48,0.9)"
                 }
             };
@@ -847,7 +845,6 @@ def _register_callbacks_impl(app):
                 root.style.setProperty("--bs-body-bg", themeColors.dark.backgroundColor);
                 root.style.setProperty("--bs-body-color", themeColors.dark.textColor);
                 root.style.setProperty("--bs-card-bg", themeColors.dark.cardBackgroundColor);
-                root.style.setProperty("--bs-card-border-color", themeColors.dark.borderColor);
                 root.style.setProperty("--chart-bg", themeColors.dark.chartBackgroundColor);
 
                 // Add dark-mode class to body for additional CSS targeting
@@ -861,7 +858,6 @@ def _register_callbacks_impl(app):
                 root.style.setProperty("--bs-body-bg", themeColors.light.backgroundColor);
                 root.style.setProperty("--bs-body-color", themeColors.light.textColor);
                 root.style.setProperty("--bs-card-bg", themeColors.light.cardBackgroundColor);
-                root.style.setProperty("--bs-card-border-color", themeColors.light.borderColor);
                 root.style.setProperty("--chart-bg", themeColors.light.chartBackgroundColor);
 
                 // Add light-mode class to body for additional CSS targeting
@@ -871,6 +867,10 @@ def _register_callbacks_impl(app):
                 // Store theme preference in localStorage
                 localStorage.setItem("satake-theme", "light");
             }
+
+            // Sync card borders with the Bootstrap primary color
+            const primaryColor = getComputedStyle(root).getPropertyValue("--bs-primary").trim();
+            root.style.setProperty("--bs-card-border-color", primaryColor);
 
             // Update all Plotly charts with new theme
             if (window.Plotly) {
