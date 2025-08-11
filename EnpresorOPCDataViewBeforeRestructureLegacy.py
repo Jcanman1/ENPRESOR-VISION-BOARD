@@ -2605,6 +2605,7 @@ def connection_controls(lang=_initial_lang):
                 ),
             ], width=0, style={"display": "none"}),
         ], className="gx-2 align-items-center"),
+
     ], className="py-1 px-2", style={"backgroundColor": "var(--bs-card-bg)"}),
     className="mb-2 mt-0",
     style={
@@ -2612,6 +2613,7 @@ def connection_controls(lang=_initial_lang):
         "backgroundColor": "var(--bs-card-bg)",
         "borderColor": "var(--bs-border-color)",
     },
+
     )
 settings_modal = dbc.Modal([
     dbc.ModalHeader(html.Span(tr("system_settings_title"), id="settings-modal-header")),
