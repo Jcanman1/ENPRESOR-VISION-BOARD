@@ -5969,7 +5969,7 @@ def _register_callbacks_impl(app):
     )
     def update_lab_state_fixed(start_click, stop_click, mode, n_intervals, running, stop_time, test_name, app_mode, active_machine_data, start_mode):
         """Manage lab running state and stop time using reliable global variables."""
-        global current_lab_filename, last_stop_click, _lab_running_state, _grace_start_time, _last_ui_update_time
+        global current_lab_filename, last_stop_click, _lab_running_state, _grace_start_time, _last_ui_update_time, machine_connections
 
         # Record this callback time for watchdog purposes
         _last_ui_update_time = time.time()
@@ -5999,6 +5999,22 @@ def _register_callbacks_impl(app):
 
         _debug(f"[LAB TEST DEBUG] update_lab_state triggers={triggers} selected={trigger}")
 
+        active_machine_id = active_machine_data.get("machine_id") if active_machine_data else None
+        FEEDERS_SWITCH_TAG = "Status.Feeders.MainSwitchIsOn"
+        main_switch_on = False
+        if (
+            start_mode == "feeder"
+            and active_machine_id is not None
+            and active_machine_id in machine_connections
+            and machine_connections[active_machine_id].get("connected", False)
+        ):
+            tags = machine_connections[active_machine_id]["tags"]
+            if FEEDERS_SWITCH_TAG in tags:
+                try:
+                    main_switch_on = bool(tags[FEEDERS_SWITCH_TAG]["data"].latest_value)
+                except Exception:
+                    main_switch_on = False
+
         # IMPORTANT: Allow mode switching even during grace period
         if mode != "lab":
             _debug("[LAB TEST DEBUG] Switched away from lab mode - clearing lab state")
@@ -6009,12 +6025,44 @@ def _register_callbacks_impl(app):
         new_running = running
         new_grace_start = grace_start
 
+        if start_mode == "feeder":
+            if main_switch_on and not running:
+                test_name = test_name or "Test"
+                filename = f"Lab_Test_{test_name}_{datetime.now().strftime('%m_%d_%Y')}.csv"
+                current_lab_filename = filename
+                try:
+                    if active_machine_id is not None:
+                        _create_empty_lab_log(active_machine_id, filename)
+                        _reset_lab_session(active_machine_id)
+                except Exception as exc:
+                    logger.warning(f"Failed to prepare new lab log: {exc}")
+                resume_update_thread()
+                new_running = True
+                new_grace_start = None
+                _debug("[LAB TEST DEBUG] AUTO-START via feeder switch")
+            elif not main_switch_on and running:
+                new_running = False
+                new_grace_start = time.time()
+                _debug("[LAB TEST DEBUG] AUTO-STOP via feeder switch - grace period started")
+            elif not main_switch_on and grace_start:
+                elapsed = time.time() - grace_start
+                _debug(f"[LAB TEST DEBUG] Grace period check (feeder): elapsed={elapsed:.2f}s")
+                if elapsed >= 30.0:
+                    print("[LAB TEST] Grace period complete - stopping test", flush=True)
+                    current_lab_filename = None
+                    new_grace_start = None
+                    _debug("[LAB TEST DEBUG] Grace period completed - test stopped")
+            _lab_running_state = new_running
+            _grace_start_time = new_grace_start
+            _debug(f"[LAB TEST DEBUG] FINAL: new_running={new_running}, grace_start={new_grace_start} (feeder mode)")
+            return new_running, new_grace_start
+
         # Handle mode selector switching TO lab mode - clear any previous state
         if trigger == "mode-selector":
             _debug("[LAB TEST DEBUG] Switched to lab mode - clearing previous state")
             new_running = False
             new_grace_start = None
-        
+
         # Only allow state changes on button presses or interval grace period checks
         elif ctx.triggered and len(ctx.triggered) > 0:
             if trigger == "start-test-btn":
@@ -6036,7 +6084,7 @@ def _register_callbacks_impl(app):
                 new_running = True
                 new_grace_start = None
                 _debug(f"[LAB TEST DEBUG] START: new_running={new_running}, grace_start={new_grace_start}")
-                
+
             elif trigger == "stop-test-btn":
                 last_stop_click = stop_click or 0
                 if start_mode != "feeder":
@@ -6046,20 +6094,20 @@ def _register_callbacks_impl(app):
                 new_grace_start = time.time()
                 _debug("[LAB TEST] Grace period timer started")
                 _debug(f"[LAB TEST DEBUG] STOP: grace_start={new_grace_start}")
-                
+
             elif trigger == "status-update-interval":
                 # Interval should ONLY check for grace period completion
                 _debug("[LAB TEST DEBUG] Interval trigger - checking grace period only")
-                
+
                 # Check if grace period has elapsed
                 if new_grace_start:
                     elapsed = time.time() - new_grace_start
                     _debug(f"[LAB TEST DEBUG] Grace period check: elapsed={elapsed:.2f}s")
-                    
+
                     if elapsed >= 30.0:
                         print("[LAB TEST] Grace period complete - stopping test", flush=True)
                         current_lab_filename = None
-                        
+
                         # Try to refresh cache but don't fail if it doesn't work
                         try:
                             active_machine_id = active_machine_data.get("machine_id") if active_machine_data else None
@@ -6069,11 +6117,11 @@ def _register_callbacks_impl(app):
                         except Exception as exc:
                             logger.warning(f"Failed to refresh lab cache (non-critical): {exc}")
                             _debug(f"[LAB TEST DEBUG] Cache refresh failed but continuing: {exc}")
-                        
+
                         new_running = False
                         new_grace_start = None
                         _debug("[LAB TEST DEBUG] Grace period completed - test stopped")
-        
+
         # Special handling for catch-up stop button presses
         elif stop_click and stop_click != last_stop_click:
             last_stop_click = stop_click

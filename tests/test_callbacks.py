@@ -407,7 +407,7 @@ def test_update_lab_state_failsafe(monkeypatch):
     monkeypatch.setattr(callbacks.time, "time", lambda: 100.0)
 
     # Failsafe should mark test stopped before handling new start click
-    res = func.__wrapped__(1, 0, "lab", 0, True, 50.0, "AutoTest", {"mode": "lab"}, {"machine_id": 1}, "feeder")
+    res = func.__wrapped__(1, 0, "lab", 0, True, 50.0, "AutoTest", {"mode": "lab"}, {"machine_id": 1}, "local")
 
     assert res == (True, None)
 
