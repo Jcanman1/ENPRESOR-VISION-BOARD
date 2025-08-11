@@ -1270,10 +1270,12 @@ def draw_machine_settings_section(c, x0, y0, total_w, section_h, settings, *, la
             y = y0 + section_h - (r + rs) * row_h
             w = cs * col_w
             h = rs * row_h
-            if r == 2 and j == 1:  # Ejector Dwell cell (PrimaryDwell)
+            if (r, j) in [(2, 1), (5, 1)]:  # Ejector Dwell or Delay cell
                 try:
-                    # Format the Ejector Dwell to 1 decimal place
-                    text = f"{float(cell):.1f}" if cell not in {"N/A", "", "None", None} else str(cell)
+                    # Format the Ejector Dwell/Delay to 1 decimal place
+                    text = (
+                        f"{float(cell):.1f}" if cell not in {"N/A", "", "None", None} else str(cell)
+                    )
                 except (ValueError, TypeError):
                     text = str(cell)
             else:

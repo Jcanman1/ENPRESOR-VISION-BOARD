@@ -37,6 +37,44 @@ def test_load_machine_settings(tmp_path):
     assert data == {"value": 1}
 
 
+def test_machine_settings_delay_formatted_one_decimal():
+    class DummyCanvas:
+        def __init__(self):
+            self.texts = []
+
+        def saveState(self):
+            pass
+
+        def restoreState(self):
+            pass
+
+        def setStrokeColor(self, *a, **k):
+            pass
+
+        def line(self, *a, **k):
+            pass
+
+        def rect(self, *a, **k):
+            pass
+
+        def setFillColor(self, *a, **k):
+            pass
+
+        def setFont(self, *a, **k):
+            pass
+
+        def drawString(self, x, y, text):
+            self.texts.append(text)
+
+    c = DummyCanvas()
+    settings = {"Settings": {"Ejectors": {"PrimaryDelay": 12.345}}}
+    generate_report.draw_machine_settings_section(c, 0, 0, 100, 60, settings)
+
+    assert "Ejector Delay:" in c.texts
+    assert "12.3" in c.texts
+    assert "12.345" not in c.texts
+
+
 def test_bool_from_setting_case_insensitive():
     assert generate_report._bool_from_setting("TRUE") is True
     assert generate_report._bool_from_setting("FALSE") is False
