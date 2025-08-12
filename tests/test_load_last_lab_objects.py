@@ -1,6 +1,7 @@
 import callbacks
 import hourly_data_saving
 import os
+import pytest
 
 def test_load_last_lab_objects(monkeypatch, tmp_path):
     # Prepare temp lab log
@@ -19,4 +20,7 @@ def test_load_last_lab_objects(monkeypatch, tmp_path):
     callbacks._lab_totals_cache.clear()
 
     value = callbacks.load_last_lab_objects(machine_id)
-    assert value == 150
+    assert value == 20
+
+    _, _, objects = callbacks.load_lab_totals(machine_id)
+    assert objects[-1] == pytest.approx(10.42, rel=1e-3)

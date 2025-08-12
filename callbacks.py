@@ -297,9 +297,9 @@ def load_lab_totals(machine_id, filename=None, active_counters=None):
                         counter_totals[idx_c] += prev_val * delta_minutes * scale
 
 
-            opm = row.get("objects_60M")
+            opm = row.get("objects_per_min")
             if opm is None or opm == "":
-                opm = row.get("objects_per_min")
+                opm = row.get("objects_60M")
             try:
                 rate_val = float(opm) if opm else None
             except ValueError:
@@ -438,7 +438,10 @@ def load_last_lab_metrics(machine_id):
 
 
 def load_last_lab_objects(machine_id):
-    """Return the most recent ``objects_60M`` value from a lab log."""
+    """Return the most recent ``objects_per_min`` value from a lab log.
+
+    Falls back to ``objects_60M`` when per-minute data is unavailable.
+    """
     machine_dir = os.path.join(hourly_data_saving.EXPORT_DIR, str(machine_id))
     path = _get_latest_lab_file(machine_dir)
     if not path or not os.path.exists(path):
@@ -468,7 +471,7 @@ def load_last_lab_objects(machine_id):
     if not last_row:
         return 0
 
-    val = last_row.get("objects_60M") or last_row.get("objects_per_min")
+    val = last_row.get("objects_per_min") or last_row.get("objects_60M")
     try:
         return float(val) if val else 0
     except ValueError:
