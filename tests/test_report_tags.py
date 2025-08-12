@@ -1,6 +1,5 @@
 import json
 import importlib
-import json
 from pathlib import Path
 
 import report_tags
