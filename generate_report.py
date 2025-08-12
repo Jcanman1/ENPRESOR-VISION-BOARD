@@ -32,8 +32,8 @@ COUNT_VALUE_FONT_SIZE = 18
 SENSITIVITY_VALUE_FONT_SIZE = 10
 LAB_OBJECT_SCALE_FACTOR = 1.042
 
-# Weight conversion for lab metrics calculated from test weight tags.
-# Fallback multiplier: 1 lb per 1800 pieces.
+# Weight conversion for lab metrics: 1 lbs per 1800 pieces
+
 LAB_WEIGHT_MULTIPLIER = 1 / 1800
 
 from i18n import tr
@@ -91,46 +91,6 @@ def _minutes_to_hm(minutes: float) -> str:
         m = 0
     hours, mins = divmod(m, 60)
     return f"{hours}:{mins:02d}"
-
-
-def _convert_to_lbs(value: float, unit: str) -> float:
-    """Convert ``value`` from ``unit`` to pounds."""
-    unit = str(unit).lower()
-    if unit in {"lb", "lbs", "pound", "pounds"}:
-        return value
-    if unit in {"oz", "ounce", "ounces"}:
-        return value / 16.0
-    if unit in {"g", "gram", "grams"}:
-        return value / 453.59237
-    if unit in {"kg", "kilogram", "kilograms"}:
-        return value * 2.20462262185
-    return value
-
-
-def lab_weight_multiplier_from_settings(settings: dict) -> float:
-    """Calculate lbs-per-object multiplier from machine settings.
-
-    Uses the ``Settings.ColorSort.TestWeightCount``,
-    ``Settings.ColorSort.TestWeightValue`` and ``Settings.ColorSort.TestWeightUnit``
-    tags if available. Falls back to :data:`LAB_WEIGHT_MULTIPLIER` when values are
-    missing or invalid.
-    """
-
-    count = _lookup_setting(settings, "Settings.ColorSort.TestWeightCount", 0)
-    value = _lookup_setting(settings, "Settings.ColorSort.TestWeightValue", 0)
-    unit = _lookup_setting(settings, "Settings.ColorSort.TestWeightUnit", "lb")
-
-    try:
-        count = float(count)
-        value = float(value)
-    except (TypeError, ValueError):
-        return LAB_WEIGHT_MULTIPLIER
-
-    if count <= 0:
-        return LAB_WEIGHT_MULTIPLIER
-
-    value_lbs = _convert_to_lbs(value, unit)
-    return value_lbs / count
 
 
 def calculate_total_capacity_from_csv_rates(
@@ -678,10 +638,9 @@ def draw_global_summary(
                 total_objects += machine_objects
                 total_removed += machine_removed
 
-                lab_mult = lab_weight_multiplier_from_settings(settings_data)
                 clean_objs = machine_objects - machine_removed
-                total_accepts += clean_objs * lab_mult
-                total_rejects += machine_removed * lab_mult
+                total_accepts += clean_objs * LAB_WEIGHT_MULTIPLIER
+                total_rejects += machine_removed * LAB_WEIGHT_MULTIPLIER
             else:
                 if ac:
                     stats = calculate_total_capacity_from_csv_rates(
@@ -2210,10 +2169,9 @@ def draw_machine_sections(
     machine_rejects = 0
 
     if is_lab_mode:
-        lab_mult = lab_weight_multiplier_from_settings(settings_data)
         clean_objects = machine_objs - machine_rem
-        machine_accepts = clean_objects * lab_mult
-        machine_rejects = machine_rem * lab_mult
+        machine_accepts = clean_objects * LAB_WEIGHT_MULTIPLIER
+        machine_rejects = machine_rem * LAB_WEIGHT_MULTIPLIER
     else:
         if ac_col:
             a_stats = calculate_total_capacity_from_csv_rates(

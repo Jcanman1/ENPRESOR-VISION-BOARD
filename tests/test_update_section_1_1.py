@@ -1,7 +1,6 @@
 import os
 import sys
 import dash
-import json
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
@@ -124,50 +123,3 @@ def test_update_section_1_1_demo_matches_machine(monkeypatch):
     assert "pcs" not in reject_display
     assert "6.00" in reject_display
     assert prod == {"capacity": 100.0, "accepts": 94.0, "rejects": 6.0}
-
-
-
-def test_update_section_1_1_lab_weight_from_metrics(monkeypatch, tmp_path):
-
-    monkeypatch.setattr(autoconnect, "initialize_autoconnect", lambda: None)
-    app = dash.Dash(__name__)
-    callbacks.register_callbacks(app)
-    key = next(k for k in app.callback_map if 'section-1-1' in k)
-    func = app.callback_map[key]["callback"]
-
-    callbacks.hourly_data_saving.EXPORT_DIR = str(tmp_path)
-    machine_dir = tmp_path / "1"
-    machine_dir.mkdir()
-
-
-    csv_path = machine_dir / "Lab_Test_sample.csv"
-    csv_path.write_text(
-        "timestamp,accepts,rejects,objects_60M,counter_1\n"
-        "2025-01-01T00:00:00,54,6,1800,180\n"
-        "2025-01-01T00:01:00,54,6,1800,180\n"
-
-    )
-
-    callbacks._lab_production_cache.clear()
-    callbacks._lab_totals_cache.clear()
-    callbacks.active_machine_id = 1
-
-    section, _ = func.__wrapped__(
-        0,
-        "main",
-        {},
-        {},
-        "en",
-        {"connected": True},
-        {"mode": "lab"},
-        {"capacity": 0, "accepts": 0, "rejects": 0},
-        {"unit": "lb"},
-        {"machines": []},
-    )
-
-    accept_row = section.children[2]
-    reject_row = section.children[3]
-
-    assert "0.94 lb" in accept_row.children[2].children
-
-    assert "0.10 lb" in reject_row.children[2].children

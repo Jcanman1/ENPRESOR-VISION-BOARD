@@ -21,9 +21,6 @@ REPORT_SETTINGS_TAGS = {
     "Settings.Calibration.FrontBackgroundBlue",
     "Status.Info.PresetName",
     "Status.Info.PresetNumber",
-    "Settings.ColorSort.TestWeightValue",
-    "Settings.ColorSort.TestWeightCount",
-    "Settings.ColorSort.TestWeightUnit",
     # Sensitivity specific tags for PDF reports
     *{
         f"Settings.ColorSort.Primary{i}.FrontAndRearLogic" for i in range(1, 13)
