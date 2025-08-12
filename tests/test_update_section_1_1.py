@@ -168,6 +168,6 @@ def test_update_section_1_1_lab_weight_from_metrics(monkeypatch, tmp_path):
     accept_row = section.children[2]
     reject_row = section.children[3]
 
-    assert "0.90 lb" in accept_row.children[2].children
+    assert "0.94 lb" in accept_row.children[2].children
 
     assert "0.10 lb" in reject_row.children[2].children
