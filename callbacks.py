@@ -178,6 +178,18 @@ def _get_latest_lab_file(machine_dir):
         return None
 
 
+def _load_lab_weight_multiplier(machine_id):
+    """Return lbs-per-object multiplier from saved machine settings."""
+    machine_dir = os.path.join(hourly_data_saving.EXPORT_DIR, str(machine_id))
+    settings_path = os.path.join(machine_dir, "settings.json")
+    if os.path.exists(settings_path):
+        try:
+            with open(settings_path, "r", encoding="utf-8") as fh:
+                settings_data = json.load(fh)
+            return generate_report.lab_weight_multiplier_from_settings(settings_data)
+        except Exception:
+            pass
+    return generate_report.LAB_WEIGHT_MULTIPLIER
 
 
 
@@ -582,54 +594,27 @@ def _reset_lab_session_safe(machine_id):
 
 
 def load_lab_totals_metrics(machine_id, active_counters=None):
-    """Return total capacity, accepts, rejects and elapsed seconds from the latest lab log.
-
-    ``active_counters`` is accepted for API symmetry with :func:`load_lab_totals`
-    but is currently unused.
-    """
-    machine_dir = os.path.join(hourly_data_saving.EXPORT_DIR, str(machine_id))
-    path = _get_latest_lab_file(machine_dir)
-    if not path:
-        return None
-
-    accepts = []
-    rejects = []
-    timestamps = []
-
-    with open(path, newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            a = row.get("accepts")
-            r = row.get("rejects")
-            ts = row.get("timestamp")
-            try:
-                accepts.append(float(a)) if a else accepts.append(0.0)
-            except ValueError:
-                accepts.append(0.0)
-            try:
-                rejects.append(float(r)) if r else rejects.append(0.0)
-            except ValueError:
-                rejects.append(0.0)
-            if ts:
-                timestamps.append(ts)
-
-    a_stats = generate_report.calculate_total_capacity_from_csv_rates(
-        accepts, timestamps=timestamps, is_lab_mode=True
+    """Return total capacity, accepts, rejects and elapsed seconds from the latest lab log."""
+    counts, timestamps, object_totals = load_lab_totals(
+        machine_id, active_counters=active_counters
     )
-    r_stats = generate_report.calculate_total_capacity_from_csv_rates(
-        rejects, timestamps=timestamps, is_lab_mode=True
-    )
+    active = active_counters or [True] * 12
+    reject_count = sum(c for c, flag in zip(counts, active) if flag)
+    capacity_count = object_totals[-1] if object_totals else 0
+    accepts_count = max(0, capacity_count - reject_count)
 
-    accepts_total = a_stats.get("total_capacity_lbs", 0)
-    rejects_total = r_stats.get("total_capacity_lbs", 0)
-    total_capacity = accepts_total + rejects_total
+    mult = _load_lab_weight_multiplier(machine_id)
+    total_capacity = capacity_count * mult
+    accepts_total = accepts_count * mult
+    rejects_total = reject_count * mult
 
     elapsed_seconds = 0
     if timestamps:
         try:
-            start = datetime.fromisoformat(str(timestamps[0]))
-            end = datetime.fromisoformat(str(timestamps[-1]))
-            elapsed_seconds = int((end - start).total_seconds())
+            start = timestamps[0]
+            end = timestamps[-1]
+            if isinstance(start, datetime) and isinstance(end, datetime):
+                elapsed_seconds = int((end - start).total_seconds())
         except Exception:
             elapsed_seconds = 0
 
@@ -2951,17 +2936,10 @@ def _register_callbacks_impl(app):
             else:
                 active_flags = get_active_counter_flags(mid)
 
-                metrics = (
-                    load_lab_totals_metrics(mid, active_counters=active_flags)
-                    if path
-                    else None
-                )
-
                 if path:
                     counts, _, objects = load_lab_totals(mid, active_counters=active_flags)
                 else:
                     counts, objects = [0] * 12, []
-
 
                 reject_count = sum(
                     c for c, active in zip(counts, active_flags) if active
@@ -2969,14 +2947,12 @@ def _register_callbacks_impl(app):
                 capacity_count = objects[-1] if objects else 0
                 accepts_count = max(0, capacity_count - reject_count)
 
-                if metrics:
-                    tot_cap_lbs, acc_lbs, rej_lbs, _ = metrics
-                    total_capacity = convert_capacity_from_lbs(tot_cap_lbs, weight_pref)
-                    accepts = convert_capacity_from_lbs(acc_lbs, weight_pref)
-                    rejects = convert_capacity_from_lbs(rej_lbs, weight_pref)
-                else:
-                    total_capacity = accepts = rejects = 0
-
+                mult = _load_lab_weight_multiplier(mid)
+                total_capacity = convert_capacity_from_lbs(
+                    capacity_count * mult, weight_pref
+                )
+                accepts = convert_capacity_from_lbs(accepts_count * mult, weight_pref)
+                rejects = convert_capacity_from_lbs(reject_count * mult, weight_pref)
 
                 production_data = {
                     "capacity": total_capacity,
