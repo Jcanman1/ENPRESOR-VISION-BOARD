@@ -36,8 +36,7 @@ instruction = f"Request: {user_request}\n\nRepository snapshot (partial):\n{''.j
 resp = client.responses.create(
     model="gpt-5",  # use your exact GPT-5 model name
     instructions=SYSTEM,
-    input=instruction,
-    temperature=0.2,
+    input=instruction
 )
 
 patch = resp.output_text.strip()
