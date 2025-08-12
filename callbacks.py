@@ -2950,10 +2950,18 @@ def _register_callbacks_impl(app):
                 reject_count = cache_entry.get("reject_count", 0)
             else:
                 active_flags = get_active_counter_flags(mid)
+
+                metrics = (
+                    load_lab_totals_metrics(mid, active_counters=active_flags)
+                    if path
+                    else None
+                )
+
                 if path:
                     counts, _, objects = load_lab_totals(mid, active_counters=active_flags)
                 else:
                     counts, objects = [0] * 12, []
+
 
                 reject_count = sum(
                     c for c, active in zip(counts, active_flags) if active
@@ -2961,18 +2969,14 @@ def _register_callbacks_impl(app):
                 capacity_count = objects[-1] if objects else 0
                 accepts_count = max(0, capacity_count - reject_count)
 
-                # Determine weight multiplier from saved settings
-                settings_path = os.path.join(machine_dir, "settings.json")
-                try:
-                    with open(settings_path, "r", encoding="utf-8") as f:
-                        settings_data = json.load(f)
-                except Exception:
-                    settings_data = {}
-                mult = generate_report.lab_weight_multiplier_from_settings(settings_data)
+                if metrics:
+                    tot_cap_lbs, acc_lbs, rej_lbs, _ = metrics
+                    total_capacity = convert_capacity_from_lbs(tot_cap_lbs, weight_pref)
+                    accepts = convert_capacity_from_lbs(acc_lbs, weight_pref)
+                    rejects = convert_capacity_from_lbs(rej_lbs, weight_pref)
+                else:
+                    total_capacity = accepts = rejects = 0
 
-                total_capacity = convert_capacity_from_lbs(capacity_count * mult, weight_pref)
-                accepts = convert_capacity_from_lbs(accepts_count * mult, weight_pref)
-                rejects = convert_capacity_from_lbs(reject_count * mult, weight_pref)
 
                 production_data = {
                     "capacity": total_capacity,
