@@ -281,20 +281,21 @@ def load_lab_totals(machine_id, filename=None, active_counters=None):
                     current_counters.append(0.0)
 
             if prev_counters is not None:
-                if (
-                    isinstance(prev_ts, datetime)
-                    and isinstance(ts_val, datetime)
-                ):
-                    delta_minutes = (
-                        ts_val - prev_ts
-                    ).total_seconds() / 60.0
+                if prev_ts is not None and ts_val is not None:
+                    for idx_c, prev_val in enumerate(prev_counters):
+                        if idx_c < len(active_counters) and active_counters[idx_c]:
+                            stats = generate_report.calculate_total_objects_from_csv_rates(
+                                [prev_val, prev_val],
+                                timestamps=[prev_ts, ts_val],
+                                is_lab_mode=True,
+                            )
+                            counter_totals[idx_c] += stats.get("total_objects", 0)
                 else:
                     delta_minutes = 1 / 60.0
-
-                scale = generate_report.LAB_OBJECT_SCALE_FACTOR
-                for idx_c, prev_val in enumerate(prev_counters):
-                    if idx_c < len(active_counters) and active_counters[idx_c]:
-                        counter_totals[idx_c] += prev_val * delta_minutes * scale
+                    scale = generate_report.LAB_OBJECT_SCALE_FACTOR
+                    for idx_c, prev_val in enumerate(prev_counters):
+                        if idx_c < len(active_counters) and active_counters[idx_c]:
+                            counter_totals[idx_c] += prev_val * delta_minutes * scale
 
 
             opm = row.get("objects_per_min")
@@ -6725,7 +6726,9 @@ def _register_callbacks_impl(app):
                     filename=lab_filename,
                     mode=log_mode,
                 )
+                # Clear cached lab totals so Section 1-1 reflects new log entries immediately
+                _clear_lab_caches(int(machine_id))
             else:
                 append_metrics(metrics, machine_id=str(machine_id), mode=log_mode)
-    
+
         return dash.no_update
