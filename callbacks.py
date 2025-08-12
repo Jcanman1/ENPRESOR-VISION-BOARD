@@ -19,6 +19,7 @@ import csv
 import re
 import threading
 import random
+import json
 
 def _debug(message: str) -> None:
     """Helper to print debug messages and persist them to a file."""
@@ -2921,8 +2922,18 @@ def _register_callbacks_impl(app):
             }
 
         elif mode == "lab":
+            # In lab mode, derive weights from counter totals using the machine's
+            # test-weight multiplier so that the on-screen values match the
+            # generated report. The counters continue to update for 30 seconds
+            # after a stop is initiated, so bypass the cache while the test is
+            # running or within that grace period.
+
             mid = active_machine_id
             capacity_count = accepts_count = reject_count = 0
+
+            running = _lab_running_state
+            grace_start = _grace_start_time
+            in_grace = grace_start is not None and (time.time() - grace_start) < 30
 
             machine_dir = os.path.join(hourly_data_saving.EXPORT_DIR, str(mid))
             path = _get_latest_lab_file(machine_dir)
@@ -2930,11 +2941,11 @@ def _register_callbacks_impl(app):
                 stat = os.stat(path)
                 mtime = stat.st_mtime
                 size = stat.st_size
-
             else:
                 mtime = size = 0
 
-            cache_entry = _lab_production_cache.get(mid)
+            use_cache = not running and not in_grace
+            cache_entry = _lab_production_cache.get(mid) if use_cache else None
             if (
                 cache_entry is not None
                 and cache_entry.get("mtime") == mtime
@@ -2949,55 +2960,58 @@ def _register_callbacks_impl(app):
                 reject_count = cache_entry.get("reject_count", 0)
             else:
                 active_flags = get_active_counter_flags(mid)
-                metrics = (
-                    load_lab_totals_metrics(mid, active_counters=active_flags)
-                    if path
-                    else None
-                )
-                if metrics:
-                    tot_cap_lbs, acc_lbs, rej_lbs, _ = metrics
-
-
-
-
-                    
-                    # Refresh cached totals so last-value helpers return
-                    # up-to-date data while respecting active sensitivities
-                    load_lab_totals(mid, active_counters=active_flags)
-
-                    counter_rates = load_last_lab_counters(mid)
-                    capacity_rate = load_last_lab_objects(mid)
-
-                    reject_count = sum(
-                        rate for rate, active in zip(counter_rates, active_flags) if active
-                    ) * 60
-                    capacity_count = capacity_rate * 60
-                    accepts_count = max(0, capacity_count - reject_count)
-                    total_capacity = convert_capacity_from_lbs(tot_cap_lbs, weight_pref)
-                    accepts = convert_capacity_from_lbs(acc_lbs, weight_pref)
-                    rejects = convert_capacity_from_lbs(rej_lbs, weight_pref)
-
-                    production_data = {
-                        "capacity": total_capacity,
-                        "accepts": accepts,
-                        "rejects": rejects,
-                    }
+                if path:
+                    counts, _, objects = load_lab_totals(mid, active_counters=active_flags)
                 else:
-                    # No existing lab log yet. Use zeroed placeholders so the
-                    # dashboard doesn't display stale live values when switching
-                    # to lab mode.
-                    total_capacity = accepts = rejects = 0
-                    capacity_count = accepts_count = reject_count = 0
-                    production_data = {"capacity": 0, "accepts": 0, "rejects": 0}
+                    counts, objects = [0] * 12, []
 
-                _lab_production_cache[mid] = {
-                    "mtime": mtime,
-                    "size": size,
-                    "production_data": production_data,
-                    "capacity_count": capacity_count,
-                    "accepts_count": accepts_count,
-                    "reject_count": reject_count,
+                reject_count = sum(
+                    c for c, active in zip(counts, active_flags) if active
+                )
+                capacity_count = objects[-1] if objects else 0
+                accepts_count = max(0, capacity_count - reject_count)
+
+                # Derive lbs-per-object multiplier from machine settings
+                settings = {}
+                if hasattr(app_state, "tags"):
+                    tags = app_state.tags
+                    if "Settings.ColorSort.TestWeightValue" in tags:
+                        settings["Settings.ColorSort.TestWeightValue"] = tags[
+                            "Settings.ColorSort.TestWeightValue"
+                        ]["data"].latest_value
+                    if "Settings.ColorSort.TestWeightCount" in tags:
+                        settings["Settings.ColorSort.TestWeightCount"] = tags[
+                            "Settings.ColorSort.TestWeightCount"
+                        ]["data"].latest_value
+                    if "Settings.ColorSort.TestWeightUnit" in tags:
+                        settings["Settings.ColorSort.TestWeightUnit"] = tags[
+                            "Settings.ColorSort.TestWeightUnit"
+                        ]["data"].latest_value
+                lab_mult = generate_report.lab_weight_multiplier_from_settings(settings)
+
+                total_capacity_lbs = capacity_count * lab_mult
+                accepts_lbs = accepts_count * lab_mult
+                rejects_lbs = reject_count * lab_mult
+
+                total_capacity = convert_capacity_from_lbs(total_capacity_lbs, weight_pref)
+                accepts = convert_capacity_from_lbs(accepts_lbs, weight_pref)
+                rejects = convert_capacity_from_lbs(rejects_lbs, weight_pref)
+
+                production_data = {
+                    "capacity": total_capacity,
+                    "accepts": accepts,
+                    "rejects": rejects,
                 }
+
+                if use_cache:
+                    _lab_production_cache[mid] = {
+                        "mtime": mtime,
+                        "size": size,
+                        "production_data": production_data,
+                        "capacity_count": capacity_count,
+                        "accepts_count": accepts_count,
+                        "reject_count": reject_count,
+                    }
 
         elif mode == "demo":
 
