@@ -2950,15 +2950,18 @@ def _register_callbacks_impl(app):
                 reject_count = cache_entry.get("reject_count", 0)
             else:
                 active_flags = get_active_counter_flags(mid)
+
                 metrics = (
                     load_lab_totals_metrics(mid, active_counters=active_flags)
                     if path
                     else None
                 )
+
                 if path:
                     counts, _, objects = load_lab_totals(mid, active_counters=active_flags)
                 else:
                     counts, objects = [0] * 12, []
+
 
                 reject_count = sum(
                     c for c, active in zip(counts, active_flags) if active
@@ -2973,6 +2976,7 @@ def _register_callbacks_impl(app):
                     rejects = convert_capacity_from_lbs(rej_lbs, weight_pref)
                 else:
                     total_capacity = accepts = rejects = 0
+
 
                 production_data = {
                     "capacity": total_capacity,

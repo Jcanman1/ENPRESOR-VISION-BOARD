@@ -1,6 +1,7 @@
 import os
 import sys
 import dash
+import json
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
@@ -125,7 +126,9 @@ def test_update_section_1_1_demo_matches_machine(monkeypatch):
     assert prod == {"capacity": 100.0, "accepts": 94.0, "rejects": 6.0}
 
 
+
 def test_update_section_1_1_lab_weight_from_metrics(monkeypatch, tmp_path):
+
     monkeypatch.setattr(autoconnect, "initialize_autoconnect", lambda: None)
     app = dash.Dash(__name__)
     callbacks.register_callbacks(app)
@@ -136,11 +139,13 @@ def test_update_section_1_1_lab_weight_from_metrics(monkeypatch, tmp_path):
     machine_dir = tmp_path / "1"
     machine_dir.mkdir()
 
+
     csv_path = machine_dir / "Lab_Test_sample.csv"
     csv_path.write_text(
         "timestamp,accepts,rejects,objects_60M,counter_1\n"
         "2025-01-01T00:00:00,54,6,1800,180\n"
         "2025-01-01T00:01:00,54,6,1800,180\n"
+
     )
 
     callbacks._lab_production_cache.clear()
@@ -162,5 +167,7 @@ def test_update_section_1_1_lab_weight_from_metrics(monkeypatch, tmp_path):
 
     accept_row = section.children[2]
     reject_row = section.children[3]
+
     assert "0.90 lb" in accept_row.children[2].children
+
     assert "0.10 lb" in reject_row.children[2].children
