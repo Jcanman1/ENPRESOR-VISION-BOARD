@@ -2965,6 +2965,7 @@ def _register_callbacks_impl(app):
                 else:
                     counts, objects = [0] * 12, []
 
+
                 reject_count = sum(
                     c for c, active in zip(counts, active_flags) if active
                 )

@@ -1,6 +1,7 @@
 import os
 import sys
 import dash
+import json
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
@@ -153,9 +154,11 @@ def test_update_section_1_1_demo_matches_machine(monkeypatch):
     assert "6.00" in reject_display
     assert prod == {"capacity": 100.0, "accepts": 94.0, "rejects": 6.0}
 
-
 def test_update_section_1_1_lab_weight_from_counts(monkeypatch, tmp_path):
     """Weights in lab mode should use counter totals and the test-weight multiplier."""
+
+
+
 
     monkeypatch.setattr(autoconnect, "initialize_autoconnect", lambda: None)
     app = dash.Dash(__name__)
@@ -172,6 +175,7 @@ def test_update_section_1_1_lab_weight_from_counts(monkeypatch, tmp_path):
         "timestamp,objects_60M,counter_1\n"
         "2025-01-01T00:00:00,10,2\n"
         "2025-01-01T00:01:00,10,2\n"
+
     )
 
     callbacks._lab_production_cache.clear()
@@ -224,3 +228,4 @@ def test_update_section_1_1_lab_weight_from_counts(monkeypatch, tmp_path):
     reject_row = section.children[3]
     assert f"{expected_accepts:.2f} lb" in accept_row.children[2].children
     assert f"{expected_rejects:.2f} lb" in reject_row.children[2].children
+
