@@ -1,3 +1,11 @@
+"""Replay lab test logs by appending entries to a temporary log.
+
+The script is primarily a diagnostic aid.  It reads a CSV file and writes
+each row to the application's expected log location.  By default it replays
+the repository's ``Lab_Test_Weaver After SM_08_07_2025.csv`` file and pauses
+one second between rows, mimicking how the lab logger produces data.
+"""
+
 import csv
 import argparse
 import tempfile
@@ -18,7 +26,7 @@ def setup_app(export_dir: Path) -> dash.Dash:
     return app
 
 
-def simulate(csv_path: Path, delay: float = 0.0) -> None:
+def simulate(csv_path: Path, delay: float = 1.0) -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         export_dir = Path(tmpdir)
         machine_dir = export_dir / "1"
@@ -36,6 +44,10 @@ def simulate(csv_path: Path, delay: float = 0.0) -> None:
             )
             update_1_1 = app.callback_map[key]["callback"]
             update_5_1 = app.callback_map["section-5-1.children"]["callback"]
+            key_5_2 = next(
+                k for k in app.callback_map if k.startswith("..section-5-2.children")
+            )
+            update_5_2 = app.callback_map[key_5_2]["callback"]
 
             callbacks.active_machine_id = 1
 
@@ -44,6 +56,7 @@ def simulate(csv_path: Path, delay: float = 0.0) -> None:
                 dst.flush()
 
                 callbacks._lab_totals_cache.clear()
+                callbacks._lab_production_cache.clear()
 
                 section, _ = update_1_1.__wrapped__(
                     i,
@@ -55,6 +68,17 @@ def simulate(csv_path: Path, delay: float = 0.0) -> None:
                     {"mode": "lab"},
                     {},
                     {"unit": "lb"},
+                )
+                update_5_2.__wrapped__(
+                    i,
+                    "main",
+                    {},
+                    {},
+                    "en",
+                    {"connected": False},
+                    {"mode": "lab"},
+                    {"machine_id": 1},
+                    "counts",
                 )
                 trend = update_5_1.__wrapped__(
                     i,
@@ -90,9 +114,11 @@ def simulate(csv_path: Path, delay: float = 0.0) -> None:
 def main():
     parser = argparse.ArgumentParser(description="Simulate lab mode using a CSV log")
     parser.add_argument(
-        "csv", nargs="?", default="tests/Lab_Test_NEWTEST1_07_07_2025.csv"
+        "csv", nargs="?", default="Lab_Test_Weaver After SM_08_07_2025.csv"
     )
-    parser.add_argument("--delay", type=float, default=0.0, help="Delay between rows")
+    parser.add_argument(
+        "--delay", type=float, default=1.0, help="Delay between rows"
+    )
     args = parser.parse_args()
     simulate(Path(args.csv), args.delay)
 
