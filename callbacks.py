@@ -1495,6 +1495,88 @@ def _register_callbacks_impl(app):
             status_class = "text-warning small"
         return status_text, status_class, machine_display, tr("active_machine_label", lang), tr("status_label", lang)
 
+    def get_lab_data_like_report(machine_id):
+        """
+        Read lab data using the exact same method as the report.
+        This ensures perfect synchronization between live dashboard and report.
+        """
+        import pandas as pd
+        import os
+        
+        # Get the CSV file path (same as report uses)
+        machine_dir = os.path.join(hourly_data_saving.EXPORT_DIR, str(machine_id))
+        csv_path = os.path.join(machine_dir, 'last_24h_metrics.csv')
+        
+        if not os.path.isfile(csv_path):
+            return {
+                'machine_objects': 0,
+                'machine_removed': 0,
+                'accepts_objects': 0
+            }
+        
+        try:
+            # Read CSV exactly like the report does
+            df = pd.read_csv(csv_path)
+            if df.empty:
+                return {
+                    'machine_objects': 0,
+                    'machine_removed': 0,
+                    'accepts_objects': 0
+                }
+            
+            # Get machine_objects exactly like report does
+            machine_objects = 0
+            if 'objects_60M' in df.columns:
+                machine_objects = last_value_scaled(df['objects_60M'], 60)
+            elif 'objects_per_min' in df.columns:
+                machine_objects = last_value_scaled(df['objects_per_min'], 60)
+            
+            # Get machine_removed exactly like report does  
+            machine_removed = 0
+            active_flags = get_active_counter_flags(machine_id)
+            
+            for i in range(1, 13):
+                if not active_flags[i-1]:  # Skip inactive counters
+                    continue
+                    
+                col_name = next((c for c in df.columns if c.lower() == f'counter_{i}'), None)
+                if not col_name:
+                    continue
+                    
+                # Use exact same method as report
+                cnt_val = last_value_scaled(df[col_name], 60)
+                machine_removed += cnt_val
+            
+            accepts_objects = max(0, machine_objects - machine_removed)
+            
+            return {
+                'machine_objects': machine_objects,
+                'machine_removed': machine_removed, 
+                'accepts_objects': accepts_objects
+            }
+            
+        except Exception as e:
+            logger.error(f"Error reading lab data for machine {machine_id}: {e}")
+            return {
+                'machine_objects': 0,
+                'machine_removed': 0,
+                'accepts_objects': 0
+            }
+
+
+    def last_value_scaled(series, scale=1.0):
+        """
+        Helper function (same as in generate_report.py)
+        Return the last numeric value in series multiplied by scale.
+        """
+        try:
+            cleaned = pd.to_numeric(series, errors="coerce").dropna()
+            if cleaned.empty:
+                return 0
+            return float(cleaned.iloc[-1]) * scale
+        except Exception:
+            return 0
+
     @app.callback(
         Output("machines-data", "data", allow_duplicate=True),
         [Input("status-update-interval", "n_intervals"),
@@ -1553,49 +1635,50 @@ def _register_callbacks_impl(app):
         
     
         elif mode == "lab":
-            # Display metrics from lab logs for each machine
-            for machine in machines:
-                machine_id = machine.get("id")
-                metrics = load_lab_totals_metrics(
-                    machine_id, active_counters=get_active_counter_flags(machine_id)
-                )
-                if metrics:
-                    tot_cap_lbs, acc_lbs, rej_lbs, _ = metrics
-                    counter_totals, _, object_totals = load_lab_totals(
-                        machine_id, active_counters=get_active_counter_flags(machine_id)
-                    )
-                    reject_count = sum(counter_totals)
-                    capacity_count = object_totals[-1] if object_totals else 0
-                    accepts_count = max(0, capacity_count - reject_count)
+            mid = active_machine_id
+            
+            # ALWAYS recalculate to ensure display and weight use same counts
+            active_flags = get_active_counter_flags(mid)
+            
+            machine_dir = os.path.join(hourly_data_saving.EXPORT_DIR, str(mid))
+            path = _get_latest_lab_file(machine_dir)
+            
+            if path:
+                load_lab_totals(mid, active_counters=active_flags)
+                
+                counter_rates = load_last_lab_counters(mid)
+                capacity_rate = load_last_lab_objects(mid)
 
-                    cap = convert_capacity_from_lbs(tot_cap_lbs, weight_pref)
-                    acc = convert_capacity_from_lbs(acc_lbs, weight_pref)
-                    rej = convert_capacity_from_lbs(rej_lbs, weight_pref)
-                else:
-                    cap = acc = rej = 0
-                    capacity_count = accepts_count = reject_count = 0
+                # Calculate counts (used for BOTH display AND weight calculation)
+                reject_count = sum(
+                    rate for rate, active in zip(counter_rates, active_flags) if active
+                ) * 60
+                capacity_count = capacity_rate * 60
+                accepts_count = max(0, capacity_count - reject_count)
+                
+                # Calculate weights from the SAME counts
+                LAB_WEIGHT_MULTIPLIER = 1 / 1800
+                total_capacity_lbs = capacity_count * LAB_WEIGHT_MULTIPLIER
+                accepts_lbs = accepts_count * LAB_WEIGHT_MULTIPLIER
+                rejects_lbs = reject_count * LAB_WEIGHT_MULTIPLIER
+                
+                print(f"[UNIFIED] reject_count={reject_count}, rejects_lbs={rejects_lbs:.2f}")
+                
+                # Convert to user's preferred units
+                total_capacity = convert_capacity_from_lbs(total_capacity_lbs, weight_pref)
+                accepts = convert_capacity_from_lbs(accepts_lbs, weight_pref)
+                rejects = convert_capacity_from_lbs(rejects_lbs, weight_pref)
 
-                prod = {
-                    "capacity_formatted": f"{cap:,.0f}",
-                    "accepts_formatted": f"{acc:,.0f}",
-                    "rejects_formatted": f"{rej:,.0f}",
-                    "capacity": cap,
-                    "accepts": acc,
-                    "rejects": rej,
-                    "capacity_count": capacity_count,
-                    "accepts_count": accepts_count,
-                    "reject_count": reject_count,
-                    "diagnostic_counter": (machine.get("operational_data") or {}).get("production", {}).get("diagnostic_counter", "0"),
+                production_data = {
+                    "capacity": total_capacity,
+                    "accepts": accepts,
+                    "rejects": rejects,
                 }
-
-                if not machine.get("operational_data"):
-                    machine["operational_data"] = {"preset": {}, "status": {}, "feeder": {}, "production": prod}
-                else:
-                    machine["operational_data"].setdefault("production", {})
-                    machine["operational_data"]["production"].update(prod)
-
-            machines_data["machines"] = machines
-            return machines_data
+            else:
+                # No lab log yet
+                total_capacity = accepts = rejects = 0
+                capacity_count = accepts_count = reject_count = 0
+                production_data = {"capacity": 0, "accepts": 0, "rejects": 0}
 
         elif mode == "demo":
             now_str = datetime.now().strftime("%H:%M:%S")
@@ -2930,7 +3013,6 @@ def _register_callbacks_impl(app):
                 stat = os.stat(path)
                 mtime = stat.st_mtime
                 size = stat.st_size
-
             else:
                 mtime = size = 0
 
@@ -2940,63 +3022,81 @@ def _register_callbacks_impl(app):
                 and cache_entry.get("mtime") == mtime
                 and cache_entry.get("size") == size
             ):
-                production_data = cache_entry["production_data"]
-                total_capacity = production_data["capacity"]
-                accepts = production_data["accepts"]
-                rejects = production_data["rejects"]
+                # Use cached counts (these are what will be displayed)
                 capacity_count = cache_entry.get("capacity_count", 0)
                 accepts_count = cache_entry.get("accepts_count", 0)
                 reject_count = cache_entry.get("reject_count", 0)
+                
+                # Calculate weights FROM the display counts (same as report)
+                LAB_WEIGHT_MULTIPLIER = 1 / 1800
+                total_capacity_lbs = capacity_count * LAB_WEIGHT_MULTIPLIER
+                accepts_lbs = accepts_count * LAB_WEIGHT_MULTIPLIER
+                rejects_lbs = reject_count * LAB_WEIGHT_MULTIPLIER
+                
+                # Convert to user's preferred units
+                total_capacity = convert_capacity_from_lbs(total_capacity_lbs, weight_pref)
+                accepts = convert_capacity_from_lbs(accepts_lbs, weight_pref)
+                rejects = convert_capacity_from_lbs(rejects_lbs, weight_pref)
+                
+                print(f"[FROM CACHE] counts: cap={capacity_count}, acc={accepts_count}, rej={reject_count}")
+                print(f"[FROM CACHE] weights: cap={total_capacity:.2f}, acc={accepts:.2f}, rej={rejects:.2f}")
+                
             else:
                 active_flags = get_active_counter_flags(mid)
-                metrics = (
-                    load_lab_totals_metrics(mid, active_counters=active_flags)
-                    if path
-                    else None
-                )
-                if metrics:
-                    tot_cap_lbs, acc_lbs, rej_lbs, _ = metrics
-
-
-
-
-                    
-                    # Refresh cached totals so last-value helpers return
-                    # up-to-date data while respecting active sensitivities
+                
+                if path:
                     load_lab_totals(mid, active_counters=active_flags)
-
+                    
                     counter_rates = load_last_lab_counters(mid)
                     capacity_rate = load_last_lab_objects(mid)
 
+                    # Calculate object counts (these will be displayed)
                     reject_count = sum(
                         rate for rate, active in zip(counter_rates, active_flags) if active
                     ) * 60
                     capacity_count = capacity_rate * 60
                     accepts_count = max(0, capacity_count - reject_count)
-                    total_capacity = convert_capacity_from_lbs(tot_cap_lbs, weight_pref)
-                    accepts = convert_capacity_from_lbs(acc_lbs, weight_pref)
-                    rejects = convert_capacity_from_lbs(rej_lbs, weight_pref)
+                    
+                    # Calculate weights FROM these exact counts (same as report does)
+                    LAB_WEIGHT_MULTIPLIER = 1 / 1800
+                    total_capacity_lbs = capacity_count * LAB_WEIGHT_MULTIPLIER
+                    accepts_lbs = accepts_count * LAB_WEIGHT_MULTIPLIER
+                    rejects_lbs = reject_count * LAB_WEIGHT_MULTIPLIER
+                    
+                    # Convert to user's preferred units
+                    total_capacity = convert_capacity_from_lbs(total_capacity_lbs, weight_pref)
+                    accepts = convert_capacity_from_lbs(accepts_lbs, weight_pref)
+                    rejects = convert_capacity_from_lbs(rejects_lbs, weight_pref)
+                    
+                    print(f"[RECALC] counts: cap={capacity_count}, acc={accepts_count}, rej={reject_count}")
+                    print(f"[RECALC] weights: cap={total_capacity:.2f}, acc={accepts:.2f}, rej={rejects:.2f}")
 
                     production_data = {
                         "capacity": total_capacity,
                         "accepts": accepts,
                         "rejects": rejects,
                     }
+                    
+                    # Cache the counts AND the calculated weights
+                    _lab_production_cache[mid] = {
+                        "mtime": mtime,
+                        "size": size,
+                        "production_data": production_data,
+                        "capacity_count": capacity_count,
+                        "accepts_count": accepts_count,
+                        "reject_count": reject_count,
+                    }
                 else:
-                    # No existing lab log yet. Use zeroed placeholders so the
-                    # dashboard doesn't display stale live values when switching
-                    # to lab mode.
+                    # No existing lab log yet
                     total_capacity = accepts = rejects = 0
                     capacity_count = accepts_count = reject_count = 0
-                    production_data = {"capacity": 0, "accepts": 0, "rejects": 0}
 
-                _lab_production_cache[mid] = {
-                    "mtime": mtime,
-                    "size": size,
-                    "production_data": production_data,
-                    "capacity_count": capacity_count,
-                    "accepts_count": accepts_count,
-                    "reject_count": reject_count,
+            # Create production_data if not already created (for cache case)
+            if 'production_data' not in locals():
+                production_data = {
+                    "capacity": total_capacity,
+                    "accepts": accepts,
+                    "rejects": rejects,
                 }
 
         elif mode == "demo":
@@ -5999,7 +6099,22 @@ def _register_callbacks_impl(app):
 
         _debug(f"[LAB TEST DEBUG] update_lab_state triggers={triggers} selected={trigger}")
 
-        active_machine_id = active_machine_data.get("machine_id") if active_machine_data else None
+        store_machine_id = active_machine_data.get("machine_id") if active_machine_data else None
+        if store_machine_id is not None:
+            active_machine_id_to_use = store_machine_id
+        else:
+            global active_machine_id
+            active_machine_id_to_use = active_machine_id
+            print(f"[DEBUG] Store empty, using global fallback: {active_machine_id}")
+
+        # Then use active_machine_id_to_use for all the feeder logic
+        if (
+            start_mode == "feeder"
+            and active_machine_id_to_use is not None  # Now uses fallback
+            and active_machine_id_to_use in machine_connections
+            and machine_connections[active_machine_id_to_use].get("connected", False)
+        ):
+            tags = machine_connections[active_machine_id_to_use]["tags"]
         FEEDERS_SWITCH_TAG = "Status.Feeders.MainSwitchIsOn"
         main_switch_on = False
         if (
@@ -6424,8 +6539,8 @@ def _register_callbacks_impl(app):
         return {"mode": mode}, slider_value
 
     @app.callback(Output("app-mode-tracker", "data"), Input("app-mode", "data"))
-    def _track_app_mode(data):
-        """Synchronize ``current_app_mode`` with the ``app-mode`` store."""
+    def _track_app_mode_fixed(data):
+        """Synchronize current_app_mode with the app-mode store - FIXED VERSION"""
         from EnpresorOPCDataViewBeforeRestructureLegacy import (
             current_app_mode,
             set_current_app_mode,
@@ -6435,12 +6550,15 @@ def _register_callbacks_impl(app):
             new_mode = data["mode"]
             if new_mode != current_app_mode:
                 set_current_app_mode(new_mode)
+                
                 if new_mode == "lab":
-                    print("[LAB TEST] Lab mode activated - pausing background threads", flush=True)
-                    pause_background_processes()
+                    print("[LAB TEST] Lab mode activated - keeping OPC updates running", flush=True)
+                    # DON'T pause background processes - we need tag updates for feeder auto-start!
+                    # pause_background_processes()  # REMOVE THIS LINE
                 else:
-                    print("[LAB TEST] Exiting lab mode - resuming background threads", flush=True)
-                    resume_background_processes()
+                    print("[LAB TEST] Exiting lab mode - ensuring background threads running", flush=True)
+                    resume_background_processes()  # Make sure they're running when exiting lab
+                    
         return dash.no_update
 
     @app.callback(
