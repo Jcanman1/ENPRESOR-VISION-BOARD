@@ -2808,7 +2808,8 @@ settings_modal = dbc.Modal([
                                   value=email_settings.get('email_enabled', False),
                                   className="medium",
                                   label=tr("enabled_label", _initial_lang),
-                                  style={"transform": "scale(1.2)", "margin-left": "0.5rem"},
+                                  style={"transform": "scale(1.4)", "margin-left": "0.5rem"},
+
                               ),
                               width=2,
                           ),
