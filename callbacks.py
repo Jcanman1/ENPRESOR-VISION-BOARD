@@ -3821,15 +3821,8 @@ def _register_callbacks_impl(app):
           # only run when we’re in the “main” dashboard
         if which != "main":
             raise PreventUpdate
-        # CRITICAL: Check if we actually have a connected machine and valid app_state
-        if not app_state_data.get("connected", False):
-            #logger.debug("No connected machine - preventing section update")
-            raise PreventUpdate
-        
-        if not app_state.client or not app_state.tags:
-            #logger.debug("No valid client or tags - preventing section update")
-            raise PreventUpdate
-            # or return [no_update, no_update]
+        if not isinstance(app_state_data, dict):
+            app_state_data = {}
         # Tag definitions
         PRESET_NUMBER_TAG = "Status.Info.PresetNumber"
         PRESET_NAME_TAG = "Status.Info.PresetName"
@@ -4163,11 +4156,19 @@ def _register_callbacks_impl(app):
     )
     def update_section_3_2(n_intervals, which, lang, app_state_data, app_mode):
         """Update section 3-2 with machine information and Satake logo"""
-    
+
         # only run when we’re in the “main” dashboard
         if which != "main":
             raise PreventUpdate
             # or return [no_update, no_update]
+
+        # ``app_state_data`` can be ``None`` when no machine has ever been
+        # connected.  Accessing ``.get`` on ``None`` would raise an AttributeError
+        # which prevented Section 3 from rendering in demo mode.  Normalize the
+        # value to an empty dict so downstream logic can safely call ``.get``
+        # regardless of connection state.
+        if not isinstance(app_state_data, dict):
+            app_state_data = {}
     
         # Tag definitions for easy updating
         SERIAL_TAG = "Status.Info.Serial"
