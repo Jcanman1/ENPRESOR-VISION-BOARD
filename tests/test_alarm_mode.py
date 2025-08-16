@@ -25,7 +25,7 @@ def test_update_alarms_uses_display_mode(monkeypatch):
         for i in range(1, 13)
     }
     callbacks.threshold_settings["counter_mode"] = "percent"
-    callbacks.threshold_settings["email_enabled"] = False
+    callbacks.email_settings["email_enabled"] = False
 
     result = func.__wrapped__(0, {})
 
