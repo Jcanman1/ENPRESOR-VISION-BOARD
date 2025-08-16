@@ -292,14 +292,12 @@ DEFAULT_THRESHOLD_SETTINGS = {
     } for i in range(1, 13)
 }
 
-# Add the email_enabled setting to the default settings
-DEFAULT_THRESHOLD_SETTINGS['email_enabled'] = False
+# Include the counter display mode in the default settings
+DEFAULT_THRESHOLD_SETTINGS['counter_mode'] = 'counts'
 
 # Initialize threshold_settings with a copy of the defaults
 threshold_settings = DEFAULT_THRESHOLD_SETTINGS.copy()
-DEFAULT_THRESHOLD_SETTINGS['email_address'] = ''
-DEFAULT_THRESHOLD_SETTINGS['email_minutes'] = 2  # Default 2 minutes
-DEFAULT_THRESHOLD_SETTINGS['counter_mode'] = 'counts'
+
 threshold_violation_state = {
     i: {
         'is_violating': False,
@@ -352,6 +350,11 @@ DEFAULT_EMAIL_SETTINGS = {
     "smtp_username": "",
     "smtp_password": "",
     "from_address": "jcantu@satake-usa.com",
+    "email_address": "",
+    "email_minutes": 2,
+    "email_enabled": False,
+    "logging_interval": 24,
+    "automated_report_enabled": False,
 }
 
 
@@ -367,6 +370,11 @@ def load_email_settings():
                     "smtp_username": data.get("smtp_username", ""),
                     "smtp_password": data.get("smtp_password", ""),
                     "from_address": data.get("from_address", DEFAULT_EMAIL_SETTINGS["from_address"]),
+                    "email_address": data.get("email_address", DEFAULT_EMAIL_SETTINGS["email_address"]),
+                    "email_minutes": data.get("email_minutes", DEFAULT_EMAIL_SETTINGS["email_minutes"]),
+                    "email_enabled": data.get("email_enabled", DEFAULT_EMAIL_SETTINGS["email_enabled"]),
+                    "logging_interval": data.get("logging_interval", DEFAULT_EMAIL_SETTINGS["logging_interval"]),
+                    "automated_report_enabled": data.get("automated_report_enabled", DEFAULT_EMAIL_SETTINGS["automated_report_enabled"]),
                 }
     except Exception as e:
         logger.error(f"Error loading email settings: {e}")
@@ -392,14 +400,15 @@ email_settings = load_email_settings()
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.application import MIMEApplication
 
 def send_threshold_email(sensitivity_num, is_high=True):
     """Send an email notification for a threshold violation"""
     try:
         # Get email settings
-        email_address = threshold_settings.get('email_address', '')
-        if not email_address:
-            logger.warning("No email address configured for notifications")
+        email_address = email_settings.get('email_address', '')
+        if not email_address or not email_settings.get('email_enabled'):
+            logger.warning("Email notifications are disabled or missing address")
             return False
         
         # Create the email
@@ -432,9 +441,45 @@ def send_threshold_email(sensitivity_num, is_high=True):
         server.sendmail(from_addr, email_address, text)
         server.quit()
         return True
-        
+
     except Exception as e:
         logger.error(f"Error sending threshold email: {e}")
+        return False
+
+
+def send_report_email(report_path: str) -> bool:
+    """Email a generated report PDF using configured SMTP settings."""
+    try:
+        email_address = email_settings.get('email_address', '')
+        if not email_address:
+            logger.warning("No notification email configured")
+            return False
+
+        msg = MIMEMultipart()
+        msg['Subject'] = "Enpresor Automated Report"
+        msg['From'] = email_settings.get('from_address', DEFAULT_EMAIL_SETTINGS['from_address'])
+        msg['To'] = email_address
+        msg.attach(MIMEText("Please find the attached report.", 'plain'))
+
+        with open(report_path, 'rb') as f:
+            part = MIMEApplication(f.read(), Name=os.path.basename(report_path))
+        part['Content-Disposition'] = f'attachment; filename="{os.path.basename(report_path)}"'
+        msg.attach(part)
+
+        server_addr = email_settings.get('smtp_server', DEFAULT_EMAIL_SETTINGS['smtp_server'])
+        port = email_settings.get('smtp_port', DEFAULT_EMAIL_SETTINGS['smtp_port'])
+        server = smtplib.SMTP(server_addr, port)
+        server.starttls()
+        username = email_settings.get('smtp_username')
+        password = email_settings.get('smtp_password')
+        if username and password:
+            server.login(username, password)
+
+        server.sendmail(msg['From'], email_address, msg.as_string())
+        server.quit()
+        return True
+    except Exception as e:
+        logger.error(f"Error sending report email: {e}")
         return False
 
 # Then define the load function
@@ -452,7 +497,7 @@ def load_threshold_settings():
                 # Convert string keys back to integers for internal use (except special keys)
                 settings = {}
                 for key, value in loaded_settings.items():
-                    if key in ['email_enabled', 'email_address', 'email_minutes', 'counter_mode']:
+                    if key in ['counter_mode']:
                         settings[key] = value
                     else:
                         settings[int(key)] = value
@@ -1486,53 +1531,6 @@ def create_threshold_settings_form(lang=None, mode=None):
         form_rows.append(
             dbc.Row(row_children, className="mb-2")
         )
-    
-    # Add email notifications with email and minutes inputs
-    form_rows.append(
-        dbc.Row([
-            # Label
-            dbc.Col(html.Div(f"{tr('notification_label', lang)}:", className="fw-bold"), width=2),
-            
-            # Email Input
-            dbc.Col(
-                dbc.Input(
-                    id="threshold-email-address",
-                    type="email",
-                    placeholder="Email address",
-                    value=threshold_settings.get('email_address', ''),
-                    size="sm"
-                ),
-                width=3
-            ),
-            
-            # Minutes Input
-            dbc.Col(
-                dbc.InputGroup([
-                    dbc.Input(
-                        id="threshold-email-minutes",
-                        type="number",
-                        min=1,
-                        max=60,
-                        step=1,
-                        value=threshold_settings.get('email_minutes', 2),
-                        size="sm"
-                    ),
-                    dbc.InputGroupText("min", className="p-1 small"),
-                ], size="sm"),
-                width=1
-            ),
-            
-            # Enable Switch
-            dbc.Col(
-                dbc.Switch(
-                    id="threshold-email-enabled",
-                    value=threshold_settings.get('email_enabled', False),
-                    className="medium"
-                ),
-                width=2
-            ),
-        ], className="mt-3 mb-2")  # Added margin top to separate from sensitivity rows
-    )
     
     return form_rows
 
@@ -2772,15 +2770,78 @@ settings_modal = dbc.Modal([
                         dbc.Col(dbc.Label(tr("password_label"), id="smtp-password-label"), width=4),
                         dbc.Col(dbc.Input(id="smtp-password-input", type="password", value=email_settings.get("smtp_password", "")), width=8),
                     ], className="mb-3"),
-                    dbc.Row([
-                        dbc.Col(dbc.Label(tr("from_address_label"), id="smtp-from-label"), width=4),
-                        dbc.Col(dbc.Input(id="smtp-sender-input", type="email", value=email_settings.get("from_address", "")), width=8),
-                    ], className="mb-3"),
-                    dbc.Button(
-                        tr("save_email_settings"),
-                        id="save-email-settings",
-                        color="success",
-                        className="mt-3 w-100"
+                      dbc.Row([
+                          dbc.Col(dbc.Label(tr("from_address_label"), id="smtp-from-label"), width=4),
+                          dbc.Col(dbc.Input(id="smtp-sender-input", type="email", value=email_settings.get("from_address", "")), width=8),
+                      ], className="mb-3"),
+                      dbc.Row([
+                          dbc.Col(html.Div(f"{tr('notification_label', _initial_lang)}:", className="fw-bold"), width=2),
+                          dbc.Col(
+                              dbc.Input(
+                                  id="threshold-email-address",
+                                  type="email",
+                                  placeholder="Email address",
+                                  value=email_settings.get('email_address', ''),
+                                  size="sm",
+                              ),
+                              width=3,
+                          ),
+                          dbc.Col(
+                              dbc.InputGroup([
+                                  dbc.Input(
+                                      id="threshold-email-minutes",
+                                      type="number",
+                                      min=1,
+                                      max=60,
+                                      step=1,
+                                      value=email_settings.get('email_minutes', 2),
+                                      size="sm",
+                                  ),
+                                  dbc.InputGroupText("min", className="p-1 small"),
+                              ], size="sm"),
+                              width=1,
+                          ),
+                          dbc.Col(
+                              dbc.Switch(
+                                  id="threshold-email-enabled",
+                                  value=email_settings.get('email_enabled', False),
+                                  className="medium",
+                              ),
+                              width=2,
+                          ),
+                      ], className="mb-3"),
+                      dbc.Row([
+                          dbc.Col(dbc.Label(tr("logging_interval_label", _initial_lang), id="logging-interval-label"), width=4),
+                          dbc.Col(
+                              dbc.Select(
+                                  id="logging-interval-select",
+                                  options=[
+                                      {"label": "24hr", "value": 24},
+                                      {"label": "48hr", "value": 48},
+                                      {"label": "72hr", "value": 72},
+                                  ],
+                                  value=email_settings.get('logging_interval', 24),
+                                  size="sm",
+                              ),
+                              width=4,
+                          ),
+                      ], className="mb-3"),
+                      dbc.Row([
+                          dbc.Col(dbc.Label(tr("auto_report_label", _initial_lang), id="auto-report-label"), width=4),
+                          dbc.Col(
+                              dbc.Switch(
+                                  id="enable-automated-report-switch",
+                                  value=email_settings.get('automated_report_enabled', False),
+                                  className="medium",
+                              ),
+                              width=2,
+                          ),
+                      ], className="mb-3"),
+                      dbc.Button(
+                          tr("save_email_settings"),
+                          id="save-email-settings",
+                          color="success",
+                          className="mt-3 w-100"
                     ),
                     html.Div(id="email-settings-save-status", className="text-success mt-2"),
                 ])

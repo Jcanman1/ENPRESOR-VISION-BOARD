@@ -8,7 +8,7 @@ can be imported by both the legacy script and the refactored app.
 
 import importlib
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from collections import defaultdict
 import os
 import glob
@@ -20,6 +20,8 @@ import re
 import threading
 import random
 
+
+last_report_time = None
 def _debug(message: str) -> None:
     """Helper to print debug messages and persist them to a file."""
     try:
@@ -1314,20 +1316,32 @@ def _register_callbacks_impl(app):
          State("smtp-port-input", "value"),
          State("smtp-username-input", "value"),
          State("smtp-password-input", "value"),
-         State("smtp-sender-input", "value")],
+         State("smtp-sender-input", "value"),
+         State("threshold-email-address", "value"),
+         State("threshold-email-minutes", "value"),
+         State("threshold-email-enabled", "value"),
+         State("logging-interval-select", "value"),
+         State("enable-automated-report-switch", "value")],
         prevent_initial_call=True
     )
-    def save_email_settings_callback(n_clicks, server, port, username, password, sender):
+    def save_email_settings_callback(n_clicks, server, port, username, password, sender,
+                                     notif_address, notif_minutes, notif_enabled,
+                                     log_interval, auto_report):
         """Save SMTP email credentials from the settings modal."""
         if not n_clicks:
             return dash.no_update, dash.no_update
-    
+
         settings = {
             "smtp_server": server or DEFAULT_EMAIL_SETTINGS["smtp_server"],
             "smtp_port": int(port) if port else DEFAULT_EMAIL_SETTINGS["smtp_port"],
             "smtp_username": username or "",
             "smtp_password": password or "",
             "from_address": sender or DEFAULT_EMAIL_SETTINGS["from_address"],
+            "email_address": notif_address or DEFAULT_EMAIL_SETTINGS["email_address"],
+            "email_minutes": int(notif_minutes) if notif_minutes else DEFAULT_EMAIL_SETTINGS["email_minutes"],
+            "email_enabled": bool(notif_enabled),
+            "logging_interval": int(log_interval) if log_interval else DEFAULT_EMAIL_SETTINGS["logging_interval"],
+            "automated_report_enabled": bool(auto_report),
         }
     
         success = save_email_settings(settings)
@@ -4893,8 +4907,8 @@ def _register_callbacks_impl(app):
                 violation_state = threshold_violation_state[counter_num]
                 
                 # If email notifications are enabled
-                if threshold_settings.get('email_enabled', False):
-                    email_minutes = threshold_settings.get('email_minutes', 2)
+                if email_settings.get('email_enabled', False):
+                    email_minutes = email_settings.get('email_minutes', 2)
                     
                     # If now violating but wasn't before
                     if violation and not violation_state['is_violating']:
@@ -6571,15 +6585,12 @@ def _register_callbacks_impl(app):
          State({"type": "threshold-max-enabled", "index": ALL}, "value"),
          State({"type": "threshold-min-value", "index": ALL}, "value"),
          State({"type": "threshold-max-value", "index": ALL}, "value"),
-         State("threshold-email-address", "value"),
-         State("threshold-email-minutes", "value"),
-         State("threshold-email-enabled", "value"),
          State("counter-view-mode", "data")],
         prevent_initial_call=True
     )
     def toggle_threshold_modal(open_clicks, close_clicks, save_clicks, is_open,
                               min_enabled_values, max_enabled_values, min_values, max_values,
-                              email_address, email_minutes, email_enabled, mode):
+                              mode):
         """Handle opening/closing the threshold settings modal and saving settings"""
         global threshold_settings
         
@@ -6618,10 +6629,6 @@ def _register_callbacks_impl(app):
                         'max_value': float(max_values[i])
                     }
                 
-                # Save the email settings
-                threshold_settings['email_enabled'] = email_enabled
-                threshold_settings['email_address'] = email_address
-                threshold_settings['email_minutes'] = int(email_minutes) if email_minutes is not None else 2
                 threshold_settings['counter_mode'] = mode
                 
                 # Save settings to file
@@ -6765,7 +6772,12 @@ def _register_callbacks_impl(app):
                     for i in range(1, 13):
                         metrics[f"counter_{i}"] = counters[i-1] if i-1 < len(counters) else 0
     
-                    append_metrics(metrics, machine_id=str(m.get("id")), mode="Demo")
+                    append_metrics(
+                        metrics,
+                        machine_id=str(m.get("id")),
+                        mode="Demo",
+                        history_hours=email_settings.get("logging_interval", 24),
+                    )
     
             return dash.no_update
 
@@ -6869,8 +6881,34 @@ def _register_callbacks_impl(app):
                     machine_id=str(machine_id),
                     filename=lab_filename,
                     mode=log_mode,
+                    history_hours=email_settings.get("logging_interval", 24),
                 )
             else:
-                append_metrics(metrics, machine_id=str(machine_id), mode=log_mode)
-    
+                append_metrics(
+                    metrics,
+                    machine_id=str(machine_id),
+                    mode=log_mode,
+                    history_hours=email_settings.get("logging_interval", 24),
+                )
+
+        # Automated report generation
+        if email_settings.get("automated_report_enabled"):
+            global last_report_time
+            now = datetime.now()
+            hours = email_settings.get("logging_interval", 24)
+            if not last_report_time or now - last_report_time >= timedelta(hours=hours):
+                try:
+                    data = generate_report.fetch_last_24h_metrics()
+                    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+                        generate_report.build_report(
+                            data,
+                            tmp.name,
+                            export_dir=generate_report.METRIC_EXPORT_DIR,
+                        )
+                        send_report_email(tmp.name)
+                except Exception as exc:
+                    logger.error(f"Automated report failed: {exc}")
+                finally:
+                    last_report_time = now
+
         return dash.no_update

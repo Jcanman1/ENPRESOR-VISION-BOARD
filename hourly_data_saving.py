@@ -85,11 +85,13 @@ def get_historical_data(timeframe: str = "24h", export_dir: str = EXPORT_DIR,
 def append_metrics(metrics: dict, machine_id: str,
                    export_dir: str = EXPORT_DIR,
                    filename: str = METRICS_FILENAME,
-                   mode: Optional[str] = None):
+                   mode: Optional[str] = None,
+                   history_hours: int = 24):
     """Append a row of metrics for a machine and purge old entries.
 
     A ``mode`` column is added so callers can record whether values were
-    captured from a live connection or generated while in demo mode.
+    captured from a live connection or generated while in demo mode. The
+    ``history_hours`` parameter controls how much recent history to retain.
     """
     machine_dir = os.path.join(export_dir, str(machine_id))
     os.makedirs(machine_dir, exist_ok=True)
@@ -124,7 +126,7 @@ def append_metrics(metrics: dict, machine_id: str,
     last = _last_purge_times.get(key, 0)
     if now - last >= PURGE_INTERVAL_SECONDS:
 
-        purge_old_entries(export_dir, machine_id, filename)
+        purge_old_entries(export_dir, machine_id, filename, hours=history_hours)
 
         _last_purge_times[key] = now
 
