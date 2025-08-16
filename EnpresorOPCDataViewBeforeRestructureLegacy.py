@@ -2796,10 +2796,11 @@ settings_modal = dbc.Modal([
                                       step=1,
                                       value=email_settings.get('email_minutes', 2),
                                       size="sm",
+                                      style={"width": "5rem"},
                                   ),
                                   dbc.InputGroupText("min", className="p-1 small"),
                               ], size="sm"),
-                              width=1,
+                              width=2,
                           ),
                           dbc.Col(
                               dbc.Switch(
@@ -2807,7 +2808,8 @@ settings_modal = dbc.Modal([
                                   value=email_settings.get('email_enabled', False),
                                   className="medium",
                                   label=tr("enabled_label", _initial_lang),
-                                  style={"transform": "scale(1.2)"},
+                                  style={"transform": "scale(1.4)", "margin-left": "0.5rem"},
+
                               ),
                               width=2,
                           ),
