@@ -10,7 +10,7 @@ SetupIconFile=EnpresorDataIcon.ico
 Source: "dist\EnpresorOPCDataViewBeforeRestructureLegacy\*"; DestDir: "{app}"; Flags: recursesubdirs
 Source: "EnpresorDataIcon.ico"; DestDir: "{app}"
 Source: "Audiowide-Regular.ttf"; DestDir: "{app}\assets"
-Source: "NotoSansJP-Regular.otf"; DestDir: "{app}\assets"
+Source: "assets/NotoSansJP-Regular.ttf"; DestDir: "{app}\assets"
 
 [Icons]
 Name: "{commondesktop}\Enpresor OPC Viewer"; Filename: "{app}\EnpresorOPCDataViewBeforeRestructureLegacy.exe"; WorkingDir: "{app}"; IconFilename: "{app}\EnpresorDataIcon.ico"
